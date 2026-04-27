@@ -122,6 +122,7 @@ print the planned commands before using `Install Selected`.
 Skipped and pending components remain visible in the panel and can be selected
 for installation later.
 
+Install component labels and defaults are defined in `install-items.json`.
 Install state is written to `state/install.json` by default. Override the state
 directory when needed:
 

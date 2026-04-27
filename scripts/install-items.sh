@@ -19,14 +19,20 @@ run_step() {
   fi
 }
 
+record_result() {
+  local item="$1"
+  local result="$2"
+
+  echo "GRIDRUNNER_INSTALL_RESULT item=$item status=$result"
+}
+
 install_apt() {
   if ! command -v apt-get >/dev/null 2>&1; then
-    echo "apt-get not found; skipping package install: $*"
-    return 0
+    echo "apt-get not found; package install unavailable: $*"
+    return 1
   fi
 
-  run_step sudo apt-get update
-  run_step sudo apt-get install -y "$@"
+  run_step sudo apt-get update && run_step sudo apt-get install -y "$@"
 }
 
 install_base_tools() {
@@ -97,4 +103,13 @@ for item in "$@"; do
       exit 2
       ;;
   esac
+
+  result=$?
+  if [ "$MODE" = "dry-run" ]; then
+    record_result "$item" planned
+  elif [ "$result" -eq 0 ]; then
+    record_result "$item" installed
+  else
+    record_result "$item" failed
+  fi
 done

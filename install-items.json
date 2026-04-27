@@ -1,0 +1,44 @@
+[
+  {
+    "id": "base-tools",
+    "label": "Base Tools",
+    "description": "git, curl, jq, tmux, and htop.",
+    "default": true
+  },
+  {
+    "id": "web-runtime",
+    "label": "Web Runtime",
+    "description": "Python runtime, venv support, and pip.",
+    "default": true
+  },
+  {
+    "id": "operator-dirs",
+    "label": "Operator Directories",
+    "description": "Create data, logs, state, radio, and SDR directories.",
+    "default": true
+  },
+  {
+    "id": "wifi-tools",
+    "label": "Wi-Fi Fallback",
+    "description": "NetworkManager tooling for known-network and hotspot fallback.",
+    "default": true
+  },
+  {
+    "id": "radio-tools",
+    "label": "SDR Tools",
+    "description": "RTL-SDR and SoapySDR command-line utilities.",
+    "default": false
+  },
+  {
+    "id": "adsb-tools",
+    "label": "ADS-B Tools",
+    "description": "readsb runtime package where available.",
+    "default": false
+  },
+  {
+    "id": "ham-tools",
+    "label": "Ham Tools",
+    "description": "FLRig and basic packet radio utilities where available.",
+    "default": false
+  }
+]
