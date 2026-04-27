@@ -1,0 +1,23 @@
+.codex
+
+# Python/runtime artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# GRIDRUNNER runtime data
+data/backups/
+logs/
+state/
+*.log
+
+# Local operator/system config snapshots
+*.tar.gz
+*.tmp
