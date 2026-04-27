@@ -2,10 +2,19 @@
 echo "=== GRIDRUNNER HEALTH ==="
 date
 echo
-hostnamectl
+if [ "${GRIDRUNNER_SHOW_IDENTIFIERS:-0}" = "1" ]; then
+  hostnamectl
+else
+  echo "--- Host ---"
+  uname -srm
+fi
 echo
 echo "--- Network ---"
-nmcli -t -f DEVICE,STATE,CONNECTION dev
+if [ "${GRIDRUNNER_SHOW_IDENTIFIERS:-0}" = "1" ]; then
+  nmcli -t -f DEVICE,STATE,CONNECTION dev
+else
+  nmcli -t -f DEVICE,STATE dev
+fi
 echo
 echo "--- Services ---"
 systemctl --no-pager --failed

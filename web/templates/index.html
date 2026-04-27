@@ -29,13 +29,76 @@
     button:hover {
       background: #1f2437;
     }
+    .secondary {
+      color: #bae6fd;
+    }
     .danger { color: #fb7185; }
+    .install-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+    .install-item {
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 12px;
+      background: #0d1021;
+      border: 1px solid #1f2437;
+      border-radius: 8px;
+    }
+    .install-item input {
+      margin-top: 3px;
+    }
+    .install-item strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+    .install-item span {
+      color: #cbd5e1;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .status {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .status-installed {
+      border-color: #22c55e;
+      color: #bbf7d0;
+    }
+    .status-skipped {
+      border-color: #f59e0b;
+      color: #fde68a;
+    }
+    .status-pending {
+      border-color: #38bdf8;
+      color: #bae6fd;
+    }
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
     .panel {
       margin-top: 16px;
       padding: 14px;
       background: #16192b;
       border: 1px solid #1f2437;
       border-radius: 14px;
+    }
+    .warning {
+      border-color: #fb7185;
+      color: #fecdd3;
     }
     pre {
       white-space: pre-wrap;
@@ -46,13 +109,52 @@
 </head>
 <body>
   <h1>GRIDRUNNER</h1>
-  <p>operator: ghost · status: active</p>
+  <p>operator: {{ operator_user }} · status: active</p>
+  {% if not auth_enabled %}
+  <div class="panel warning">
+    Web password is not configured. Set GRIDRUNNER_WEB_PASSWORD before exposing this panel beyond a trusted local device.
+  </div>
+  {% endif %}
   <p>
-  <a href="http://gridrunner.local/tar1090/" target="_blank">✈ Open ADS-B Map</a>
+  <a href="{{ adsb_map_url }}" target="_blank">Open ADS-B Map</a>
 </p>
+
+  <div class="panel">
+    <h2>Initial Install</h2>
+    {% set selected_items = install_state.get("selected", []) %}
+    {% set has_install_state = install_state.get("last_run_at") %}
+    {% if has_install_state %}
+    <p>last action: {{ install_state.get("mode") }} · {{ install_state.get("last_run_at") }}</p>
+    {% endif %}
+    {% if install_state.get("skipped") or install_state.get("pending") %}
+    <p>Items marked skipped or pending remain available here and can be installed later.</p>
+    {% endif %}
+    <form method="post" action="/install">
+      <div class="install-list">
+        {% for item in install_items %}
+        {% set item_status = install_statuses[item.id].status %}
+        {% set is_selected = item_status != "installed" if has_install_state else item.default %}
+        <label class="install-item">
+          <input type="checkbox" name="items" value="{{ item.id }}" {% if is_selected %}checked{% endif %}>
+          <span>
+            <strong>{{ item.label }}</strong>
+            <span>{{ item.description }}</span>
+            <span class="status status-{{ item_status }}">{{ item_status }}</span>
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="actions">
+        <button class="secondary" type="submit" name="mode" value="dry-run">Preview</button>
+        <button type="submit" name="mode" value="apply">Install Selected</button>
+        <button class="danger" formaction="/install/skip" type="submit">Save Without Installing</button>
+      </div>
+    </form>
+  </div>
+
   <div class="grid">
     <form method="post" action="/run"><input type="hidden" name="action" value="health"><button>Health</button></form>
-    <form method="post" action="/run"><input type="hidden" name="action" value="ghostevent"><button>Run Events</button></form>
+    <form method="post" action="/run"><input type="hidden" name="action" value="eventscan"><button>Run Events</button></form>
     <form method="post" action="/run"><input type="hidden" name="action" value="inventory"><button>Radio Inventory</button></form>
     <form method="post" action="/run"><input type="hidden" name="action" value="hamcheck"><button>Ham Check</button></form>
     <form method="post" action="/run"><input type="hidden" name="action" value="backup"><button>Backup</button></form>
@@ -61,7 +163,7 @@
   </div>
 
   <div class="panel">
-    <h2>Recent Ghost Events</h2>
+    <h2>Recent Events</h2>
     <pre>{{ events }}</pre>
   </div>
 

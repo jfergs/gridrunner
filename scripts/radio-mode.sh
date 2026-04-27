@@ -2,11 +2,11 @@
 
 case "$1" in
   adsb)
-    echo "ghost: enabling ADS-B mode"
+    echo "operator: enabling ADS-B mode"
     sudo systemctl start readsb
     ;;
   sdr)
-    echo "ghost: enabling SDR exploration mode"
+    echo "operator: enabling SDR exploration mode"
     sudo systemctl stop readsb
     ;;
   status)

@@ -4,16 +4,20 @@
 
 GRIDRUNNER is a Raspberry Pi 5 cyberdeck / portable sensing and radio-comms node.
 
-Operator user: `ghost`  
-Hostname: `gridrunner`  
-Primary web UI: `http://gridrunner.local:8088`  
-ADS-B map: `http://gridrunner.local/tar1090/`
+Operator user: configured by `GRIDRUNNER_OPERATOR_USER`  
+Hostname: configured by `GRIDRUNNER_DEVICE_HOSTNAME`  
+Primary web UI: `http://<device-hostname>.local:8088`  
+ADS-B map: `http://<device-hostname>.local/tar1090/`
+
+Health and Wi-Fi scripts hide hostname and Wi-Fi connection names unless
+`GRIDRUNNER_SHOW_IDENTIFIERS=1` is set in a trusted environment.
 
 ## System goals
 
 GRIDRUNNER should provide:
 
 - Local web control panel for iPhone/laptop
+- Initial install pane with selectable install/skip components
 - Script buttons for health, backup, inventory, SDR/ADS-B mode switching
 - ADS-B aircraft monitoring using readsb + tar1090
 - SDR exploration mode using SDR++
@@ -24,14 +28,14 @@ GRIDRUNNER should provide:
 ## Existing important paths
 
 ```text
-/home/ghost/gridrunner/
+/home/<operator-user>/gridrunner/
 ├── web/
 │   ├── app.py
 │   ├── templates/index.html
 │   └── .venv/
 ├── scripts/
-│   ├── ghost-health.sh
-│   ├── ghost-backup.sh
+│   ├── system-health.sh
+│   ├── system-backup.sh
 │   ├── radio-inventory.sh
 │   ├── radio-mode.sh
 │   └── ham-check.sh
@@ -41,11 +45,11 @@ GRIDRUNNER should provide:
 ├── radio/
 └── sdr/
 
-/home/ghost/
-├── ghost-events.sh
-├── ghost-events.log
-├── ghost-ble.sh
-├── ghost-presence.sh
+/home/<operator-user>/
+├── operator-events.sh
+├── operator-events.log
+├── operator-ble.sh
+├── operator-presence.sh
 ├── wifi-fallback.sh
 └── .tmux-gridrunner.sh
 ```

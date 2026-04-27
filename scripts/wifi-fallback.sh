@@ -2,12 +2,13 @@
 set -u
 
 IFACE="${IFACE:-wlan0}"
-HOTSPOT="${HOTSPOT:-GRIDRUNNER-HOTSPOT}"
-LOG="${LOG:-$HOME/ghost-events.log}"
+HOTSPOT="${HOTSPOT:-DEVICE-HOTSPOT}"
+OPERATOR_LABEL="${OPERATOR_LABEL:-operator}"
+LOG="${LOG:-$HOME/operator-events.log}"
 SCAN_SETTLE_SECONDS="${SCAN_SETTLE_SECONDS:-5}"
 
 log() {
-  echo "$(date '+%Y-%m-%d %H:%M:%S') ghost: wifi: $1" | tee -a "$LOG"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') $OPERATOR_LABEL: wifi: $1" | tee -a "$LOG"
 }
 
 nm() {
@@ -85,7 +86,11 @@ join_known_network() {
     [ -n "$ssid" ] || continue
 
     if ssid_visible "$ssid"; then
-      log "joining known network: $ssid"
+      if [ "${GRIDRUNNER_SHOW_IDENTIFIERS:-0}" = "1" ]; then
+        log "joining known network: $ssid"
+      else
+        log "joining known network"
+      fi
       if [ "$from_hotspot" = "yes" ]; then
         nm connection down "$HOTSPOT" >/dev/null 2>&1 || true
         sleep 2
@@ -93,7 +98,11 @@ join_known_network() {
       if nm connection up "$profile" >/dev/null 2>&1; then
         return 0
       fi
-      log "failed to join known network: $ssid"
+      if [ "${GRIDRUNNER_SHOW_IDENTIFIERS:-0}" = "1" ]; then
+        log "failed to join known network: $ssid"
+      else
+        log "failed to join known network"
+      fi
       if [ "$from_hotspot" = "yes" ]; then
         start_hotspot >/dev/null 2>&1 || true
       fi
@@ -129,23 +138,27 @@ main() {
   current="$(current_connection)"
 
   if [ -n "$current" ] && [ "$current" != "$HOTSPOT" ]; then
-    echo "ghost: wifi connected to $current"
+    if [ "${GRIDRUNNER_SHOW_IDENTIFIERS:-0}" = "1" ]; then
+      echo "$OPERATOR_LABEL: wifi connected to $current"
+    else
+      echo "$OPERATOR_LABEL: wifi connected"
+    fi
     exit 0
   fi
 
   if [ "$current" = "$HOTSPOT" ]; then
-    echo "ghost: hotspot active, scanning for known networks..."
+    echo "$OPERATOR_LABEL: hotspot active, scanning for known networks..."
     scan_wifi
 
     if join_known_network yes; then
       exit 0
     fi
 
-    echo "ghost: no known networks found, staying hotspot"
+    echo "$OPERATOR_LABEL: no known networks found, staying hotspot"
     exit 0
   fi
 
-  echo "ghost: disconnected, scanning known networks..."
+  echo "$OPERATOR_LABEL: disconnected, scanning known networks..."
   scan_wifi
 
   if join_known_network no; then

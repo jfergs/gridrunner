@@ -1,6 +1,8 @@
 #!/bin/bash
-DEST="$HOME/gridrunner/data/backups"
+PROJECT_DIR="${GRIDRUNNER_HOME:-$HOME/gridrunner}"
+DEST="$PROJECT_DIR/data/backups"
 STAMP=$(date '+%Y%m%d-%H%M%S')
+OPERATOR_LABEL="${OPERATOR_LABEL:-operator}"
 mkdir -p "$DEST"
 
 tar -czf "$DEST/gridrunner-config-$STAMP.tar.gz" \
@@ -9,13 +11,13 @@ tar -czf "$DEST/gridrunner-config-$STAMP.tar.gz" \
   ~/.tmux-gridrunner.sh \
   ~/.config/foot \
   ~/.config/labwc \
-  ~/gridrunner \
-  ~/ghost-events.log \
-  ~/ghost-events.sh \
-  ~/ghost-ble.sh \
-  ~/ghost-presence.sh \
+  "$PROJECT_DIR" \
+  ~/operator-events.log \
+  ~/operator-events.sh \
+  ~/operator-ble.sh \
+  ~/operator-presence.sh \
   ~/wifi-fallback.sh \
   2>/dev/null
 
-echo "ghost: backup created:"
+echo "$OPERATOR_LABEL: backup created:"
 ls -lh "$DEST/gridrunner-config-$STAMP.tar.gz"
