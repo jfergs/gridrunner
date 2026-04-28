@@ -11,10 +11,7 @@ OPERATOR_HOME = Path(
     )
 )
 DEVICE_HOSTNAME = os.environ.get("GRIDRUNNER_DEVICE_HOSTNAME", "device")
-ADSB_MAP_URL = os.environ.get(
-    "GRIDRUNNER_ADSB_MAP_URL",
-    f"http://{DEVICE_HOSTNAME}.local/tar1090/",
-)
+ADSB_MAP_URL = os.environ.get("GRIDRUNNER_ADSB_MAP_URL", "")
 EVENTS_LOG = Path(
     os.environ.get(
         "GRIDRUNNER_EVENTS_LOG",

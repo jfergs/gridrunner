@@ -1,10 +1,13 @@
+import re
+import secrets
+
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from auth import require_auth
 from commands import COMMANDS, run_cmd
-from config import ADSB_MAP_URL, EVENTS_LOG, OPERATOR_USER, WEB_DIR, WEB_PASSWORD
+from config import ADSB_MAP_URL, DEVICE_HOSTNAME, EVENTS_LOG, OPERATOR_USER, WEB_DIR, WEB_PASSWORD
 from install import (
     INSTALL_ITEMS,
     install_statuses,
@@ -17,10 +20,23 @@ from install import (
 
 app = FastAPI()
 templates = Jinja2Templates(directory=str(WEB_DIR / "templates"))
+POWER_ACTION_TOKEN = secrets.token_urlsafe(32)
 
 
 def no_store(response: Response):
     response.headers["Cache-Control"] = "no-store"
+
+
+def adsb_map_url(request: Request):
+    if ADSB_MAP_URL:
+        return ADSB_MAP_URL
+
+    hostname = request.url.hostname or f"{DEVICE_HOSTNAME}.local"
+    if not re.fullmatch(r"[A-Za-z0-9.:-]+", hostname):
+        hostname = f"{DEVICE_HOSTNAME}.local"
+    if ":" in hostname and not hostname.startswith("["):
+        hostname = f"[{hostname}]"
+    return f"http://{hostname}/tar1090/"
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -38,7 +54,8 @@ def index(request: Request, _user=Depends(require_auth)):
             "events": events_output,
             "auth_enabled": bool(WEB_PASSWORD),
             "operator_user": OPERATOR_USER,
-            "adsb_map_url": ADSB_MAP_URL,
+            "adsb_map_url": adsb_map_url(request),
+            "power_action_token": POWER_ACTION_TOKEN,
             "install_items": INSTALL_ITEMS,
             "install_state": install_state,
             "install_statuses": install_statuses(install_state),
@@ -80,13 +97,13 @@ def run_action(
 def power_action(
     request: Request,
     action: str = Form(...),
-    confirm: str = Form(""),
+    confirm_token: str = Form(""),
     _user=Depends(require_auth),
 ):
     if action not in {"shutdown", "restart"}:
         output = f"Unknown power action: {action}"
-    elif confirm != action:
-        output = f"Power action not confirmed. Type {action} to continue."
+    elif not secrets.compare_digest(confirm_token, POWER_ACTION_TOKEN):
+        output = "Power action rejected: invalid confirmation token."
     else:
         output = run_cmd(COMMANDS[action])
 

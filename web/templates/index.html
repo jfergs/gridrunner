@@ -31,16 +31,6 @@
       gap: 12px;
       flex-wrap: wrap;
     }
-    .map-link {
-      min-height: 48px;
-      display: inline-flex;
-      align-items: center;
-      padding: 0 16px;
-      background: #16192b;
-      border: 1px solid #1f2437;
-      border-radius: 8px;
-      text-decoration: none;
-    }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -59,6 +49,24 @@
       touch-action: manipulation;
     }
     button:hover {
+      background: #1f2437;
+    }
+    .control-link {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      border-radius: 8px;
+      border: 1px solid #1f2437;
+      background: #16192b;
+      color: #f3e8ff;
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: none;
+    }
+    .control-link:hover {
       background: #1f2437;
     }
     .secondary {
@@ -167,24 +175,40 @@
       overflow-x: auto;
       font-size: 12px;
     }
-    .power-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 12px;
+    .power-tray {
+      position: fixed;
+      top: calc(12px + env(safe-area-inset-top));
+      right: 12px;
+      z-index: 20;
+      width: min(320px, calc(100vw - 24px));
     }
-    .power-form {
-      display: grid;
-      gap: 8px;
-    }
-    .power-form input {
-      min-height: 48px;
-      padding: 0 12px;
+    .power-tray summary {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
       border-radius: 8px;
-      border: 1px solid #334155;
-      background: #0d1021;
-      color: #f3e8ff;
-      font-family: monospace;
+      border: 1px solid #fb7185;
+      background: #16192b;
+      color: #fecdd3;
       font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      list-style: none;
+    }
+    .power-tray summary::-webkit-details-marker {
+      display: none;
+    }
+    .power-menu {
+      margin-top: 8px;
+      padding: 10px;
+      display: grid;
+      gap: 10px;
+      border: 1px solid #1f2437;
+      border-radius: 8px;
+      background: rgba(13, 16, 33, 0.98);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
     }
     @media (max-width: 640px) {
       body {
@@ -195,11 +219,14 @@
       }
       .grid,
       .actions,
-      .install-list,
-      .power-grid {
+      .install-list {
         grid-template-columns: 1fr;
       }
       button {
+        min-height: 72px;
+        font-size: 19px;
+      }
+      .control-link {
         min-height: 72px;
         font-size: 19px;
       }
@@ -218,8 +245,22 @@
       <h1>GRIDRUNNER</h1>
       <p>operator: {{ operator_user }} · status: active</p>
     </div>
-    <a class="map-link" href="{{ adsb_map_url }}" target="_blank">Open ADS-B Map</a>
   </div>
+  <details class="power-tray">
+    <summary>Power</summary>
+    <div class="power-menu">
+      <form method="post" action="/power" onsubmit="return confirm('Restart this GRIDRUNNER device?');">
+        <input type="hidden" name="action" value="restart">
+        <input type="hidden" name="confirm_token" value="{{ power_action_token }}">
+        <button class="danger">Restart</button>
+      </form>
+      <form method="post" action="/power" onsubmit="return confirm('Shut down this GRIDRUNNER device?');">
+        <input type="hidden" name="action" value="shutdown">
+        <input type="hidden" name="confirm_token" value="{{ power_action_token }}">
+        <button class="danger">Shutdown</button>
+      </form>
+    </div>
+  </details>
   {% if not auth_enabled %}
   <div class="panel warning">
     Web password is not configured. Set GRIDRUNNER_WEB_PASSWORD before exposing this panel beyond a trusted local device.
@@ -236,6 +277,7 @@
       <form method="post" action="/run"><input type="hidden" name="action" value="backup"><button>Backup</button></form>
       <form method="post" action="/run"><input type="hidden" name="action" value="adsbmode"><button>ADS-B Mode</button></form>
       <form method="post" action="/run"><input type="hidden" name="action" value="sdrmode"><button class="danger">SDR Mode</button></form>
+      <a class="control-link" href="{{ adsb_map_url }}" target="_blank" rel="noopener">ADS-B Map</a>
     </div>
   </div>
 
@@ -275,22 +317,6 @@
         <button class="danger" formaction="/install/skip" type="submit">Save Without Installing</button>
       </div>
     </form>
-  </div>
-
-  <div class="panel warning">
-    <h2>Power</h2>
-    <div class="power-grid">
-      <form class="power-form" method="post" action="/power">
-        <input type="hidden" name="action" value="restart">
-        <input name="confirm" placeholder="type restart">
-        <button class="danger">Restart</button>
-      </form>
-      <form class="power-form" method="post" action="/power">
-        <input type="hidden" name="action" value="shutdown">
-        <input name="confirm" placeholder="type shutdown">
-        <button class="danger">Shutdown</button>
-      </form>
-    </div>
   </div>
 
   <div class="panel">

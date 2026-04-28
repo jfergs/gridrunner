@@ -120,6 +120,10 @@ export GRIDRUNNER_WEB_USER='<operator-user>'
 export GRIDRUNNER_WEB_PASSWORD='choose-a-local-password'
 ```
 
+If `GRIDRUNNER_ADSB_MAP_URL` is unset, the panel builds the ADS-B map link from
+the current request host as `http://<current-host>/tar1090/`. Set the variable
+above when tar1090 lives somewhere else.
+
 Health and Wi-Fi scripts hide hostname and Wi-Fi connection names by default.
 Set this only on trusted consoles when full identifiers are needed:
 
@@ -173,9 +177,9 @@ journalctl -u gridrunner-web.service -n 100 --no-pager
 
 ## Power Controls
 
-The web panel includes guarded Restart and Shutdown controls. Each action
-requires typing the action name before it runs. The runtime user must have
-non-interactive sudo permission for:
+The web panel includes Restart and Shutdown controls in the upper-right power
+tray. Each action uses a browser confirmation popup before it submits. The
+runtime user must have non-interactive sudo permission for:
 
 ```text
 systemctl reboot
