@@ -70,6 +70,41 @@ install_operator_dirs() {
     "$project_dir/sdr"
 }
 
+install_web_service() {
+  local project_dir="${GRIDRUNNER_HOME:-$HOME/gridrunner}"
+  local operator_user="${GRIDRUNNER_OPERATOR_USER:-$(id -un)}"
+  local operator_home="${GRIDRUNNER_OPERATOR_HOME:-$HOME}"
+  local device_hostname="${GRIDRUNNER_DEVICE_HOSTNAME:-$(hostname -s)}"
+  local template="$project_dir/deploy/systemd/gridrunner-web.service"
+  local rendered="$project_dir/state/gridrunner-web.service"
+
+  if [ ! -f "$template" ]; then
+    echo "service template not found: $template"
+    return 1
+  fi
+
+  run_step mkdir -p "$project_dir/state" || return 1
+
+  if [ "$MODE" = "apply" ]; then
+    sed \
+      -e "s|{{GRIDRUNNER_HOME}}|$project_dir|g" \
+      -e "s|{{OPERATOR_USER}}|$operator_user|g" \
+      -e "s|{{OPERATOR_HOME}}|$operator_home|g" \
+      -e "s|{{DEVICE_HOSTNAME}}|$device_hostname|g" \
+      "$template" > "$rendered" || return 1
+    echo "+ sudo install -m 0644 $rendered /etc/systemd/system/gridrunner-web.service"
+    sudo install -m 0644 "$rendered" /etc/systemd/system/gridrunner-web.service || return 1
+  else
+    echo "[skip] render $template -> $rendered"
+    echo "[skip] sudo install -m 0644 $rendered /etc/systemd/system/gridrunner-web.service"
+  fi
+
+  run_step sudo systemctl daemon-reload &&
+    run_step sudo systemctl enable gridrunner-web.service
+
+  echo "gridrunner-web.service installed and enabled; restart the device or start the service after stopping the current web process."
+}
+
 if [ "$#" -eq 0 ]; then
   echo "No install items selected."
   exit 0
@@ -97,6 +132,9 @@ for item in "$@"; do
       ;;
     operator-dirs)
       install_operator_dirs
+      ;;
+    web-service)
+      install_web_service
       ;;
     *)
       echo "Unknown install item: $item"

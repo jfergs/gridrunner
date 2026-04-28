@@ -12,6 +12,9 @@ COMMANDS = {
     "sdrmode": ["bash", project_script("radio-mode.sh"), "sdr"],
     "eventscan": ["bash", operator_script("operator-events.sh")],
     "install": ["bash", project_script("install-items.sh")],
+    "component_health": ["bash", project_script("component-health.sh")],
+    "shutdown": ["bash", project_script("power-control.sh"), "shutdown"],
+    "restart": ["bash", project_script("power-control.sh"), "restart"],
 }
 
 

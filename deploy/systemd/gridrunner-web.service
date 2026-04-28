@@ -1,0 +1,21 @@
+[Unit]
+Description=GRIDRUNNER web control panel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{OPERATOR_USER}}
+WorkingDirectory={{GRIDRUNNER_HOME}}/web
+Environment=GRIDRUNNER_HOME={{GRIDRUNNER_HOME}}
+Environment=GRIDRUNNER_OPERATOR_USER={{OPERATOR_USER}}
+Environment=GRIDRUNNER_OPERATOR_HOME={{OPERATOR_HOME}}
+Environment=GRIDRUNNER_DEVICE_HOSTNAME={{DEVICE_HOSTNAME}}
+Environment=GRIDRUNNER_STATE_DIR={{GRIDRUNNER_HOME}}/state
+EnvironmentFile=-{{GRIDRUNNER_HOME}}/state/gridrunner.env
+ExecStart={{GRIDRUNNER_HOME}}/web/.venv/bin/uvicorn app:app --host 0.0.0.0 --port 8088
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

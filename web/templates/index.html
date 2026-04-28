@@ -9,22 +9,54 @@
       color: #f3e8ff;
       font-family: monospace;
       margin: 0;
-      padding: 16px;
+      padding: 16px 16px 120px;
+      -webkit-text-size-adjust: 100%;
     }
-    h1 { color: #c084fc; }
+    h1 {
+      color: #c084fc;
+      font-size: 32px;
+      margin-bottom: 6px;
+    }
+    h2 {
+      font-size: 20px;
+      margin: 0 0 12px;
+    }
+    a {
+      color: #bae6fd;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .map-link {
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 16px;
+      background: #16192b;
+      border: 1px solid #1f2437;
+      border-radius: 8px;
+      text-decoration: none;
+    }
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 12px;
     }
     button {
       width: 100%;
-      padding: 16px;
-      border-radius: 14px;
+      min-height: 64px;
+      padding: 18px;
+      border-radius: 8px;
       border: 1px solid #1f2437;
       background: #16192b;
       color: #f3e8ff;
-      font-size: 16px;
+      font-size: 18px;
+      font-weight: 700;
+      touch-action: manipulation;
     }
     button:hover {
       background: #1f2437;
@@ -33,6 +65,19 @@
       color: #bae6fd;
     }
     .danger { color: #fb7185; }
+    .command-panel {
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+      margin: 16px -16px 0;
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+      background: rgba(13, 16, 33, 0.96);
+      border-top: 1px solid #1f2437;
+      backdrop-filter: blur(10px);
+    }
+    .command-panel h2 {
+      margin-bottom: 10px;
+    }
     .install-list {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -87,6 +132,19 @@
       border-color: #ef4444;
       color: #fecaca;
     }
+    .health-present {
+      border-color: #22c55e;
+      color: #bbf7d0;
+    }
+    .health-missing,
+    .health-degraded {
+      border-color: #f59e0b;
+      color: #fde68a;
+    }
+    .health-unknown {
+      border-color: #94a3b8;
+      color: #e2e8f0;
+    }
     .actions {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -98,7 +156,7 @@
       padding: 14px;
       background: #16192b;
       border: 1px solid #1f2437;
-      border-radius: 14px;
+      border-radius: 8px;
     }
     .warning {
       border-color: #fb7185;
@@ -109,19 +167,77 @@
       overflow-x: auto;
       font-size: 12px;
     }
+    .power-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .power-form {
+      display: grid;
+      gap: 8px;
+    }
+    .power-form input {
+      min-height: 48px;
+      padding: 0 12px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #0d1021;
+      color: #f3e8ff;
+      font-family: monospace;
+      font-size: 16px;
+    }
+    @media (max-width: 640px) {
+      body {
+        padding: 12px 12px 144px;
+      }
+      h1 {
+        font-size: 30px;
+      }
+      .grid,
+      .actions,
+      .install-list,
+      .power-grid {
+        grid-template-columns: 1fr;
+      }
+      button {
+        min-height: 72px;
+        font-size: 19px;
+      }
+      .command-panel {
+        margin-left: -12px;
+        margin-right: -12px;
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>GRIDRUNNER</h1>
-  <p>operator: {{ operator_user }} · status: active</p>
+  <div class="topbar">
+    <div>
+      <h1>GRIDRUNNER</h1>
+      <p>operator: {{ operator_user }} · status: active</p>
+    </div>
+    <a class="map-link" href="{{ adsb_map_url }}" target="_blank">Open ADS-B Map</a>
+  </div>
   {% if not auth_enabled %}
   <div class="panel warning">
     Web password is not configured. Set GRIDRUNNER_WEB_PASSWORD before exposing this panel beyond a trusted local device.
   </div>
   {% endif %}
-  <p>
-  <a href="{{ adsb_map_url }}" target="_blank">Open ADS-B Map</a>
-</p>
+
+  <div class="command-panel">
+    <h2>Controls</h2>
+    <div class="grid">
+      <form method="post" action="/run"><input type="hidden" name="action" value="health"><button>Health</button></form>
+      <form method="post" action="/run"><input type="hidden" name="action" value="eventscan"><button>Run Events</button></form>
+      <form method="post" action="/run"><input type="hidden" name="action" value="inventory"><button>Radio Inventory</button></form>
+      <form method="post" action="/run"><input type="hidden" name="action" value="hamcheck"><button>Ham Check</button></form>
+      <form method="post" action="/run"><input type="hidden" name="action" value="backup"><button>Backup</button></form>
+      <form method="post" action="/run"><input type="hidden" name="action" value="adsbmode"><button>ADS-B Mode</button></form>
+      <form method="post" action="/run"><input type="hidden" name="action" value="sdrmode"><button class="danger">SDR Mode</button></form>
+    </div>
+  </div>
 
   <div class="panel">
     <h2>Initial Install</h2>
@@ -137,6 +253,7 @@
       <div class="install-list">
         {% for item in install_items %}
         {% set item_status = install_statuses[item.id].status %}
+        {% set health = component_health.get(item.id, {"status": "unknown", "detail": ""}) %}
         {% set is_selected = item_status != "installed" if has_install_state else item.default %}
         <label class="install-item">
           <input type="checkbox" name="items" value="{{ item.id }}" {% if is_selected %}checked{% endif %}>
@@ -144,6 +261,10 @@
             <strong>{{ item.label }}</strong>
             <span>{{ item.description }}</span>
             <span class="status status-{{ item_status }}">{{ item_status }}</span>
+            <span class="status health-{{ health.status }}">device {{ health.status }}</span>
+            {% if health.detail %}
+            <span>{{ health.detail }}</span>
+            {% endif %}
           </span>
         </label>
         {% endfor %}
@@ -156,14 +277,20 @@
     </form>
   </div>
 
-  <div class="grid">
-    <form method="post" action="/run"><input type="hidden" name="action" value="health"><button>Health</button></form>
-    <form method="post" action="/run"><input type="hidden" name="action" value="eventscan"><button>Run Events</button></form>
-    <form method="post" action="/run"><input type="hidden" name="action" value="inventory"><button>Radio Inventory</button></form>
-    <form method="post" action="/run"><input type="hidden" name="action" value="hamcheck"><button>Ham Check</button></form>
-    <form method="post" action="/run"><input type="hidden" name="action" value="backup"><button>Backup</button></form>
-    <form method="post" action="/run"><input type="hidden" name="action" value="adsbmode"><button>ADS-B Mode</button></form>
-    <form method="post" action="/run"><input type="hidden" name="action" value="sdrmode"><button class="danger">SDR Mode</button></form>
+  <div class="panel warning">
+    <h2>Power</h2>
+    <div class="power-grid">
+      <form class="power-form" method="post" action="/power">
+        <input type="hidden" name="action" value="restart">
+        <input name="confirm" placeholder="type restart">
+        <button class="danger">Restart</button>
+      </form>
+      <form class="power-form" method="post" action="/power">
+        <input type="hidden" name="action" value="shutdown">
+        <input name="confirm" placeholder="type shutdown">
+        <button class="danger">Shutdown</button>
+      </form>
+    </div>
   </div>
 
   <div class="panel">

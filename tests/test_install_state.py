@@ -36,6 +36,22 @@ class InstallStateTests(unittest.TestCase):
             {"base-tools": "installed", "ham-tools": "failed"},
         )
 
+    def test_parse_component_health(self):
+        output = "\n".join(
+            [
+                "GRIDRUNNER_COMPONENT item=base-tools status=present detail=",
+                "GRIDRUNNER_COMPONENT item=radio-tools status=missing detail=rtl_test,SoapySDRUtil",
+            ]
+        )
+
+        self.assertEqual(
+            install.parse_component_health(output),
+            {
+                "base-tools": {"status": "present", "detail": ""},
+                "radio-tools": {"status": "missing", "detail": "rtl_test,SoapySDRUtil"},
+            },
+        )
+
     def test_apply_marks_only_successful_items_installed(self):
         state = install.update_install_state(
             "apply",

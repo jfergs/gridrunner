@@ -51,12 +51,16 @@ export GRIDRUNNER_DEVICE_HOSTNAME="$(hostname -s)"
 web/
   app.py
   templates/index.html
+deploy/
+  systemd/gridrunner-web.service
 scripts/
   bootstrap-web.sh
+  component-health.sh
   install-items.sh
   system-health.sh
   system-backup.sh
   ham-check.sh
+  power-control.sh
   radio-inventory.sh
   radio-mode.sh
   wifi-fallback.sh
@@ -121,6 +125,8 @@ Checked items are installed, unchecked items are skipped. Use `Preview` to
 print the planned commands before using `Install Selected`.
 Skipped and pending components remain visible in the panel and can be selected
 for installation later.
+The panel also runs `scripts/component-health.sh` to show whether each component
+is currently detected on the device.
 
 Install component labels and defaults are defined in `install-items.json`.
 Install state is written to `state/install.json` by default. Override the state
@@ -128,6 +134,35 @@ directory when needed:
 
 ```bash
 export GRIDRUNNER_STATE_DIR=/path/to/state
+```
+
+## Web Service
+
+The `Web Service` install item renders `deploy/systemd/gridrunner-web.service`
+with the current operator, install path, and hostname, then installs it as:
+
+```text
+/etc/systemd/system/gridrunner-web.service
+```
+
+After installation, the panel should start on boot. The installer enables the
+service but does not restart it immediately, so it does not collide with a
+bootstrap web process already using port `8088`. Check it with:
+
+```bash
+systemctl status gridrunner-web.service
+journalctl -u gridrunner-web.service -n 100 --no-pager
+```
+
+## Power Controls
+
+The web panel includes guarded Restart and Shutdown controls. Each action
+requires typing the action name before it runs. The runtime user must have
+sudo permission for:
+
+```text
+systemctl reboot
+systemctl poweroff
 ```
 
 ## Wi-Fi Fallback

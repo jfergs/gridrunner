@@ -18,6 +18,12 @@
     "default": true
   },
   {
+    "id": "web-service",
+    "label": "Web Service",
+    "description": "Install and enable the systemd service for the web panel.",
+    "default": true
+  },
+  {
     "id": "wifi-tools",
     "label": "Wi-Fi Fallback",
     "description": "NetworkManager tooling for known-network and hotspot fallback.",

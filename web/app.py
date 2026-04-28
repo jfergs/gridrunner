@@ -9,6 +9,7 @@ from install import (
     INSTALL_ITEMS,
     install_statuses,
     load_install_state,
+    parse_component_health,
     parse_install_results,
     selected_install_items,
     update_install_state,
@@ -27,6 +28,7 @@ def index(request: Request, _user=Depends(require_auth)):
     status_output = run_cmd(COMMANDS["health"])
     events_output = run_cmd(["tail", "-n", "40", str(EVENTS_LOG)])
     install_state = load_install_state()
+    component_health = parse_component_health(run_cmd(COMMANDS["component_health"]))
 
     response = templates.TemplateResponse(
         request,
@@ -40,6 +42,7 @@ def index(request: Request, _user=Depends(require_auth)):
             "install_items": INSTALL_ITEMS,
             "install_state": install_state,
             "install_statuses": install_statuses(install_state),
+            "component_health": component_health,
         },
     )
     no_store(response)
@@ -56,6 +59,8 @@ def run_action(
 
     if not cmd:
         output = f"Unknown action: {action}"
+    elif action in {"shutdown", "restart"}:
+        output = "Power actions require the dedicated power form."
     else:
         output = run_cmd(cmd)
 
@@ -64,6 +69,32 @@ def run_action(
         "result.html",
         {
             "title": f"GRIDRUNNER: {action}",
+            "output": output,
+        },
+    )
+    no_store(response)
+    return response
+
+
+@app.post("/power", response_class=HTMLResponse)
+def power_action(
+    request: Request,
+    action: str = Form(...),
+    confirm: str = Form(""),
+    _user=Depends(require_auth),
+):
+    if action not in {"shutdown", "restart"}:
+        output = f"Unknown power action: {action}"
+    elif confirm != action:
+        output = f"Power action not confirmed. Type {action} to continue."
+    else:
+        output = run_cmd(COMMANDS[action])
+
+    response = templates.TemplateResponse(
+        request,
+        "result.html",
+        {
+            "title": f"GRIDRUNNER POWER: {action}",
             "output": output,
         },
     )

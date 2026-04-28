@@ -79,6 +79,30 @@ def parse_install_results(output):
     return results
 
 
+def parse_component_health(output):
+    health = {}
+
+    for line in output.splitlines():
+        if not line.startswith("GRIDRUNNER_COMPONENT "):
+            continue
+
+        fields = {}
+        for field in line.split()[1:]:
+            key, _, value = field.partition("=")
+            if key and value:
+                fields[key] = value
+
+        item_id = fields.get("item")
+        status_value = fields.get("status")
+        if item_id in INSTALL_ITEM_IDS and status_value in {"present", "missing", "degraded", "unknown"}:
+            health[item_id] = {
+                "status": status_value,
+                "detail": fields.get("detail", ""),
+            }
+
+    return health
+
+
 def install_statuses(state):
     legacy_selected = set(state.get("selected", []))
     legacy_skipped = set(state.get("skipped", []))
