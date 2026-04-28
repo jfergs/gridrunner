@@ -210,6 +210,23 @@ systemctl status gridrunner-wifi.timer
 systemctl status gridrunner-wifi.service
 ```
 
+Configure or repair the hotspot profile from the device:
+
+```bash
+cd ~/gridrunner
+export HOTSPOT='Gridrunner-hotspot'
+export HOTSPOT_SSID='Gridrunner-hotspot'
+export HOTSPOT_PASSWORD='choose-at-least-8-chars'
+bash scripts/wifi-fallback.sh
+```
+
+To inspect the NetworkManager profile:
+
+```bash
+nmcli connection show 'Gridrunner-hotspot'
+nmcli connection up 'Gridrunner-hotspot'
+```
+
 Expected behavior:
 
 - Stay on a known Wi-Fi network when connected.

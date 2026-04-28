@@ -3,6 +3,8 @@ set -u
 
 IFACE="${IFACE:-wlan0}"
 HOTSPOT="${HOTSPOT:-DEVICE-HOTSPOT}"
+HOTSPOT_SSID="${HOTSPOT_SSID:-$HOTSPOT}"
+HOTSPOT_PASSWORD="${HOTSPOT_PASSWORD:-}"
 OPERATOR_LABEL="${OPERATOR_LABEL:-operator}"
 LOG="${LOG:-$HOME/operator-events.log}"
 SCAN_SETTLE_SECONDS="${SCAN_SETTLE_SECONDS:-5}"
@@ -49,6 +51,10 @@ current_connection() {
 known_wifi_profiles() {
   nm -t -f NAME,TYPE connection show 2>/dev/null \
     | awk -F: -v hotspot="$HOTSPOT" '$2 == "802-11-wireless" && $1 != hotspot {print $1}'
+}
+
+hotspot_profile_exists() {
+  nm -t -f NAME connection show 2>/dev/null | grep -Fxq "$HOTSPOT"
 }
 
 profile_ssid() {
@@ -113,16 +119,79 @@ join_known_network() {
 }
 
 start_hotspot() {
+  local output=""
+
   log "starting hotspot"
+
+  ensure_hotspot_profile || return 1
 
   nm connection down "$HOTSPOT" >/dev/null 2>&1 || true
   sleep 1
 
-  if nm connection up "$HOTSPOT" >/dev/null 2>&1; then
+  if output="$(nm connection up "$HOTSPOT" 2>&1)"; then
     return 0
   fi
 
   log "failed to start hotspot profile: $HOTSPOT"
+  log "$output"
+  return 1
+}
+
+ensure_hotspot_profile() {
+  local output=""
+
+  if hotspot_profile_exists; then
+    if ! output="$(nm connection modify "$HOTSPOT" \
+      connection.autoconnect no \
+      802-11-wireless.mode ap \
+      802-11-wireless.ssid "$HOTSPOT_SSID" \
+      ipv4.method shared \
+      ipv6.method disabled 2>&1)"; then
+      log "failed to update hotspot profile: $HOTSPOT"
+      log "$output"
+      return 1
+    fi
+    if [ -n "$HOTSPOT_PASSWORD" ]; then
+      if ! output="$(nm connection modify "$HOTSPOT" \
+        wifi-sec.key-mgmt wpa-psk \
+        wifi-sec.psk "$HOTSPOT_PASSWORD" 2>&1)"; then
+        log "failed to update hotspot password: $HOTSPOT"
+        log "$output"
+        return 1
+      fi
+    fi
+    return 0
+  fi
+
+  if [ -z "$HOTSPOT_PASSWORD" ]; then
+    log "hotspot profile missing: $HOTSPOT"
+    log "set HOTSPOT_PASSWORD, then rerun to create the profile"
+    return 1
+  fi
+
+  if [ "${#HOTSPOT_PASSWORD}" -lt 8 ]; then
+    log "HOTSPOT_PASSWORD must be at least 8 characters"
+    return 1
+  fi
+
+  log "creating hotspot profile: $HOTSPOT"
+  if output="$(nm connection add \
+    type wifi \
+    ifname "$IFACE" \
+    con-name "$HOTSPOT" \
+    ssid "$HOTSPOT_SSID" \
+    802-11-wireless.mode ap \
+    802-11-wireless.band bg \
+    ipv4.method shared \
+    ipv6.method disabled \
+    wifi-sec.key-mgmt wpa-psk \
+    wifi-sec.psk "$HOTSPOT_PASSWORD" \
+    connection.autoconnect no 2>&1)"; then
+    return 0
+  fi
+
+  log "failed to create hotspot profile: $HOTSPOT"
+  log "$output"
   return 1
 }
 
