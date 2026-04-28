@@ -26,13 +26,45 @@ record_result() {
   echo "GRIDRUNNER_INSTALL_RESULT item=$item status=$result"
 }
 
+sudo_step() {
+  if [ "$MODE" = "apply" ]; then
+    echo "+ sudo -n $*"
+    sudo -n "$@"
+  else
+    echo "[skip] sudo -n $*"
+  fi
+}
+
+require_sudo() {
+  if [ "$MODE" != "apply" ]; then
+    return 0
+  fi
+
+  if sudo -n true 2>/dev/null; then
+    return 0
+  fi
+
+  cat <<'EOF'
+sudo is not available non-interactively.
+
+The web installer cannot type a sudo password. Run this once from a terminal:
+
+  cd ~/gridrunner
+  sudo scripts/setup-sudoers.sh
+
+Then return to the web panel and install again.
+EOF
+  return 1
+}
+
 install_apt() {
   if ! command -v apt-get >/dev/null 2>&1; then
     echo "apt-get not found; package install unavailable: $*"
     return 1
   fi
 
-  run_step sudo apt-get update && run_step sudo apt-get install -y "$@"
+  require_sudo || return 1
+  sudo_step apt-get update && sudo_step apt-get install -y "$@"
 }
 
 install_base_tools() {
@@ -92,15 +124,15 @@ install_web_service() {
       -e "s|{{OPERATOR_HOME}}|$operator_home|g" \
       -e "s|{{DEVICE_HOSTNAME}}|$device_hostname|g" \
       "$template" > "$rendered" || return 1
-    echo "+ sudo install -m 0644 $rendered /etc/systemd/system/gridrunner-web.service"
-    sudo install -m 0644 "$rendered" /etc/systemd/system/gridrunner-web.service || return 1
+    require_sudo || return 1
+    sudo_step install -m 0644 "$rendered" /etc/systemd/system/gridrunner-web.service || return 1
   else
     echo "[skip] render $template -> $rendered"
-    echo "[skip] sudo install -m 0644 $rendered /etc/systemd/system/gridrunner-web.service"
+    echo "[skip] sudo -n install -m 0644 $rendered /etc/systemd/system/gridrunner-web.service"
   fi
 
-  run_step sudo systemctl daemon-reload &&
-    run_step sudo systemctl enable gridrunner-web.service
+  sudo_step systemctl daemon-reload &&
+    sudo_step systemctl enable gridrunner-web.service
 
   echo "gridrunner-web.service installed and enabled; restart the device or start the service after stopping the current web process."
 }

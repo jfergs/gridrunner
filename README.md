@@ -27,6 +27,14 @@ http://<device-hostname>.local:8088
 Then use the Initial Install panel to preview, install, or skip optional
 components.
 
+Before using the web panel to install packages or service files, run this once
+from a terminal on the device:
+
+```bash
+cd ~/gridrunner
+sudo scripts/setup-sudoers.sh
+```
+
 Set a web password before exposing the panel on a shared network:
 
 ```bash
@@ -62,6 +70,7 @@ scripts/
   ham-check.sh
   power-control.sh
   radio-inventory.sh
+  setup-sudoers.sh
   radio-mode.sh
   wifi-fallback.sh
 data/
@@ -128,6 +137,14 @@ for installation later.
 The panel also runs `scripts/component-health.sh` to show whether each component
 is currently detected on the device.
 
+Package and service installation from the web panel requires non-interactive
+sudo. If an install item fails with a sudo password/terminal error, run:
+
+```bash
+cd ~/gridrunner
+sudo scripts/setup-sudoers.sh
+```
+
 Install component labels and defaults are defined in `install-items.json`.
 Install state is written to `state/install.json` by default. Override the state
 directory when needed:
@@ -158,7 +175,7 @@ journalctl -u gridrunner-web.service -n 100 --no-pager
 
 The web panel includes guarded Restart and Shutdown controls. Each action
 requires typing the action name before it runs. The runtime user must have
-sudo permission for:
+non-interactive sudo permission for:
 
 ```text
 systemctl reboot
