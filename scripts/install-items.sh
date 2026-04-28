@@ -35,6 +35,15 @@ sudo_step() {
   fi
 }
 
+sudo_env_step() {
+  if [ "$MODE" = "apply" ]; then
+    echo "+ sudo -n env $*"
+    sudo -n env "$@"
+  else
+    echo "[skip] sudo -n env $*"
+  fi
+}
+
 require_sudo() {
   if [ "$MODE" != "apply" ]; then
     return 0
@@ -64,7 +73,11 @@ install_apt() {
   fi
 
   require_sudo || return 1
-  sudo_step apt-get update && sudo_step apt-get install -y "$@"
+  sudo_env_step DEBIAN_FRONTEND=noninteractive apt-get update &&
+    sudo_env_step DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      -o Dpkg::Options::=--force-confdef \
+      -o Dpkg::Options::=--force-confold \
+      "$@"
 }
 
 install_base_tools() {

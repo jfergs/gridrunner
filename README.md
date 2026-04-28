@@ -149,6 +149,15 @@ cd ~/gridrunner
 sudo scripts/setup-sudoers.sh
 ```
 
+If an apt package fails on a config-file prompt, repair the interrupted install
+from a terminal with:
+
+```bash
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -f -y \
+  -o Dpkg::Options::=--force-confdef \
+  -o Dpkg::Options::=--force-confold
+```
+
 Install component labels and defaults are defined in `install-items.json`.
 Install state is written to `state/install.json` by default. Override the state
 directory when needed:
