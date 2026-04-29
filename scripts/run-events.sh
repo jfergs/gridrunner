@@ -9,6 +9,7 @@ EVENTS_LOG="${GRIDRUNNER_EVENTS_LOG:-$OPERATOR_HOME/$OPERATOR_USER-events.log}"
 event_script=""
 before_mtime="0"
 after_mtime="0"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 for candidate in \
   "$OPERATOR_HOME/$OPERATOR_USER-events.sh" \
@@ -23,6 +24,8 @@ if [ -z "$event_script" ]; then
   echo "events script not found for operator: $OPERATOR_USER"
   exit 1
 fi
+
+"$script_dir/rotate-logs.sh" >/dev/null 2>&1 || true
 
 if [ -e "$EVENTS_LOG" ]; then
   before_mtime="$(stat -c %Y "$EVENTS_LOG" 2>/dev/null || stat -f %m "$EVENTS_LOG" 2>/dev/null || echo 0)"

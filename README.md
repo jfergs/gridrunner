@@ -80,10 +80,14 @@ scripts/
   adsb-health.sh
   bootstrap-web.sh
   component-health.sh
+  disk-health.sh
   event-health.sh
   install-adsb-readsb.sh
   install-items.sh
   logs.sh
+  patch-events-script.sh
+  rotate-logs.sh
+  run-events.sh
   wifi-status.sh
   system-health.sh
   system-backup.sh
@@ -189,11 +193,18 @@ This installs:
 /etc/systemd/system/gridrunner-events.timer
 ```
 
-The timer runs shortly after boot and every five minutes. It calls the operator
-event script at:
+The timer runs shortly after boot and every five minutes. It calls
+`scripts/run-events.sh`, which resolves the operator event script at:
 
 ```text
 /home/<operator-user>/<operator-user>-events.sh
+```
+
+During `events-service` install, `scripts/patch-events-script.sh` bounds legacy
+`btmgmt find` calls. Override that scanner timeout with:
+
+```bash
+export GRIDRUNNER_BTMGMT_FIND_SECONDS=12
 ```
 
 Check it with:
@@ -202,6 +213,33 @@ Check it with:
 systemctl status gridrunner-events.timer
 systemctl status gridrunner-events.service
 journalctl -u gridrunner-events.service -n 80 --no-pager
+```
+
+Event log rotation is handled by:
+
+```bash
+bash scripts/rotate-logs.sh
+```
+
+Defaults:
+
+```bash
+export GRIDRUNNER_EVENTS_LOG_MAX_BYTES=5242880
+export GRIDRUNNER_EVENTS_LOG_KEEP=5
+```
+
+Disk usage guardrails are reported by:
+
+```bash
+bash scripts/disk-health.sh
+```
+
+Defaults:
+
+```bash
+export GRIDRUNNER_DISK_WARN_PERCENT=85
+export GRIDRUNNER_DISK_CRITICAL_PERCENT=95
+export GRIDRUNNER_BACKUP_KEEP=5
 ```
 
 ## Initial Install

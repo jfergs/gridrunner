@@ -31,6 +31,7 @@ echo "--- SDR Devices ---"
 rtl_test -t 2>&1 | head -20
 echo
 echo "--- Disk ---"
+"$(dirname "$0")/disk-health.sh"
 df -h
 echo
 echo "--- Memory ---"

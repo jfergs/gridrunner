@@ -25,14 +25,6 @@ work here; roll up only the current priorities to the global backlog tracker.
     - `journalctl -u gridrunner-wifi.service -n 80 --no-pager`
     - `nmcli -t -f DEVICE,STATE,CONNECTION dev`
 
-- Verify GRIDRUNNER events timer in the field.
-  - Confirm `gridrunner-events.timer` stays active after reboot.
-  - Confirm `gridrunner-events.service` no longer reports failed when the
-    bounded collection window times out with exit code `124`.
-  - Confirm Recent Events moves from `STALE` to fresh after the timer runs.
-  - Confirm `logs` works after the operator logs out and back in, or after a
-    reboot applies journal group membership.
-
 - Add service status cards and self-test panel to the web UI.
   - Show status for `gridrunner-web`, `gridrunner-wifi.timer`,
     `gridrunner-wifi.service`, `gridrunner-events.timer`, `readsb`, and
@@ -43,12 +35,6 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Each line should show `OK`, `WARN`, or `FAIL` with clear color and no
     animation dependency.
   - Reuse existing health scripts where possible instead of duplicating logic.
-
-- Add log rotation and disk guardrails.
-  - Rotate `ghost-events.log`.
-  - Ensure backups and captures cannot fill the OS partition.
-  - Surface disk usage warnings in the web UI.
-  - Treat this as prerequisite work before larger storage/offload features.
 
 - Harden web UI exposure.
   - Keep local-only mode as the default.
@@ -84,6 +70,20 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Setup adds the operator to journal access groups when available.
   - `logs` is available as a real script path for web UI and shell use.
   - `gridrunner-events.timer` installs periodic event collection.
+
+- Event timer and legacy scanner cleanup.
+  - `gridrunner-events.service` calls the repo-managed `scripts/run-events.sh`.
+  - Legacy `btmgmt find` calls are bounded during `events-service` install.
+  - Event collection reports success when the log updates despite known legacy
+    script cleanup errors.
+  - Recent Events correctly reports stale/fresh with a 15-minute default
+    threshold.
+
+- Log rotation and disk guardrails.
+  - `scripts/rotate-logs.sh` rotates the operator events log.
+  - Scheduled event collection runs log rotation before writing new events.
+  - `scripts/system-backup.sh` prunes old backups with `GRIDRUNNER_BACKUP_KEEP`.
+  - `scripts/disk-health.sh` reports warning and critical disk usage states.
 
 ## Web UI / Control Plane
 
