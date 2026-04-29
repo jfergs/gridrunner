@@ -19,6 +19,10 @@ work here; roll up only the current priorities to the global backlog tracker.
     - If a known Wi-Fi network returns while hotspot mode is active, GRIDRUNNER
       switches back to known Wi-Fi.
     - Web UI surfaces current network mode, active connection, and hotspot IP.
+    - Avoid unnecessary local Wi-Fi rescans when NetworkManager reports full
+      connectivity on a known network.
+    - Only rescan for stale-link validation when connectivity is degraded,
+      unknown, or unavailable.
   - Validation commands:
     - `systemctl status gridrunner-wifi.timer --no-pager`
     - `systemctl status gridrunner-wifi.service --no-pager`
