@@ -75,9 +75,11 @@ web/
 deploy/
   systemd/gridrunner-web.service
 scripts/
+  adsb-health.sh
   bootstrap-web.sh
   component-health.sh
   event-health.sh
+  install-adsb-readsb.sh
   install-items.sh
   logs.sh
   system-health.sh
@@ -178,6 +180,29 @@ Skipped and pending components remain visible in the panel and can be selected
 for installation later.
 The panel also runs `scripts/component-health.sh` to show whether each component
 is currently detected on the device.
+
+ADS-B setup intentionally does not install the Debian `readsb` package. On this
+GRIDRUNNER setup, Debian/Trixie `readsb` can lack RTL-SDR support and fail with
+`ERROR: Unknown device type:0`. Use the wiedehopf installer path instead:
+
+```bash
+cd ~/gridrunner
+sudo bash scripts/install-adsb-readsb.sh
+```
+
+That helper runs the wiedehopf installer:
+
+```bash
+sudo bash -c "$(wget -q -O - https://raw.githubusercontent.com/wiedehopf/adsb-scripts/master/readsb-install.sh)"
+```
+
+Then it marks `readsb` held with `apt-mark hold readsb` when available. Check
+RTL-SDR support with:
+
+```bash
+bash scripts/adsb-health.sh
+readsb --help | grep rtlsdr
+```
 
 Package and service installation from the web panel requires non-interactive
 sudo. If an install item fails with a sudo password/terminal error, run:

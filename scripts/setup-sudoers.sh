@@ -24,6 +24,7 @@ $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl daemon-reload
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl enable gridrunner-web.service
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl reboot
+$OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/bash */scripts/install-adsb-readsb.sh
 EOF
 
 chmod 0440 "$SUDOERS_FILE"

@@ -24,6 +24,7 @@ echo "--- Events ---"
 echo
 echo "--- ADS-B ---"
 systemctl is-active readsb 2>/dev/null
+"$(dirname "$0")/adsb-health.sh"
 echo
 echo "--- SDR Devices ---"
 rtl_test -t 2>&1 | head -20

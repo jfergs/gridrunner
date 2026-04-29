@@ -93,7 +93,14 @@ install_radio_tools() {
 }
 
 install_adsb_tools() {
-  install_apt readsb
+  local project_dir="${GRIDRUNNER_HOME:-$HOME/gridrunner}"
+
+  if [ "$MODE" = "apply" ]; then
+    require_sudo || return 1
+    sudo_step bash "$project_dir/scripts/install-adsb-readsb.sh"
+  else
+    echo "[skip] sudo -n bash $project_dir/scripts/install-adsb-readsb.sh"
+  fi
 }
 
 install_wifi_tools() {

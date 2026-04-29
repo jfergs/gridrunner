@@ -9,6 +9,10 @@ Hostname: configured by `GRIDRUNNER_DEVICE_HOSTNAME`
 Primary web UI: `http://<device-hostname>.local:8088`  
 ADS-B map: `http://<device-hostname>.local/tar1090/`
 
+Do not install Debian/Trixie `readsb` for ADS-B. GRIDRUNNER expects the
+wiedehopf `readsb` build because it supports RTL-SDR devices on this setup.
+Use `scripts/install-adsb-readsb.sh` and verify with `scripts/adsb-health.sh`.
+
 Health and Wi-Fi scripts hide hostname and Wi-Fi connection names unless
 `GRIDRUNNER_SHOW_IDENTIFIERS=1` is set in a trusted environment.
 

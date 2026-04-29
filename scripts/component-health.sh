@@ -102,7 +102,19 @@ check_radio_tools() {
 }
 
 check_adsb_tools() {
-  emit_command_health adsb-tools readsb
+  local output=""
+
+  if ! command -v readsb >/dev/null 2>&1; then
+    emit adsb-tools missing "readsb"
+    return
+  fi
+
+  output="$(readsb --help 2>&1 || true)"
+  if printf '%s\n' "$output" | grep -qi 'rtlsdr'; then
+    emit adsb-tools present "rtl-supported"
+  else
+    emit adsb-tools degraded "no-rtl-support"
+  fi
 }
 
 check_ham_tools() {
