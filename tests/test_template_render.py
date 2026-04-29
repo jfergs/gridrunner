@@ -56,11 +56,12 @@ class TemplateRenderTests(unittest.TestCase):
             },
             "GRIDRUNNER_DISK_HEALTH status=warn used_percent=90 available_kb=100 mount=/ path=/home/ghost/gridrunner",
             services,
+            True,
         )
 
-        self.assertEqual(self_tests[0]["name"], "WEB SERVICE")
+        self.assertEqual(self_tests[0]["name"], "WEB AUTH")
         self.assertEqual(self_tests[0]["label"], "OK")
-        self.assertEqual(self_tests[1]["name"], "WI-FI TIMER")
+        self.assertEqual(self_tests[1]["name"], "WEB SERVICE")
         self.assertEqual(self_tests[1]["label"], "OK")
         self.assertIn(
             {
@@ -75,6 +76,16 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(
             {"name": "DISK", "status": "warn", "detail": "90", "severity": "warn", "label": "WARN"},
             self_tests,
+        )
+
+    def test_web_auth_status_warns_when_password_missing(self):
+        self.assertEqual(
+            app.web_auth_status(False),
+            {"status": "missing", "detail": "local or VPN only"},
+        )
+        self.assertEqual(
+            app.web_auth_status(True),
+            {"status": "present", "detail": "password configured"},
         )
 
     def test_parse_service_health(self):
@@ -140,6 +151,13 @@ class TemplateRenderTests(unittest.TestCase):
                 ],
                 "self_tests": [
                     {
+                        "name": "WEB AUTH",
+                        "label": "OK",
+                        "status": "present",
+                        "severity": "ok",
+                        "detail": "password configured",
+                    },
+                    {
                         "name": "WEB SERVICE",
                         "label": "OK",
                         "status": "present",
@@ -165,10 +183,47 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"field terminal active", response.body)
         self.assertIn(b"Wi-Fi Telemetry", response.body)
         self.assertIn(b"Self Test", response.body)
+        self.assertIn(b"WEB AUTH", response.body)
         self.assertIn(b"WEB SERVICE", response.body)
         self.assertIn(b"DISK", response.body)
         self.assertIn(b"Observe", response.body)
         self.assertIn(b"Operate", response.body)
+
+    def test_index_template_warns_for_missing_web_password(self):
+        request = SimpleNamespace(scope={"type": "http", "method": "GET", "path": "/", "headers": []})
+
+        response = app.templates.TemplateResponse(
+            request,
+            "index.html",
+            {
+                "status": "ok",
+                "events": "event",
+                "event_status": {"status": "fresh", "message": "events updated 0s ago"},
+                "wifi_status": {"status": "present", "mode": "known-wifi"},
+                "wifi_output": "GRIDRUNNER_WIFI status=present mode=known-wifi",
+                "auth_enabled": False,
+                "operator_user": "operator",
+                "adsb_map_url": "http://gridrunner.local/tar1090/",
+                "power_action_token": "token",
+                "install_items": [],
+                "install_state": {},
+                "install_statuses": {},
+                "component_health": {},
+                "node_status": [{"label": "NODE ONLINE", "severity": "ok"}],
+                "self_tests": [
+                    {
+                        "name": "WEB AUTH",
+                        "label": "FAIL",
+                        "status": "missing",
+                        "severity": "danger",
+                        "detail": "local or VPN only",
+                    },
+                ],
+            },
+        )
+
+        self.assertIn(b"trusted local network or VPN only", response.body)
+        self.assertIn(b"WEB AUTH", response.body)
 
 
 if __name__ == "__main__":

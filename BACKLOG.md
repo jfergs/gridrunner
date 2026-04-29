@@ -25,13 +25,13 @@ work here; roll up only the current priorities to the global backlog tracker.
     - `journalctl -u gridrunner-wifi.service -n 80 --no-pager`
     - `nmcli -t -f DEVICE,STATE,CONNECTION dev`
 
-- Harden web UI exposure.
-  - Keep local-only mode as the default.
-  - Require/document `GRIDRUNNER_WEB_PASSWORD` before use beyond a trusted local
-    device.
-  - Document safe use with Tailscale or VPN before remote exposure.
-
 ## Recently Completed
+
+- Web UI exposure hardening.
+  - Web UI self-test reports whether `GRIDRUNNER_WEB_PASSWORD` is configured.
+  - Missing web password is shown as a warning/failure state.
+  - README documents local/trusted LAN/VPN use and warns against direct internet
+    exposure.
 
 - Storage location model.
   - Documented internal-only service/runtime paths.

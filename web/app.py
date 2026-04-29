@@ -182,7 +182,20 @@ def service_check(name, service_name, services):
     }
 
 
-def build_self_tests(wifi_status, event_status, component_health, health_output, services=None):
+def web_auth_status(auth_enabled):
+    if auth_enabled:
+        return {
+            "status": "present",
+            "detail": "password configured",
+        }
+
+    return {
+        "status": "missing",
+        "detail": "local or VPN only",
+    }
+
+
+def build_self_tests(wifi_status, event_status, component_health, health_output, services=None, auth_enabled=False):
     services = services or {}
     keyed = parse_prefixed_lines(
         health_output,
@@ -198,6 +211,10 @@ def build_self_tests(wifi_status, event_status, component_health, health_output,
     )
 
     checks = [
+        {
+            "name": "WEB AUTH",
+            **web_auth_status(auth_enabled),
+        },
         service_check("WEB SERVICE", "gridrunner-web", services),
         service_check("WI-FI TIMER", "gridrunner-wifi-timer", services),
         service_check("WI-FI SERVICE", "gridrunner-wifi", services),
@@ -239,7 +256,15 @@ def index(request: Request, _user=Depends(require_auth)):
     wifi_status = parse_keyed_status(wifi_output, "GRIDRUNNER_WIFI ")
     service_health = parse_service_health(run_cmd(COMMANDS["service_health"]))
     node_status = build_node_status(wifi_status, event_status, component_health)
-    self_tests = build_self_tests(wifi_status, event_status, component_health, status_output, service_health)
+    auth_enabled = bool(WEB_PASSWORD)
+    self_tests = build_self_tests(
+        wifi_status,
+        event_status,
+        component_health,
+        status_output,
+        service_health,
+        auth_enabled,
+    )
 
     response = templates.TemplateResponse(
         request,
@@ -252,7 +277,7 @@ def index(request: Request, _user=Depends(require_auth)):
             "wifi_output": wifi_output,
             "node_status": node_status,
             "self_tests": self_tests,
-            "auth_enabled": bool(WEB_PASSWORD),
+            "auth_enabled": auth_enabled,
             "operator_user": OPERATOR_USER,
             "adsb_map_url": adsb_map_url(request),
             "power_action_token": POWER_ACTION_TOKEN,

@@ -55,6 +55,11 @@ export GRIDRUNNER_WEB_PASSWORD='choose-a-local-password'
 curl -fsSL https://raw.githubusercontent.com/jfergs/gridrunner/main/scripts/bootstrap-web.sh | bash
 ```
 
+The panel is intended for local device, trusted LAN, or VPN use. Do not expose
+port `8088` directly to the internet. Use Tailscale, WireGuard, or another VPN
+for remote access, and set `GRIDRUNNER_WEB_PASSWORD` before using any shared
+network.
+
 Common bootstrap overrides:
 
 ```bash
@@ -132,7 +137,8 @@ uvicorn app:app --reload --host 127.0.0.1 --port 8088
 
 The app defaults to the local checkout for `scripts/` and `/home/operator` for
 runtime operator files. Set `GRIDRUNNER_WEB_PASSWORD` before exposing the panel
-on Wi-Fi. Override these for the target device:
+on Wi-Fi, and prefer VPN access for remote administration. Override these for
+the target device:
 
 ```bash
 export GRIDRUNNER_HOME=/path/to/gridrunner
