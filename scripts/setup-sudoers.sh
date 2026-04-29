@@ -24,6 +24,7 @@ $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/install -m 0644 * /etc/systemd/syst
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/install -m 0644 * /etc/systemd/system/gridrunner-events.timer
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl daemon-reload
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl enable gridrunner-web.service
+$OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl restart gridrunner-web.service
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl enable --now gridrunner-events.timer
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl restart gridrunner-events.service
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff
