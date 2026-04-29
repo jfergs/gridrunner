@@ -95,6 +95,7 @@ scripts/
   power-control.sh
   radio-inventory.sh
   setup-sudoers.sh
+  service-health.sh
   radio-mode.sh
   wifi-fallback.sh
 data/

@@ -317,6 +317,44 @@
       font-size: 18px;
       word-break: break-word;
     }
+    .self-test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .self-test {
+      min-height: 86px;
+      padding: 10px;
+      border: 1px solid rgba(122, 139, 145, 0.35);
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.22);
+    }
+    .self-test span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .self-test strong {
+      display: block;
+      margin: 8px 0 4px;
+      font-size: 20px;
+    }
+    .self-test-ok strong {
+      color: var(--green);
+    }
+    .self-test-warn strong {
+      color: var(--amber);
+    }
+    .self-test-danger strong {
+      color: var(--red);
+    }
+    .self-test code {
+      color: var(--muted);
+      font-size: 11px;
+      word-break: break-word;
+    }
     @media (max-width: 640px) {
       body {
         padding: 12px;
@@ -405,6 +443,19 @@
         <span class="status health-{{ event_status.status }}">{{ event_status.status }}</span>
         <span>{{ event_status.message }}</span>
         <pre>{{ events }}</pre>
+      </div>
+
+      <div class="panel">
+        <h2>Self Test</h2>
+        <div class="self-test-grid">
+          {% for check in self_tests|default([]) %}
+          <div class="self-test self-test-{{ check.severity }}">
+            <span>{{ check.name }}</span>
+            <strong>{{ check.label }}</strong>
+            <code>{{ check.detail or check.status }}</code>
+          </div>
+          {% endfor %}
+        </div>
       </div>
 
       <div class="panel">

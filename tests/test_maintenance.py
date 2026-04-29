@@ -9,6 +9,7 @@ import unittest
 REPO_DIR = Path(__file__).resolve().parents[1]
 ROTATE_LOGS = REPO_DIR / "scripts" / "rotate-logs.sh"
 DISK_HEALTH = REPO_DIR / "scripts" / "disk-health.sh"
+SERVICE_HEALTH = REPO_DIR / "scripts" / "service-health.sh"
 SYSTEM_BACKUP = REPO_DIR / "scripts" / "system-backup.sh"
 
 
@@ -108,6 +109,46 @@ class MaintenanceTests(unittest.TestCase):
 
         self.assertIn("GRIDRUNNER_BACKUP_KEEP", script)
         self.assertIn("pruned old backup", script)
+
+    def test_service_health_reports_units(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fake_bin = Path(temp_dir) / "bin"
+            fake_bin.mkdir()
+            fake_systemctl = fake_bin / "systemctl"
+            fake_systemctl.write_text(
+                "\n".join(
+                    [
+                        "#!/bin/bash",
+                        'if [ "$1" = "is-active" ]; then',
+                        '  [ "$2" = "readsb.service" ] && echo active && exit 0',
+                        "  echo inactive",
+                        "  exit 3",
+                        "fi",
+                        'if [ "$1" = "is-enabled" ]; then',
+                        "  echo enabled",
+                        "  exit 0",
+                        "fi",
+                        "exit 1",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            fake_systemctl.chmod(fake_systemctl.stat().st_mode | stat.S_IXUSR)
+            env = os.environ.copy()
+            env["PATH"] = f"{fake_bin}:{env['PATH']}"
+
+            result = subprocess.run(
+                ["bash", str(SERVICE_HEALTH)],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("name=readsb unit=readsb.service status=active", result.stdout)
+            self.assertIn("name=gridrunner-web unit=gridrunner-web.service status=inactive", result.stdout)
 
 
 if __name__ == "__main__":

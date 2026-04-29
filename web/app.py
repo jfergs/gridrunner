@@ -94,12 +94,46 @@ def parse_keyed_status(output, prefix):
     return {}
 
 
+def parse_prefixed_lines(output, prefixes):
+    parsed = {}
+
+    for line in output.splitlines():
+        for prefix in prefixes:
+            if line.startswith(prefix):
+                parsed[prefix.strip()] = parse_keyed_status(line, prefix)
+                break
+
+    return parsed
+
+
+def parse_service_health(output):
+    services = {}
+
+    for line in output.splitlines():
+        if not line.startswith("GRIDRUNNER_SERVICE "):
+            continue
+        fields = parse_keyed_status(line, "GRIDRUNNER_SERVICE ")
+        name = fields.get("name")
+        if name:
+            services[name] = fields
+
+    return services
+
+
 def severity_for_status(status_value):
-    if status_value in {"present", "fresh", "active"}:
+    if status_value in {"present", "fresh", "active", "ok"}:
         return "ok"
-    if status_value in {"missing", "failed"}:
+    if status_value in {"missing", "failed", "critical"}:
         return "danger"
     return "warn"
+
+
+def status_label(status_value):
+    if severity_for_status(status_value) == "ok":
+        return "OK"
+    if severity_for_status(status_value) == "danger":
+        return "FAIL"
+    return "WARN"
 
 
 def build_node_status(wifi_status, event_status, component_health):
@@ -135,6 +169,65 @@ def build_node_status(wifi_status, event_status, component_health):
     ]
 
 
+def service_check(name, service_name, services):
+    service = services.get(service_name, {})
+    status_value = service.get("status", "unknown")
+    unit = service.get("unit", service_name)
+    enabled = service.get("enabled", "unknown")
+
+    return {
+        "name": name,
+        "status": status_value,
+        "detail": f"{unit} {enabled}",
+    }
+
+
+def build_self_tests(wifi_status, event_status, component_health, health_output, services=None):
+    services = services or {}
+    keyed = parse_prefixed_lines(
+        health_output,
+        [
+            "GRIDRUNNER_DISK_HEALTH ",
+            "GRIDRUNNER_ADSB_HEALTH ",
+        ],
+    )
+    disk_status = keyed.get("GRIDRUNNER_DISK_HEALTH", {}).get("status", "unknown")
+    adsb_status = keyed.get("GRIDRUNNER_ADSB_HEALTH", {}).get(
+        "status",
+        component_health.get("adsb-tools", {}).get("status", "unknown"),
+    )
+
+    checks = [
+        service_check("WEB SERVICE", "gridrunner-web", services),
+        service_check("WI-FI TIMER", "gridrunner-wifi-timer", services),
+        service_check("WI-FI SERVICE", "gridrunner-wifi", services),
+        service_check("EVENT TIMER", "gridrunner-events-timer", services),
+        service_check("READSB", "readsb", services),
+        service_check("LIGHTTPD", "lighttpd", services),
+        {
+            "name": "EVENT FRESHNESS",
+            "status": event_status.get("status", "unknown"),
+            "detail": event_status.get("message", ""),
+        },
+        {
+            "name": "ADS-B RTL",
+            "status": adsb_status,
+            "detail": component_health.get("adsb-tools", {}).get("detail", ""),
+        },
+        {
+            "name": "DISK",
+            "status": disk_status,
+            "detail": keyed.get("GRIDRUNNER_DISK_HEALTH", {}).get("used_percent", "unknown"),
+        },
+    ]
+
+    for check in checks:
+        check["severity"] = severity_for_status(check["status"])
+        check["label"] = status_label(check["status"])
+
+    return checks
+
+
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, _user=Depends(require_auth)):
     status_output = run_cmd(COMMANDS["health"])
@@ -144,7 +237,9 @@ def index(request: Request, _user=Depends(require_auth)):
     event_status = event_freshness()
     wifi_output = run_cmd(COMMANDS["wifi_status"])
     wifi_status = parse_keyed_status(wifi_output, "GRIDRUNNER_WIFI ")
+    service_health = parse_service_health(run_cmd(COMMANDS["service_health"]))
     node_status = build_node_status(wifi_status, event_status, component_health)
+    self_tests = build_self_tests(wifi_status, event_status, component_health, status_output, service_health)
 
     response = templates.TemplateResponse(
         request,
@@ -156,6 +251,7 @@ def index(request: Request, _user=Depends(require_auth)):
             "wifi_status": wifi_status,
             "wifi_output": wifi_output,
             "node_status": node_status,
+            "self_tests": self_tests,
             "auth_enabled": bool(WEB_PASSWORD),
             "operator_user": OPERATOR_USER,
             "adsb_map_url": adsb_map_url(request),

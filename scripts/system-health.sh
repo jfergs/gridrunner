@@ -19,6 +19,7 @@ fi
 echo
 echo "--- Services ---"
 systemctl --no-pager --failed
+"$(dirname "$0")/service-health.sh"
 echo
 echo "--- Events ---"
 "$(dirname "$0")/event-health.sh"

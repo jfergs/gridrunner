@@ -25,17 +25,6 @@ work here; roll up only the current priorities to the global backlog tracker.
     - `journalctl -u gridrunner-wifi.service -n 80 --no-pager`
     - `nmcli -t -f DEVICE,STATE,CONNECTION dev`
 
-- Add service status cards and self-test panel to the web UI.
-  - Show status for `gridrunner-web`, `gridrunner-wifi.timer`,
-    `gridrunner-wifi.service`, `gridrunner-events.timer`, `readsb`, and
-    `lighttpd`.
-  - Present fast checks in a boot-log style list: web service, Wi-Fi timer,
-    event freshness, ADS-B RTL support, disk space, temperature, and journal
-    access.
-  - Each line should show `OK`, `WARN`, or `FAIL` with clear color and no
-    animation dependency.
-  - Reuse existing health scripts where possible instead of duplicating logic.
-
 - Harden web UI exposure.
   - Keep local-only mode as the default.
   - Require/document `GRIDRUNNER_WEB_PASSWORD` before use beyond a trusted local
@@ -84,6 +73,13 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Scheduled event collection runs log rotation before writing new events.
   - `scripts/system-backup.sh` prunes old backups with `GRIDRUNNER_BACKUP_KEEP`.
   - `scripts/disk-health.sh` reports warning and critical disk usage states.
+
+- Service status cards and self-test panel.
+  - Web UI shows self-test cards for `gridrunner-web`, `gridrunner-wifi.timer`,
+    `gridrunner-wifi.service`, `gridrunner-events.timer`, `readsb`, `lighttpd`,
+    event freshness, ADS-B RTL support, and disk state.
+  - `scripts/service-health.sh` emits machine-readable service unit health.
+  - `scripts/system-health.sh` includes service and disk guardrail output.
 
 ## Web UI / Control Plane
 
