@@ -5,14 +5,6 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 ## Top Priority
 
-- Verify GRIDRUNNER events timer in the field.
-  - Confirm `gridrunner-events.timer` stays active after reboot.
-  - Confirm `gridrunner-events.service` no longer reports failed when the
-    bounded collection window times out with exit code `124`.
-  - Confirm Recent Events moves from `STALE` to fresh after the timer runs.
-  - Confirm `logs` works after the operator logs out and back in, or after a
-    reboot applies journal group membership.
-
 - Stabilize Wi-Fi failover and fallback hotspot behavior.
   - Goal: GRIDRUNNER joins known Wi-Fi networks when available and starts its
     own fallback hotspot when no known networks are reachable.
@@ -33,7 +25,45 @@ work here; roll up only the current priorities to the global backlog tracker.
     - `journalctl -u gridrunner-wifi.service -n 80 --no-pager`
     - `nmcli -t -f DEVICE,STATE,CONNECTION dev`
 
+- Verify GRIDRUNNER events timer in the field.
+  - Confirm `gridrunner-events.timer` stays active after reboot.
+  - Confirm `gridrunner-events.service` no longer reports failed when the
+    bounded collection window times out with exit code `124`.
+  - Confirm Recent Events moves from `STALE` to fresh after the timer runs.
+  - Confirm `logs` works after the operator logs out and back in, or after a
+    reboot applies journal group membership.
+
+- Add service status cards and self-test panel to the web UI.
+  - Show status for `gridrunner-web`, `gridrunner-wifi.timer`,
+    `gridrunner-wifi.service`, `gridrunner-events.timer`, `readsb`, and
+    `lighttpd`.
+  - Present fast checks in a boot-log style list: web service, Wi-Fi timer,
+    event freshness, ADS-B RTL support, disk space, temperature, and journal
+    access.
+  - Each line should show `OK`, `WARN`, or `FAIL` with clear color and no
+    animation dependency.
+  - Reuse existing health scripts where possible instead of duplicating logic.
+
+- Add log rotation and disk guardrails.
+  - Rotate `ghost-events.log`.
+  - Ensure backups and captures cannot fill the OS partition.
+  - Surface disk usage warnings in the web UI.
+  - Treat this as prerequisite work before larger storage/offload features.
+
+- Harden web UI exposure.
+  - Keep local-only mode as the default.
+  - Require/document `GRIDRUNNER_WEB_PASSWORD` before use beyond a trusted local
+    device.
+  - Document safe use with Tailscale or VPN before remote exposure.
+
 ## Recently Completed
+
+- GRIDRUNNER node status strip.
+  - Web UI shows compact chips for node, Wi-Fi, events, event timer, ADS-B, and
+    web service state.
+  - Chip severity is derived from existing health data instead of hardcoded
+    labels.
+  - Mobile chip sizing is tuned for iPhone and iPad use.
 
 - ADS-B regression prevention.
   - ADS-B Map control resolves directly to the tar1090 map URL.
@@ -57,7 +87,7 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 ## Web UI / Control Plane
 
-- Redesign the web UI as a retrofuture field terminal.
+- Continue retrofuture field terminal refinement.
   - Direction: portable cyberdeck control surface, not a marketing page.
   - Use dark terminal panels, restrained CRT/scanline texture, subtle chrome or
     metal borders, and neon green/cyan/amber status accents.
@@ -65,12 +95,6 @@ work here; roll up only the current priorities to the global backlog tracker.
     targets, predictable navigation, and no decorative clutter over controls.
   - Avoid chaotic 90s collage, sound effects, heavy animation, and experimental
     navigation that slows down device operation.
-
-- Add a GRIDRUNNER node status strip.
-  - Show compact always-visible status such as `NODE ONLINE`, `WIFI KNOWN`,
-    `HOTSPOT`, `ADS-B DEGRADED`, `EVENTS STALE`, and `RTL OK`.
-  - Use retro terminal/status-chip styling with clear severity colors.
-  - Keep identifiers sanitized unless `GRIDRUNNER_SHOW_IDENTIFIERS=1`.
 
 - Add a BIOS-style startup/status header.
   - Inspired by Quentin.XYZ's BIOS boot sequence, show a compact system identity
@@ -81,52 +105,12 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Keep values sanitized by default and reveal host/network identifiers only
     when `GRIDRUNNER_SHOW_IDENTIFIERS=1`.
 
-- Add a system self-test sequence panel.
-  - Present fast checks in a boot-log style list: web service, Wi-Fi timer,
-    event freshness, ADS-B RTL support, disk space, temperature, and journal
-    access.
-  - Each line should show `OK`, `WARN`, or `FAIL` with clear color and no
-    animation dependency.
-  - Reuse existing health scripts where possible instead of duplicating logic.
-
-- Add an optional fullscreen operator mode.
-  - Provide a clear fullscreen control for iPad/kiosk/touchscreen use, similar
-    to the Quentin.XYZ fullscreen prompt.
-  - Keep the regular browser layout fully usable without fullscreen.
-  - Make the fullscreen mode rememberable per browser if practical.
-
-- Add sparse terminal navigation affordances.
-  - Use compact keyboard-like labels for major sections: `F1 HEALTH`, `F2 WIFI`,
-    `F3 ADS-B`, `F4 LOGS`, while keeping current touch buttons visible.
-  - Do not require keyboard navigation; this is visual orientation and optional
-    shortcut support.
-  - Preserve iPhone/iPad tap ergonomics.
-
-- Restyle command controls as hardware-console buttons.
-  - Keep the existing whitelisted command model.
-  - Make Health, Wi-Fi Status, Logs, ADS-B Mode, SDR Mode, and Backup feel like
-    console controls with clear pressed/disabled/danger states.
-  - Keep touch targets large and stable on iPhone and iPad.
-
-- Restyle output panels as command-console readouts.
-  - Use monospace output, compact headers, scan-friendly section dividers, and
-    severity badges.
-  - Preserve copy/paste friendly text output for logs, events, and health.
-  - Add subtle boot/check styling for startup or refresh states without hiding
-    live operational data.
-
 - Add retrofuture ADS-B and Wi-Fi visual treatments.
   - ADS-B: show aircraft count, RTL support state, readsb state, and tar1090
     link as an instrument panel.
   - Wi-Fi: show mode, IP, timer, and service state as field-radio telemetry.
   - Use motion only for meaningful state such as scanning, live, degraded, or
     reconnecting.
-
-- Add service status cards to the FastAPI web control panel.
-  - Show status for `readsb`, `lighttpd`, `gridrunner-web`,
-    `gridrunner-wifi.timer`, and `gridrunner-wifi.service`.
-  - Use compact mobile-friendly cards for iPhone access.
-  - Show degraded state when a service is failed or restarting.
 
 - Add ADS-B integration to the web UI.
   - Provide a link to `http://gridrunner.local/tar1090/`.
@@ -149,9 +133,31 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Warn if events are stale.
   - Provide a download link for event logs if feasible.
 
-- Add basic authentication before exposing the web UI beyond the local network.
-  - Keep local-only mode as the default.
-  - Document safe use with Tailscale or VPN before remote exposure.
+- Add sparse terminal navigation affordances.
+  - Use compact keyboard-like labels for major sections: `F1 HEALTH`, `F2 WIFI`,
+    `F3 ADS-B`, `F4 LOGS`, while keeping current touch buttons visible.
+  - Do not require keyboard navigation; this is visual orientation and optional
+    shortcut support.
+  - Preserve iPhone/iPad tap ergonomics.
+
+- Add an optional fullscreen operator mode.
+  - Provide a clear fullscreen control for iPad/kiosk/touchscreen use, similar
+    to the Quentin.XYZ fullscreen prompt.
+  - Keep the regular browser layout fully usable without fullscreen.
+  - Make the fullscreen mode rememberable per browser if practical.
+
+- Restyle command controls as hardware-console buttons.
+  - Keep the existing whitelisted command model.
+  - Make Health, Wi-Fi Status, Logs, ADS-B Mode, SDR Mode, and Backup feel like
+    console controls with clear pressed/disabled/danger states.
+  - Keep touch targets large and stable on iPhone and iPad.
+
+- Restyle output panels as command-console readouts.
+  - Use monospace output, compact headers, scan-friendly section dividers, and
+    severity badges.
+  - Preserve copy/paste friendly text output for logs, events, and health.
+  - Add subtle boot/check styling for startup or refresh states without hiding
+    live operational data.
 
 ## CLI / Operator Workflow
 
@@ -230,16 +236,16 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 ## Storage / Data Retention
 
+- Design storage location model.
+  - Define which paths are allowed to move off the OS partition.
+  - Keep service-critical runtime files on internal storage.
+  - Define rollback behavior if an external volume is removed or fails.
+
 - Add external USB storage support.
   - Provide a modern web UI for selecting an external media volume.
   - Move/offload data that does not need to live on the OS partition.
   - Preserve fast OS storage for system/runtime files.
   - Support log, backup, SDR capture, and ADS-B history storage locations.
-
-- Add log rotation and retention policy.
-  - Rotate `ghost-events.log`.
-  - Ensure backups and captures cannot fill the OS partition.
-  - Surface disk usage warnings in the web UI.
 
 ## Planned Enhancements
 
