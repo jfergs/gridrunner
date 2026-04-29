@@ -83,6 +83,41 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 ## Web UI / Control Plane
 
+- Redesign the web UI as a retrofuture field terminal.
+  - Direction: portable cyberdeck control surface, not a marketing page.
+  - Use dark terminal panels, restrained CRT/scanline texture, subtle chrome or
+    metal borders, and neon green/cyan/amber status accents.
+  - Preserve field usability: dense information, large iPhone/iPad touch
+    targets, predictable navigation, and no decorative clutter over controls.
+  - Avoid chaotic 90s collage, sound effects, heavy animation, and experimental
+    navigation that slows down device operation.
+
+- Add a GRIDRUNNER node status strip.
+  - Show compact always-visible status such as `NODE ONLINE`, `WIFI KNOWN`,
+    `HOTSPOT`, `ADS-B DEGRADED`, `EVENTS STALE`, and `RTL OK`.
+  - Use retro terminal/status-chip styling with clear severity colors.
+  - Keep identifiers sanitized unless `GRIDRUNNER_SHOW_IDENTIFIERS=1`.
+
+- Restyle command controls as hardware-console buttons.
+  - Keep the existing whitelisted command model.
+  - Make Health, Wi-Fi Status, Logs, ADS-B Mode, SDR Mode, and Backup feel like
+    console controls with clear pressed/disabled/danger states.
+  - Keep touch targets large and stable on iPhone and iPad.
+
+- Restyle output panels as command-console readouts.
+  - Use monospace output, compact headers, scan-friendly section dividers, and
+    severity badges.
+  - Preserve copy/paste friendly text output for logs, events, and health.
+  - Add subtle boot/check styling for startup or refresh states without hiding
+    live operational data.
+
+- Add retrofuture ADS-B and Wi-Fi visual treatments.
+  - ADS-B: show aircraft count, RTL support state, readsb state, and tar1090
+    link as an instrument panel.
+  - Wi-Fi: show mode, IP, timer, and service state as field-radio telemetry.
+  - Use motion only for meaningful state such as scanning, live, degraded, or
+    reconnecting.
+
 - Add service status cards to the FastAPI web control panel.
   - Show status for `readsb`, `lighttpd`, `gridrunner-web`,
     `gridrunner-wifi.timer`, and `gridrunner-wifi.service`.
