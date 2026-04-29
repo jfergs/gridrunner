@@ -5,66 +5,13 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 ## Top Priority
 
-- ADS-B regression prevention.
-  - Keep the ADS-B Map control as a direct link to the resolved tar1090 map
-    URL, not a postback to the main web UI.
-  - Protect default map URL resolution for hostname, IPv4/hostname, IPv6, and
-    explicit `GRIDRUNNER_ADSB_MAP_URL` overrides.
-  - Keep ADS-B mode switching separate from ADS-B map navigation.
-
-- Wi-Fi failover stability.
-  - Prefer the `GRIDRUNNER-HOTSPOT` NetworkManager profile name by default.
-  - Recognize legacy fallback hotspot profile names so existing devices do not
-    misclassify the hotspot as a normal known Wi-Fi network.
-  - Improve hotspot startup diagnostics when NetworkManager cannot create,
-    update, or activate the profile.
-
-- Investigate stale GRIDRUNNER events and log access permissions.
-  - Symptom: `events` output has not updated since 2026-04-27.
-  - Symptom: Web UI Recent Events shows `MISSING events log missing` and
-    `tail: cannot open '/home/ghost/operator-events.log' for reading: No such
-    file or directory`.
-  - Symptom: running `logs` as the operator shows journal permission errors:
-    `Users in groups 'adm', 'systemd-journal' can see all messages` and
-    `No journal files were opened due to insufficient permissions`.
-  - Symptom: `sudo logs` fails because `logs` is likely a shell alias or
-    function that is not available in the root command path.
-  - Confirm whether event scripts are still scheduled/running:
-    `<operator>-events.sh`, `<operator>-ble.sh`, `<operator>-presence.sh`,
-    `<operator>-scan.sh`, and the Wi-Fi fallback timer/service.
-  - Add setup support for journal access, likely by adding the operator user to
-    the appropriate journal group or by replacing alias-only `logs` usage with a
-    real script that calls `journalctl`.
-  - Ensure setup creates or migrates the expected events log path, or updates
-    `GRIDRUNNER_EVENTS_LOG` to the active `<operator>-events.log` file.
-  - Surface event freshness and log permission health in the web UI.
-
-- Prevent ADS-B regression from Debian `readsb` package.
-  - Background: GRIDRUNNER ADS-B depends on the wiedehopf `readsb` build because
-    it supports RTL-SDR devices. The Debian/Trixie `readsb` package does not
-    support `--device-type rtlsdr` on this setup.
-  - Symptom: `readsb.service` enters an auto-restart failure loop with:
-    `ERROR: Unknown device type:0` and supported SDR types listed as only
-    `modesbeast`, `gnshulc`, `ifile`, and `none`.
-  - Symptom: `/tar1090/data/aircraft.json` returns 404 or no aircraft data
-    because `readsb` is not writing JSON.
-  - Acceptance criteria:
-    - Install/setup scripts must not run `apt install readsb`.
-    - Documentation clearly states: do not install Debian `readsb`.
-    - ADS-B setup uses the wiedehopf installer:
-      `sudo bash -c "$(wget -q -O - https://raw.githubusercontent.com/wiedehopf/adsb-scripts/master/readsb-install.sh)"`
-    - Health check detects whether `readsb` supports RTL-SDR.
-    - `ghost-health.sh` reports `readsb OK (RTL supported)` or
-      `readsb BROKEN (no RTL support)`.
-    - Optional: setup script runs `sudo apt-mark hold readsb` after installing
-      the correct build.
-    - Web UI shows ADS-B degraded if `readsb` is running but lacks RTL-SDR
-      support.
-  - Validation commands:
-    - `systemctl status readsb --no-pager`
-    - `sudo journalctl -u readsb -n 30 --no-pager`
-    - `readsb --help | grep rtlsdr`
-    - `curl -s http://localhost/tar1090/data/aircraft.json | head`
+- Verify GRIDRUNNER events timer in the field.
+  - Confirm `gridrunner-events.timer` stays active after reboot.
+  - Confirm `gridrunner-events.service` no longer reports failed when the
+    bounded collection window times out with exit code `124`.
+  - Confirm Recent Events moves from `STALE` to fresh after the timer runs.
+  - Confirm `logs` works after the operator logs out and back in, or after a
+    reboot applies journal group membership.
 
 - Stabilize Wi-Fi failover and fallback hotspot behavior.
   - Goal: GRIDRUNNER joins known Wi-Fi networks when available and starts its
@@ -85,6 +32,28 @@ work here; roll up only the current priorities to the global backlog tracker.
     - `systemctl status gridrunner-wifi.service --no-pager`
     - `journalctl -u gridrunner-wifi.service -n 80 --no-pager`
     - `nmcli -t -f DEVICE,STATE,CONNECTION dev`
+
+## Recently Completed
+
+- ADS-B regression prevention.
+  - ADS-B Map control resolves directly to the tar1090 map URL.
+  - ADS-B map navigation is covered separately from ADS-B mode switching.
+  - Default map URL resolution and explicit `GRIDRUNNER_ADSB_MAP_URL` overrides
+    are covered by tests.
+
+- Prevent ADS-B regression from Debian `readsb` package.
+  - Install/setup scripts use the wiedehopf installer helper instead of
+    `apt install readsb`.
+  - Documentation warns against the Debian `readsb` package for GRIDRUNNER
+    ADS-B.
+  - Component health degrades ADS-B when `readsb` lacks RTL-SDR support.
+
+- Stale events and log access foundation.
+  - Event log resolution prefers the active `<operator>-events.log` file.
+  - Recent Events reports missing logs without leaking raw `tail` errors.
+  - Setup adds the operator to journal access groups when available.
+  - `logs` is available as a real script path for web UI and shell use.
+  - `gridrunner-events.timer` installs periodic event collection.
 
 ## Web UI / Control Plane
 
