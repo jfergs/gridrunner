@@ -21,6 +21,9 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 - Investigate stale GRIDRUNNER events and log access permissions.
   - Symptom: `events` output has not updated since 2026-04-27.
+  - Symptom: Web UI Recent Events shows `MISSING events log missing` and
+    `tail: cannot open '/home/ghost/operator-events.log' for reading: No such
+    file or directory`.
   - Symptom: running `logs` as the operator shows journal permission errors:
     `Users in groups 'adm', 'systemd-journal' can see all messages` and
     `No journal files were opened due to insufficient permissions`.
@@ -32,6 +35,8 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Add setup support for journal access, likely by adding the operator user to
     the appropriate journal group or by replacing alias-only `logs` usage with a
     real script that calls `journalctl`.
+  - Ensure setup creates or migrates the expected events log path, or updates
+    `GRIDRUNNER_EVENTS_LOG` to the active `<operator>-events.log` file.
   - Surface event freshness and log permission health in the web UI.
 
 - Prevent ADS-B regression from Debian `readsb` package.
