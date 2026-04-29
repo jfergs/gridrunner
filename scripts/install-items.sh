@@ -2,6 +2,8 @@
 set -u
 
 MODE="dry-run"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEFAULT_PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 if [ "${1:-}" = "--apply" ]; then
   MODE="apply"
@@ -93,7 +95,7 @@ install_radio_tools() {
 }
 
 install_adsb_tools() {
-  local project_dir="${GRIDRUNNER_HOME:-$HOME/gridrunner}"
+  local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
 
   if [ "$MODE" = "apply" ]; then
     require_sudo || return 1
@@ -104,7 +106,7 @@ install_adsb_tools() {
 }
 
 install_wifi_tools() {
-  local project_dir="${GRIDRUNNER_HOME:-$HOME/gridrunner}"
+  local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
 
   if [ "$MODE" = "apply" ]; then
     "$project_dir/scripts/configure-wifi-hotspot.sh" || return 1
@@ -119,7 +121,7 @@ install_ham_tools() {
 }
 
 install_operator_dirs() {
-  local project_dir="${GRIDRUNNER_HOME:-$HOME/gridrunner}"
+  local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
 
   run_step mkdir -p \
     "$project_dir/data" \
@@ -130,7 +132,7 @@ install_operator_dirs() {
 }
 
 install_web_service() {
-  local project_dir="${GRIDRUNNER_HOME:-$HOME/gridrunner}"
+  local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
   local operator_user="${GRIDRUNNER_OPERATOR_USER:-$(id -un)}"
   local operator_home="${GRIDRUNNER_OPERATOR_HOME:-$HOME}"
   local device_hostname="${GRIDRUNNER_DEVICE_HOSTNAME:-$(hostname -s)}"
@@ -164,6 +166,68 @@ install_web_service() {
   echo "gridrunner-web.service installed and enabled; restart the device or start the service after stopping the current web process."
 }
 
+render_template() {
+  local template="$1"
+  local rendered="$2"
+  local project_dir="$3"
+  local operator_user="$4"
+  local operator_home="$5"
+  local device_hostname="$6"
+
+  sed \
+    -e "s|{{GRIDRUNNER_HOME}}|$project_dir|g" \
+    -e "s|{{OPERATOR_USER}}|$operator_user|g" \
+    -e "s|{{OPERATOR_HOME}}|$operator_home|g" \
+    -e "s|{{DEVICE_HOSTNAME}}|$device_hostname|g" \
+    "$template" > "$rendered"
+}
+
+install_events_service() {
+  local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
+  local operator_user="${GRIDRUNNER_OPERATOR_USER:-$(id -un)}"
+  local operator_home="${GRIDRUNNER_OPERATOR_HOME:-$HOME}"
+  local device_hostname="${GRIDRUNNER_DEVICE_HOSTNAME:-$(hostname -s)}"
+  local service_template="$project_dir/deploy/systemd/gridrunner-events.service"
+  local timer_template="$project_dir/deploy/systemd/gridrunner-events.timer"
+  local service_rendered="$project_dir/state/gridrunner-events.service"
+  local timer_rendered="$project_dir/state/gridrunner-events.timer"
+  local event_script="$operator_home/$operator_user-events.sh"
+
+  if [ ! -f "$service_template" ]; then
+    echo "events service template not found: $service_template"
+    return 1
+  fi
+  if [ ! -f "$timer_template" ]; then
+    echo "events timer template not found: $timer_template"
+    return 1
+  fi
+
+  if [ "$MODE" = "apply" ] && [ ! -f "$event_script" ]; then
+    echo "events script not found: $event_script"
+    return 1
+  fi
+
+  run_step mkdir -p "$project_dir/state" || return 1
+
+  if [ "$MODE" = "apply" ]; then
+    render_template "$service_template" "$service_rendered" "$project_dir" "$operator_user" "$operator_home" "$device_hostname" || return 1
+    render_template "$timer_template" "$timer_rendered" "$project_dir" "$operator_user" "$operator_home" "$device_hostname" || return 1
+    require_sudo || return 1
+    sudo_step install -m 0644 "$service_rendered" /etc/systemd/system/gridrunner-events.service || return 1
+    sudo_step install -m 0644 "$timer_rendered" /etc/systemd/system/gridrunner-events.timer || return 1
+  else
+    echo "[skip] render $service_template -> $service_rendered"
+    echo "[skip] render $timer_template -> $timer_rendered"
+    echo "[skip] sudo -n install -m 0644 $service_rendered /etc/systemd/system/gridrunner-events.service"
+    echo "[skip] sudo -n install -m 0644 $timer_rendered /etc/systemd/system/gridrunner-events.timer"
+  fi
+
+  sudo_step systemctl daemon-reload &&
+    sudo_step systemctl enable --now gridrunner-events.timer
+
+  echo "gridrunner-events.timer installed and enabled."
+}
+
 if [ "$#" -eq 0 ]; then
   echo "No install items selected."
   exit 0
@@ -194,6 +258,9 @@ for item in "$@"; do
       ;;
     web-service)
       install_web_service
+      ;;
+    events-service)
+      install_events_service
       ;;
     *)
       echo "Unknown install item: $item"

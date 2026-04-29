@@ -93,6 +93,21 @@ check_web_service() {
   fi
 }
 
+check_events_service() {
+  if ! command -v systemctl >/dev/null 2>&1; then
+    emit events-service unknown "systemctl unavailable"
+    return
+  fi
+
+  if systemctl is-active --quiet gridrunner-events.timer; then
+    emit events-service present "timer-active"
+  elif systemctl is-enabled --quiet gridrunner-events.timer 2>/dev/null; then
+    emit events-service degraded "timer-enabled-not-active"
+  else
+    emit events-service missing "timer-not-enabled"
+  fi
+}
+
 check_wifi_tools() {
   emit_command_health wifi-tools nmcli
 }
@@ -125,6 +140,7 @@ check_base_tools
 check_web_runtime
 check_operator_dirs
 check_web_service
+check_events_service
 check_wifi_tools
 check_radio_tools
 check_adsb_tools

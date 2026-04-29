@@ -20,8 +20,11 @@ cat > "$SUDOERS_FILE" <<EOF
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/apt-get update
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/apt-get install -y *
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/install -m 0644 * /etc/systemd/system/gridrunner-web.service
+$OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/install -m 0644 * /etc/systemd/system/gridrunner-events.service
+$OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/install -m 0644 * /etc/systemd/system/gridrunner-events.timer
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl daemon-reload
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl enable gridrunner-web.service
+$OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl enable --now gridrunner-events.timer
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl reboot
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/bash */scripts/install-adsb-readsb.sh

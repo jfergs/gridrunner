@@ -74,6 +74,8 @@ web/
   templates/index.html
 deploy/
   systemd/gridrunner-web.service
+  systemd/gridrunner-events.service
+  systemd/gridrunner-events.timer
 scripts/
   adsb-health.sh
   bootstrap-web.sh
@@ -170,6 +172,36 @@ If journal access is denied, rerun setup and restart the session:
 ```bash
 cd ~/gridrunner
 sudo scripts/setup-sudoers.sh
+```
+
+Install periodic event collection with the `Events Service` install item, or
+from the device:
+
+```bash
+cd ~/gridrunner
+bash scripts/install-items.sh --apply events-service
+```
+
+This installs:
+
+```text
+/etc/systemd/system/gridrunner-events.service
+/etc/systemd/system/gridrunner-events.timer
+```
+
+The timer runs shortly after boot and every five minutes. It calls the operator
+event script at:
+
+```text
+/home/<operator-user>/<operator-user>-events.sh
+```
+
+Check it with:
+
+```bash
+systemctl status gridrunner-events.timer
+systemctl status gridrunner-events.service
+journalctl -u gridrunner-events.service -n 80 --no-pager
 ```
 
 ## Initial Install

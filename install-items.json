@@ -24,6 +24,12 @@
     "default": true
   },
   {
+    "id": "events-service",
+    "label": "Events Service",
+    "description": "Install and enable periodic event collection.",
+    "default": true
+  },
+  {
     "id": "wifi-tools",
     "label": "Wi-Fi Fallback",
     "description": "NetworkManager tooling for known-network and hotspot fallback.",

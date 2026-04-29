@@ -1,0 +1,11 @@
+[Unit]
+Description=Run GRIDRUNNER event collection periodically
+
+[Timer]
+OnBootSec=45s
+OnUnitActiveSec=5min
+Unit=gridrunner-events.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target
