@@ -330,12 +330,14 @@
   </div>
 
   <div class="panel">
+    {% set wifi = wifi_status|default({}) %}
+    {% set wifi_text = wifi_output|default('Wi-Fi status unavailable until the web service restarts.') %}
     <h2>Wi-Fi</h2>
-    <span class="status health-{{ wifi_status.get('status', 'unknown') }}">{{ wifi_status.get('status', 'unknown') }}</span>
-    <span>mode {{ wifi_status.get('mode', 'unknown') }}</span>
-    <p>state: {{ wifi_status.get('state', 'unknown') }} · ip: {{ wifi_status.get('ip', 'unknown') }}</p>
-    <p>timer: {{ wifi_status.get('timer', 'unknown') }} / {{ wifi_status.get('timer_enabled', 'unknown') }} · service: {{ wifi_status.get('service', 'unknown') }}</p>
-    <pre>{{ wifi_output }}</pre>
+    <span class="status health-{{ wifi.get('status', 'unknown') }}">{{ wifi.get('status', 'unknown') }}</span>
+    <span>mode {{ wifi.get('mode', 'unknown') }}</span>
+    <p>state: {{ wifi.get('state', 'unknown') }} · ip: {{ wifi.get('ip', 'unknown') }}</p>
+    <p>timer: {{ wifi.get('timer', 'unknown') }} / {{ wifi.get('timer_enabled', 'unknown') }} · service: {{ wifi.get('service', 'unknown') }}</p>
+    <pre>{{ wifi_text }}</pre>
   </div>
 
   <div class="panel">
