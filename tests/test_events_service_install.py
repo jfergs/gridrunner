@@ -30,6 +30,14 @@ class EventsServiceInstallTests(unittest.TestCase):
         self.assertIn("systemctl enable --now gridrunner-events.timer", result.stdout)
         self.assertIn("GRIDRUNNER_INSTALL_RESULT item=events-service status=planned", result.stdout)
 
+    def test_events_service_accepts_timeout_exit_as_success(self):
+        service = (REPO_DIR / "deploy" / "systemd" / "gridrunner-events.service").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("SuccessExitStatus=124", service)
+        self.assertIn("/usr/bin/timeout 75s", service)
+
 
 if __name__ == "__main__":
     unittest.main()
