@@ -153,6 +153,14 @@
       border-color: #94a3b8;
       color: #e2e8f0;
     }
+    .health-fresh {
+      border-color: #22c55e;
+      color: #bbf7d0;
+    }
+    .health-stale {
+      border-color: #f59e0b;
+      color: #fde68a;
+    }
     .actions {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -272,6 +280,7 @@
     <div class="grid">
       <form method="post" action="/run"><input type="hidden" name="action" value="health"><button>Health</button></form>
       <form method="post" action="/run"><input type="hidden" name="action" value="eventscan"><button>Run Events</button></form>
+      <form method="post" action="/run"><input type="hidden" name="action" value="logs"><button>Logs</button></form>
       <form method="post" action="/run"><input type="hidden" name="action" value="inventory"><button>Radio Inventory</button></form>
       <form method="post" action="/run"><input type="hidden" name="action" value="hamcheck"><button>Ham Check</button></form>
       <form method="post" action="/run"><input type="hidden" name="action" value="backup"><button>Backup</button></form>
@@ -321,6 +330,8 @@
 
   <div class="panel">
     <h2>Recent Events</h2>
+    <span class="status health-{{ event_status.status }}">{{ event_status.status }}</span>
+    <span>{{ event_status.message }}</span>
     <pre>{{ events }}</pre>
   </div>
 

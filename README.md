@@ -44,6 +44,10 @@ cd ~/gridrunner
 sudo scripts/setup-sudoers.sh
 ```
 
+This also adds the operator user to available journal-reading groups such as
+`systemd-journal` or `adm`. Log out and back in, or reboot, before using the
+`logs` control if journal permissions were just changed.
+
 Set a web password before exposing the panel on a shared network:
 
 ```bash
@@ -73,7 +77,9 @@ deploy/
 scripts/
   bootstrap-web.sh
   component-health.sh
+  event-health.sh
   install-items.sh
+  logs.sh
   system-health.sh
   system-backup.sh
   ham-check.sh
@@ -138,6 +144,29 @@ Set this only on trusted consoles when full identifiers are needed:
 
 ```bash
 export GRIDRUNNER_SHOW_IDENTIFIERS=1
+```
+
+## Events And Logs
+
+The web panel shows recent events and warns when the events log is missing or
+stale. The stale threshold defaults to 24 hours and can be adjusted with:
+
+```bash
+export GRIDRUNNER_EVENTS_STALE_SECONDS=86400
+```
+
+Use the real log wrapper instead of an alias-only `logs` command:
+
+```bash
+cd ~/gridrunner
+bash scripts/logs.sh
+```
+
+If journal access is denied, rerun setup and restart the session:
+
+```bash
+cd ~/gridrunner
+sudo scripts/setup-sudoers.sh
 ```
 
 ## Initial Install

@@ -1,5 +1,6 @@
 import re
 import secrets
+import time
 
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -7,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 
 from auth import require_auth
 from commands import COMMANDS, run_cmd
-from config import ADSB_MAP_URL, DEVICE_HOSTNAME, EVENTS_LOG, OPERATOR_USER, WEB_DIR, WEB_PASSWORD
+from config import ADSB_MAP_URL, DEVICE_HOSTNAME, EVENTS_LOG, EVENTS_STALE_SECONDS, OPERATOR_USER, WEB_DIR, WEB_PASSWORD
 from install import (
     INSTALL_ITEMS,
     install_statuses,
@@ -39,12 +40,44 @@ def adsb_map_url(request: Request):
     return f"http://{hostname}/tar1090/"
 
 
+def event_freshness():
+    try:
+        stat_result = EVENTS_LOG.stat()
+    except FileNotFoundError:
+        return {
+            "status": "missing",
+            "message": "events log missing",
+            "age_seconds": None,
+        }
+    except OSError:
+        return {
+            "status": "degraded",
+            "message": "events log not readable",
+            "age_seconds": None,
+        }
+
+    age_seconds = max(0, int(time.time() - stat_result.st_mtime))
+    if age_seconds > EVENTS_STALE_SECONDS:
+        return {
+            "status": "stale",
+            "message": f"events stale for {age_seconds}s",
+            "age_seconds": age_seconds,
+        }
+
+    return {
+        "status": "fresh",
+        "message": f"events updated {age_seconds}s ago",
+        "age_seconds": age_seconds,
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, _user=Depends(require_auth)):
     status_output = run_cmd(COMMANDS["health"])
     events_output = run_cmd(["tail", "-n", "40", str(EVENTS_LOG)])
     install_state = load_install_state()
     component_health = parse_component_health(run_cmd(COMMANDS["component_health"]))
+    event_status = event_freshness()
 
     response = templates.TemplateResponse(
         request,
@@ -52,6 +85,7 @@ def index(request: Request, _user=Depends(require_auth)):
         {
             "status": status_output,
             "events": events_output,
+            "event_status": event_status,
             "auth_enabled": bool(WEB_PASSWORD),
             "operator_user": OPERATOR_USER,
             "adsb_map_url": adsb_map_url(request),

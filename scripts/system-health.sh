@@ -19,6 +19,9 @@ echo
 echo "--- Services ---"
 systemctl --no-pager --failed
 echo
+echo "--- Events ---"
+"$(dirname "$0")/event-health.sh"
+echo
 echo "--- ADS-B ---"
 systemctl is-active readsb 2>/dev/null
 echo

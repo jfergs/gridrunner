@@ -29,4 +29,12 @@ EOF
 chmod 0440 "$SUDOERS_FILE"
 visudo -cf "$SUDOERS_FILE"
 
+for group in systemd-journal adm; do
+  if getent group "$group" >/dev/null 2>&1; then
+    usermod -aG "$group" "$OPERATOR_USER"
+  fi
+done
+
 echo "GRIDRUNNER sudoers installed for user: $OPERATOR_USER"
+echo "Journal access groups updated for user: $OPERATOR_USER"
+echo "Log out and back in, or reboot, for new group membership to apply."
