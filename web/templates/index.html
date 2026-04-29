@@ -57,6 +57,32 @@
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 12px;
     }
+    .dashboard {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 0.85fr);
+      gap: 16px;
+      align-items: start;
+      margin-top: 16px;
+    }
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+    .panel {
+      margin-top: 0;
+    }
+    .panel + .panel {
+      margin-top: 16px;
+    }
+    .control-section {
+      margin-top: 12px;
+    }
+    .control-section h3 {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+    }
     button {
       width: 100%;
       min-height: 64px;
@@ -99,19 +125,6 @@
       color: var(--cyan);
     }
     .danger { color: var(--red); }
-    .command-panel {
-      position: sticky;
-      bottom: 0;
-      z-index: 10;
-      margin: 16px -16px 0;
-      padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-      background: rgba(7, 10, 13, 0.96);
-      border-top: 1px solid var(--line-dim);
-      backdrop-filter: blur(10px);
-    }
-    .command-panel h2 {
-      margin-bottom: 10px;
-    }
     .install-list {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -195,7 +208,6 @@
       margin-top: 12px;
     }
     .panel {
-      margin-top: 16px;
       padding: 14px;
       background: linear-gradient(180deg, rgba(21, 29, 36, 0.96), rgba(11, 16, 20, 0.96));
       border: 1px solid rgba(122, 139, 145, 0.4);
@@ -278,16 +290,43 @@
       border-color: var(--red);
       color: var(--red);
     }
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .telemetry {
+      min-height: 72px;
+      padding: 10px;
+      border: 1px solid rgba(122, 139, 145, 0.35);
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.22);
+    }
+    .telemetry span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .telemetry strong {
+      display: block;
+      margin-top: 8px;
+      color: var(--text);
+      font-size: 18px;
+      word-break: break-word;
+    }
     @media (max-width: 640px) {
       body {
-        padding: 12px 12px 144px;
+        padding: 12px;
       }
       h1 {
         font-size: 30px;
       }
       .grid,
       .actions,
-      .install-list {
+      .install-list,
+      .dashboard {
         grid-template-columns: 1fr;
       }
       button {
@@ -298,11 +337,10 @@
         min-height: 72px;
         font-size: 19px;
       }
-      .command-panel {
-        margin-left: -12px;
-        margin-right: -12px;
-        padding-left: 12px;
-        padding-right: 12px;
+    }
+    @media (max-width: 980px) {
+      .dashboard {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -346,80 +384,98 @@
   </div>
   {% endif %}
 
-  <div class="command-panel">
-    <h2>Controls</h2>
-    <div class="grid">
-      <form method="post" action="/run"><input type="hidden" name="action" value="health"><button>Health</button></form>
-      <form method="post" action="/run"><input type="hidden" name="action" value="wifi_status"><button>Wi-Fi Status</button></form>
-      <form method="post" action="/run"><input type="hidden" name="action" value="eventscan"><button>Run Events</button></form>
-      <form method="post" action="/run"><input type="hidden" name="action" value="logs"><button>Logs</button></form>
-      <form method="post" action="/run"><input type="hidden" name="action" value="inventory"><button>Radio Inventory</button></form>
-      <form method="post" action="/run"><input type="hidden" name="action" value="hamcheck"><button>Ham Check</button></form>
-      <form method="post" action="/run"><input type="hidden" name="action" value="backup"><button>Backup</button></form>
-      <form method="post" action="/run"><input type="hidden" name="action" value="adsbmode"><button>ADS-B Mode</button></form>
-      <form method="post" action="/run"><input type="hidden" name="action" value="sdrmode"><button class="danger">SDR Mode</button></form>
-      <a class="control-link" href="{{ adsb_map_url }}" target="_blank" rel="noopener">ADS-B Map</a>
-    </div>
-  </div>
-
-  <div class="panel">
-    <h2>Initial Install</h2>
-    {% set selected_items = install_state.get("selected", []) %}
-    {% set has_install_state = install_state.get("last_run_at") %}
-    {% if has_install_state %}
-    <p>last action: {{ install_state.get("mode") }} · {{ install_state.get("last_run_at") }}</p>
-    {% endif %}
-    {% if install_state.get("skipped") or install_state.get("pending") or install_state.get("failed") %}
-    <p>Items marked skipped, pending, or failed remain available here and can be installed later.</p>
-    {% endif %}
-    <form method="post" action="/install">
-      <div class="install-list">
-        {% for item in install_items %}
-        {% set item_status = install_statuses[item.id].status %}
-        {% set health = component_health.get(item.id, {"status": "unknown", "detail": ""}) %}
-        {% set is_selected = item_status != "installed" if has_install_state else item.default %}
-        <label class="install-item">
-          <input type="checkbox" name="items" value="{{ item.id }}" {% if is_selected %}checked{% endif %}>
-          <span>
-            <strong>{{ item.label }}</strong>
-            <span>{{ item.description }}</span>
-            <span class="status status-{{ item_status }}">{{ item_status }}</span>
-            <span class="status health-{{ health.status }}">device {{ health.status }}</span>
-            {% if health.detail %}
-            <span>{{ health.detail }}</span>
-            {% endif %}
-          </span>
-        </label>
-        {% endfor %}
+  <main class="dashboard">
+    <section class="stack">
+      <div class="panel">
+        {% set wifi_text = wifi_output|default('Wi-Fi status unavailable until the web service restarts.') %}
+        <h2>Wi-Fi Telemetry</h2>
+        <span class="status health-{{ wifi.get('status', 'unknown') }}">{{ wifi.get('status', 'unknown') }}</span>
+        <span>mode {{ wifi.get('mode', 'unknown') }}</span>
+        <div class="telemetry-grid">
+          <div class="telemetry"><span>State</span><strong>{{ wifi.get('state', 'unknown') }}</strong></div>
+          <div class="telemetry"><span>IP</span><strong>{{ wifi.get('ip', 'unknown') }}</strong></div>
+          <div class="telemetry"><span>Timer</span><strong>{{ wifi.get('timer', 'unknown') }}</strong></div>
+          <div class="telemetry"><span>Service</span><strong>{{ wifi.get('service', 'unknown') }}</strong></div>
+        </div>
+        <pre>{{ wifi_text }}</pre>
       </div>
-      <div class="actions">
-        <button class="secondary" type="submit" name="mode" value="dry-run">Preview</button>
-        <button type="submit" name="mode" value="apply">Install Selected</button>
-        <button class="danger" formaction="/install/skip" type="submit">Save Without Installing</button>
+
+      <div class="panel">
+        <h2>Recent Events</h2>
+        <span class="status health-{{ event_status.status }}">{{ event_status.status }}</span>
+        <span>{{ event_status.message }}</span>
+        <pre>{{ events }}</pre>
       </div>
-    </form>
-  </div>
 
-  <div class="panel">
-    {% set wifi_text = wifi_output|default('Wi-Fi status unavailable until the web service restarts.') %}
-    <h2>Wi-Fi</h2>
-    <span class="status health-{{ wifi.get('status', 'unknown') }}">{{ wifi.get('status', 'unknown') }}</span>
-    <span>mode {{ wifi.get('mode', 'unknown') }}</span>
-    <p>state: {{ wifi.get('state', 'unknown') }} · ip: {{ wifi.get('ip', 'unknown') }}</p>
-    <p>timer: {{ wifi.get('timer', 'unknown') }} / {{ wifi.get('timer_enabled', 'unknown') }} · service: {{ wifi.get('service', 'unknown') }}</p>
-    <pre>{{ wifi_text }}</pre>
-  </div>
+      <div class="panel">
+        <h2>System Health</h2>
+        <pre>{{ status }}</pre>
+      </div>
+    </section>
 
-  <div class="panel">
-    <h2>Recent Events</h2>
-    <span class="status health-{{ event_status.status }}">{{ event_status.status }}</span>
-    <span>{{ event_status.message }}</span>
-    <pre>{{ events }}</pre>
-  </div>
+    <aside class="stack">
+      <div class="panel">
+        <h2>Controls</h2>
+        <div class="control-section">
+          <h3>Observe</h3>
+          <div class="grid">
+            <form method="post" action="/run"><input type="hidden" name="action" value="health"><button>Health</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="wifi_status"><button>Wi-Fi Status</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="logs"><button>Logs</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="inventory"><button>Radio Inventory</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="hamcheck"><button>Ham Check</button></form>
+          </div>
+        </div>
+        <div class="control-section">
+          <h3>Operate</h3>
+          <div class="grid">
+            <form method="post" action="/run"><input type="hidden" name="action" value="eventscan"><button>Run Events</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="backup"><button>Backup</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="adsbmode"><button>ADS-B Mode</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="sdrmode"><button class="danger">SDR Mode</button></form>
+            <a class="control-link" href="{{ adsb_map_url }}" target="_blank" rel="noopener">ADS-B Map</a>
+          </div>
+        </div>
+      </div>
 
-  <div class="panel">
-    <h2>System Health</h2>
-    <pre>{{ status }}</pre>
-  </div>
+      <div class="panel">
+        <h2>Initial Install</h2>
+        {% set selected_items = install_state.get("selected", []) %}
+        {% set has_install_state = install_state.get("last_run_at") %}
+        {% if has_install_state %}
+        <p>last action: {{ install_state.get("mode") }} · {{ install_state.get("last_run_at") }}</p>
+        {% endif %}
+        {% if install_state.get("skipped") or install_state.get("pending") or install_state.get("failed") %}
+        <p>Items marked skipped, pending, or failed remain available here and can be installed later.</p>
+        {% endif %}
+        <form method="post" action="/install">
+          <div class="install-list">
+            {% for item in install_items %}
+            {% set item_status = install_statuses[item.id].status %}
+            {% set health = component_health.get(item.id, {"status": "unknown", "detail": ""}) %}
+            {% set is_selected = item_status != "installed" if has_install_state else item.default %}
+            <label class="install-item">
+              <input type="checkbox" name="items" value="{{ item.id }}" {% if is_selected %}checked{% endif %}>
+              <span>
+                <strong>{{ item.label }}</strong>
+                <span>{{ item.description }}</span>
+                <span class="status status-{{ item_status }}">{{ item_status }}</span>
+                <span class="status health-{{ health.status }}">device {{ health.status }}</span>
+                {% if health.detail %}
+                <span>{{ health.detail }}</span>
+                {% endif %}
+              </span>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="actions">
+            <button class="secondary" type="submit" name="mode" value="dry-run">Preview</button>
+            <button type="submit" name="mode" value="apply">Install Selected</button>
+            <button class="danger" formaction="/install/skip" type="submit">Save Without Installing</button>
+          </div>
+        </form>
+      </div>
+    </aside>
+  </main>
 </body>
 </html>

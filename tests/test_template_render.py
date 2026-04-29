@@ -59,6 +59,9 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"NODE ONLINE", response.body)
         self.assertIn(b"WIFI known-wifi", response.body)
         self.assertIn(b"field terminal active", response.body)
+        self.assertIn(b"Wi-Fi Telemetry", response.body)
+        self.assertIn(b"Observe", response.body)
+        self.assertIn(b"Operate", response.body)
 
 
 if __name__ == "__main__":
