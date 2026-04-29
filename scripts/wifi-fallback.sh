@@ -119,10 +119,39 @@ scan_wifi() {
   sleep "$SCAN_SETTLE_SECONDS"
 }
 
+network_connectivity() {
+  nm -t -f CONNECTIVITY general 2>/dev/null || true
+}
+
 ssid_visible() {
   local ssid="$1"
 
   nm -t -f SSID dev wifi list ifname "$IFACE" 2>/dev/null | grep -Fxq "$ssid"
+}
+
+known_connection_usable() {
+  local profile="$1"
+  local ssid=""
+  local connectivity=""
+
+  ssid="$(profile_ssid "$profile")"
+  scan_wifi
+
+  if [ -n "$ssid" ] && ssid_visible "$ssid"; then
+    return 0
+  fi
+
+  connectivity="$(network_connectivity)"
+  case "$connectivity" in
+    full|limited|portal)
+      return 0
+      ;;
+  esac
+
+  log "known wifi connection appears stale; switching to fallback"
+  nm connection down "$profile" >/dev/null 2>&1 || true
+  sleep 2
+  return 1
 }
 
 join_known_network() {
@@ -256,12 +285,14 @@ main() {
   current="$(current_connection)"
 
   if [ -n "$current" ] && ! is_hotspot_name "$current"; then
-    if [ "${GRIDRUNNER_SHOW_IDENTIFIERS:-0}" = "1" ]; then
-      echo "$OPERATOR_LABEL: wifi connected to $current"
-    else
-      echo "$OPERATOR_LABEL: wifi connected"
+    if known_connection_usable "$current"; then
+      if [ "${GRIDRUNNER_SHOW_IDENTIFIERS:-0}" = "1" ]; then
+        echo "$OPERATOR_LABEL: wifi connected to $current"
+      else
+        echo "$OPERATOR_LABEL: wifi connected"
+      fi
+      exit 0
     fi
-    exit 0
   fi
 
   if [ -n "$current" ] && is_hotspot_name "$current"; then
