@@ -103,6 +103,36 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Use retro terminal/status-chip styling with clear severity colors.
   - Keep identifiers sanitized unless `GRIDRUNNER_SHOW_IDENTIFIERS=1`.
 
+- Add a BIOS-style startup/status header.
+  - Inspired by Quentin.XYZ's BIOS boot sequence, show a compact system identity
+    block with device role, software version, boot time, uptime, CPU/temp, memory,
+    storage, Wi-Fi mode, and radio state.
+  - Use the treatment as a real status surface, not a fake loading screen that
+    delays access to controls.
+  - Keep values sanitized by default and reveal host/network identifiers only
+    when `GRIDRUNNER_SHOW_IDENTIFIERS=1`.
+
+- Add a system self-test sequence panel.
+  - Present fast checks in a boot-log style list: web service, Wi-Fi timer,
+    event freshness, ADS-B RTL support, disk space, temperature, and journal
+    access.
+  - Each line should show `OK`, `WARN`, or `FAIL` with clear color and no
+    animation dependency.
+  - Reuse existing health scripts where possible instead of duplicating logic.
+
+- Add an optional fullscreen operator mode.
+  - Provide a clear fullscreen control for iPad/kiosk/touchscreen use, similar
+    to the Quentin.XYZ fullscreen prompt.
+  - Keep the regular browser layout fully usable without fullscreen.
+  - Make the fullscreen mode rememberable per browser if practical.
+
+- Add sparse terminal navigation affordances.
+  - Use compact keyboard-like labels for major sections: `F1 HEALTH`, `F2 WIFI`,
+    `F3 ADS-B`, `F4 LOGS`, while keeping current touch buttons visible.
+  - Do not require keyboard navigation; this is visual orientation and optional
+    shortcut support.
+  - Preserve iPhone/iPad tap ergonomics.
+
 - Restyle command controls as hardware-console buttons.
   - Keep the existing whitelisted command model.
   - Make Health, Wi-Fi Status, Logs, ADS-B Mode, SDR Mode, and Backup feel like
