@@ -81,7 +81,40 @@ class EventsServiceInstallTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             patched = event_script.read_text(encoding="utf-8")
             self.assertIn('timeout "${GRIDRUNNER_BTMGMT_FIND_SECONDS:-12}s" sudo btmgmt find', patched)
-            self.assertTrue((Path(str(event_script) + ".gridrunner-pre-btmgmt-timeout")).exists())
+            self.assertTrue((Path(str(event_script) + ".gridrunner-pre-legacy-patch")).exists())
+
+    def test_patch_events_script_repairs_corrupted_air_copy_line(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            event_script = Path(temp_dir) / "ghost-events.sh"
+            event_script.write_text(
+                "\n".join(
+                    [
+                        "#!/bin/bash",
+                        'timeout "${GRIDRUNNER_BTMGMT_FIND_SECONDS:-12}s" sudo btmgmt find',
+                        'cp "$AIR_NOW" "$AIR_LAST"0;177;25M0;177;25m',
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            event_script.chmod(0o755)
+
+            result = subprocess.run(
+                [
+                    "bash",
+                    str(REPO_DIR / "scripts" / "patch-events-script.sh"),
+                    str(event_script),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            patched = event_script.read_text(encoding="utf-8")
+            self.assertIn('cp "$AIR_NOW" "$AIR_LAST"', patched)
+            self.assertNotIn("0;177;25M0;177;25m", patched)
+            self.assertIn("repaired corrupted AIR_LAST copy", result.stdout)
 
     def test_run_events_uses_operator_named_script(self):
         with tempfile.TemporaryDirectory() as temp_dir:
