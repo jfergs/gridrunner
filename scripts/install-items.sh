@@ -97,6 +97,13 @@ install_adsb_tools() {
 }
 
 install_wifi_tools() {
+  local project_dir="${GRIDRUNNER_HOME:-$HOME/gridrunner}"
+
+  if [ "$MODE" = "apply" ]; then
+    "$project_dir/scripts/configure-wifi-hotspot.sh" || return 1
+  else
+    echo "[skip] configure fallback hotspot"
+  fi
   install_apt network-manager
 }
 

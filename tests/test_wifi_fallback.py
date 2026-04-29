@@ -121,6 +121,57 @@ class WifiFallbackTests(unittest.TestCase):
         self.assertIn("connection up Gridrunner-hotspot", calls)
         self.assertNotIn("connection up HomeWiFi", calls)
 
+    def test_reads_persisted_hotspot_config(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_file = Path(temp_dir) / "wifi-fallback.env"
+            config_file.write_text(
+                "\n".join(
+                    [
+                        "HOTSPOT='GRIDRUNNER-HOTSPOT'",
+                        "HOTSPOT_SSID='Field Runner'",
+                        "HOTSPOT_PASSWORD='password123'",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            nmcli_script = textwrap.dedent(
+                """\
+                #!/bin/bash
+                echo "$*" >> "$NMCLI_CALLS"
+                if [ "$*" = "-t -f RUNNING general" ]; then
+                  echo running
+                elif [ "$*" = "-t -f WIFI general" ]; then
+                  echo enabled
+                elif [ "$*" = "-t -f NAME,DEVICE connection show --active" ]; then
+                  exit 0
+                elif [ "$*" = "-t -f NAME,TYPE connection show" ]; then
+                  exit 0
+                elif [ "$*" = "-t -f NAME connection show" ]; then
+                  exit 0
+                elif [ "$*" = "dev wifi list ifname wlan0" ]; then
+                  exit 0
+                elif [ "$1 $2 $3" = "connection add type" ]; then
+                  exit 0
+                elif [ "$1 $2" = "connection down" ]; then
+                  exit 0
+                elif [ "$1 $2 $3" = "connection up GRIDRUNNER-HOTSPOT" ]; then
+                  exit 0
+                fi
+                exit 0
+                """
+            )
+
+            result, calls, _log = self.run_with_fake_nmcli(
+                nmcli_script,
+                {"GRIDRUNNER_WIFI_CONFIG": str(config_file)},
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("ssid Field Runner", calls)
+            self.assertIn("wifi-sec.psk password123", calls)
+
 
 if __name__ == "__main__":
     unittest.main()

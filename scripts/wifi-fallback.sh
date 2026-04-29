@@ -1,6 +1,12 @@
 #!/bin/bash
 set -u
 
+CONFIG_FILE="${GRIDRUNNER_WIFI_CONFIG:-$HOME/.config/gridrunner/wifi-fallback.env}"
+if [ -r "$CONFIG_FILE" ]; then
+  # shellcheck disable=SC1090
+  . "$CONFIG_FILE"
+fi
+
 IFACE="${IFACE:-wlan0}"
 HOTSPOT="${HOTSPOT:-GRIDRUNNER-HOTSPOT}"
 HOTSPOT_SSID="${HOTSPOT_SSID:-$HOTSPOT}"

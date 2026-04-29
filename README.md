@@ -27,6 +27,15 @@ http://<device-hostname>.local:8088
 Then use the Initial Install panel to preview, install, or skip optional
 components.
 
+During interactive setup, GRIDRUNNER prompts for the fallback hotspot SSID and
+password. The Wi-Fi network is created only when known Wi-Fi is unavailable.
+The password must be at least 8 characters. To configure it again:
+
+```bash
+cd ~/gridrunner
+bash scripts/configure-wifi-hotspot.sh
+```
+
 Before using the web panel to install packages or service files, run this once
 from a terminal on the device:
 
@@ -214,15 +223,17 @@ Configure or repair the hotspot profile from the device:
 
 ```bash
 cd ~/gridrunner
-export HOTSPOT='Gridrunner-hotspot'
-export HOTSPOT_SSID='Gridrunner-hotspot'
-export HOTSPOT_PASSWORD='choose-at-least-8-chars'
+bash scripts/configure-wifi-hotspot.sh
 bash scripts/wifi-fallback.sh
 ```
 
 The script defaults to `GRIDRUNNER-HOTSPOT` and also recognizes legacy
 `Gridrunner-hotspot` and `DEVICE-HOTSPOT` NetworkManager profile names as the
-fallback hotspot.
+fallback hotspot. The persisted fallback configuration is written to:
+
+```text
+~/.config/gridrunner/wifi-fallback.env
+```
 
 To inspect the NetworkManager profile:
 
