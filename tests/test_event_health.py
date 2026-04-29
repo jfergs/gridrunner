@@ -131,6 +131,12 @@ class EventHealthTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("status=fresh", result.stdout)
 
+    def test_event_health_default_threshold_is_15_minutes(self):
+        script = (REPO_DIR / "scripts" / "event-health.sh").read_text(encoding="utf-8")
+
+        self.assertEqual(app.EVENTS_STALE_SECONDS, 900)
+        self.assertIn('STALE_SECONDS="${GRIDRUNNER_EVENTS_STALE_SECONDS:-900}"', script)
+
 
 if __name__ == "__main__":
     unittest.main()

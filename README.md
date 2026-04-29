@@ -154,10 +154,10 @@ export GRIDRUNNER_SHOW_IDENTIFIERS=1
 ## Events And Logs
 
 The web panel shows recent events and warns when the events log is missing or
-stale. The stale threshold defaults to 24 hours and can be adjusted with:
+stale. The stale threshold defaults to 15 minutes and can be adjusted with:
 
 ```bash
-export GRIDRUNNER_EVENTS_STALE_SECONDS=86400
+export GRIDRUNNER_EVENTS_STALE_SECONDS=900
 ```
 
 Use the real log wrapper instead of an alias-only `logs` command:
