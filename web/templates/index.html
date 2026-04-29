@@ -4,25 +4,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GRIDRUNNER</title>
   <style>
+    :root {
+      --bg: #070a0d;
+      --panel: #10161c;
+      --panel-strong: #151d24;
+      --line: #2dfff3;
+      --line-dim: rgba(45, 255, 243, 0.28);
+      --text: #d7fff8;
+      --muted: #88a9a4;
+      --green: #6cff8d;
+      --amber: #ffd166;
+      --red: #ff5c7a;
+      --cyan: #5be7ff;
+      --chrome: #7a8b91;
+    }
     body {
-      background: #0d1021;
-      color: #f3e8ff;
-      font-family: monospace;
+      background:
+        linear-gradient(rgba(255, 255, 255, 0.025) 50%, rgba(0, 0, 0, 0.025) 50%),
+        radial-gradient(circle at top left, rgba(91, 231, 255, 0.13), transparent 34rem),
+        var(--bg);
+      background-size: 100% 4px, auto, auto;
+      color: var(--text);
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
       margin: 0;
       padding: 16px 16px 120px;
       -webkit-text-size-adjust: 100%;
     }
     h1 {
-      color: #c084fc;
+      color: var(--green);
       font-size: 32px;
       margin-bottom: 6px;
+      text-shadow: 0 0 16px rgba(108, 255, 141, 0.35);
     }
     h2 {
       font-size: 20px;
       margin: 0 0 12px;
+      color: var(--cyan);
+      text-transform: uppercase;
     }
     a {
-      color: #bae6fd;
+      color: var(--cyan);
     }
     .topbar {
       display: flex;
@@ -40,16 +61,19 @@
       width: 100%;
       min-height: 64px;
       padding: 18px;
-      border-radius: 8px;
-      border: 1px solid #1f2437;
-      background: #16192b;
-      color: #f3e8ff;
+      border-radius: 6px;
+      border: 1px solid var(--line-dim);
+      background: linear-gradient(180deg, #17242b, #0c1115);
+      color: var(--text);
       font-size: 18px;
       font-weight: 700;
+      text-transform: uppercase;
       touch-action: manipulation;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 0 16px rgba(45, 255, 243, 0.06);
     }
     button:hover {
-      background: #1f2437;
+      border-color: var(--line);
+      background: linear-gradient(180deg, #1d3038, #0e171c);
     }
     .control-link {
       min-height: 64px;
@@ -57,30 +81,32 @@
       align-items: center;
       justify-content: center;
       padding: 18px;
-      border-radius: 8px;
-      border: 1px solid #1f2437;
-      background: #16192b;
-      color: #f3e8ff;
+      border-radius: 6px;
+      border: 1px solid var(--line-dim);
+      background: linear-gradient(180deg, #17242b, #0c1115);
+      color: var(--text);
       font-size: 18px;
       font-weight: 700;
       text-align: center;
       text-decoration: none;
+      text-transform: uppercase;
     }
     .control-link:hover {
-      background: #1f2437;
+      border-color: var(--line);
+      background: linear-gradient(180deg, #1d3038, #0e171c);
     }
     .secondary {
-      color: #bae6fd;
+      color: var(--cyan);
     }
-    .danger { color: #fb7185; }
+    .danger { color: var(--red); }
     .command-panel {
       position: sticky;
       bottom: 0;
       z-index: 10;
       margin: 16px -16px 0;
       padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-      background: rgba(13, 16, 33, 0.96);
-      border-top: 1px solid #1f2437;
+      background: rgba(7, 10, 13, 0.96);
+      border-top: 1px solid var(--line-dim);
       backdrop-filter: blur(10px);
     }
     .command-panel h2 {
@@ -98,9 +124,9 @@
       gap: 10px;
       align-items: start;
       padding: 12px;
-      background: #0d1021;
-      border: 1px solid #1f2437;
-      border-radius: 8px;
+      background: rgba(7, 10, 13, 0.74);
+      border: 1px solid rgba(122, 139, 145, 0.35);
+      border-radius: 6px;
     }
     .install-item input {
       margin-top: 3px;
@@ -110,7 +136,7 @@
       margin-bottom: 4px;
     }
     .install-item span {
-      color: #cbd5e1;
+      color: var(--muted);
       font-size: 12px;
       line-height: 1.35;
     }
@@ -118,48 +144,49 @@
       display: inline-block;
       margin-top: 6px;
       padding: 2px 6px;
-      border-radius: 999px;
-      border: 1px solid #334155;
-      color: #cbd5e1;
+      border-radius: 4px;
+      border: 1px solid rgba(122, 139, 145, 0.55);
+      color: var(--muted);
       font-size: 11px;
       text-transform: uppercase;
+      letter-spacing: 0;
     }
     .status-installed {
-      border-color: #22c55e;
-      color: #bbf7d0;
+      border-color: var(--green);
+      color: var(--green);
     }
     .status-skipped {
-      border-color: #f59e0b;
-      color: #fde68a;
+      border-color: var(--amber);
+      color: var(--amber);
     }
     .status-pending {
-      border-color: #38bdf8;
-      color: #bae6fd;
+      border-color: var(--cyan);
+      color: var(--cyan);
     }
     .status-failed {
-      border-color: #ef4444;
-      color: #fecaca;
+      border-color: var(--red);
+      color: var(--red);
     }
     .health-present {
-      border-color: #22c55e;
-      color: #bbf7d0;
+      border-color: var(--green);
+      color: var(--green);
     }
     .health-missing,
     .health-degraded {
-      border-color: #f59e0b;
-      color: #fde68a;
+      border-color: var(--amber);
+      color: var(--amber);
     }
     .health-unknown {
-      border-color: #94a3b8;
-      color: #e2e8f0;
+      border-color: var(--chrome);
+      color: #d7e4e6;
     }
     .health-fresh {
-      border-color: #22c55e;
-      color: #bbf7d0;
+      border-color: var(--green);
+      color: var(--green);
     }
     .health-stale {
-      border-color: #f59e0b;
-      color: #fde68a;
+      border-color: var(--amber);
+      color: var(--amber);
     }
     .actions {
       display: grid;
@@ -170,18 +197,24 @@
     .panel {
       margin-top: 16px;
       padding: 14px;
-      background: #16192b;
-      border: 1px solid #1f2437;
-      border-radius: 8px;
+      background: linear-gradient(180deg, rgba(21, 29, 36, 0.96), rgba(11, 16, 20, 0.96));
+      border: 1px solid rgba(122, 139, 145, 0.4);
+      border-top-color: var(--line-dim);
+      border-radius: 6px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025), 0 16px 40px rgba(0, 0, 0, 0.28);
     }
     .warning {
-      border-color: #fb7185;
-      color: #fecdd3;
+      border-color: var(--red);
+      color: #ffd5de;
     }
     pre {
       white-space: pre-wrap;
       overflow-x: auto;
       font-size: 12px;
+      color: #c4fff3;
+      background: rgba(0, 0, 0, 0.28);
+      border-left: 2px solid var(--line-dim);
+      padding: 10px;
     }
     .power-tray {
       position: fixed;
@@ -196,10 +229,10 @@
       align-items: center;
       justify-content: center;
       padding: 0 16px;
-      border-radius: 8px;
-      border: 1px solid #fb7185;
-      background: #16192b;
-      color: #fecdd3;
+      border-radius: 6px;
+      border: 1px solid var(--red);
+      background: #151016;
+      color: #ffd5de;
       font-size: 16px;
       font-weight: 700;
       cursor: pointer;
@@ -213,10 +246,37 @@
       padding: 10px;
       display: grid;
       gap: 10px;
-      border: 1px solid #1f2437;
-      border-radius: 8px;
-      background: rgba(13, 16, 33, 0.98);
+      border: 1px solid rgba(122, 139, 145, 0.4);
+      border-radius: 6px;
+      background: rgba(7, 10, 13, 0.98);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    }
+    .node-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .node-chip {
+      padding: 6px 8px;
+      border: 1px solid var(--line-dim);
+      border-radius: 4px;
+      background: rgba(45, 255, 243, 0.06);
+      color: var(--text);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .node-chip-ok {
+      border-color: var(--green);
+      color: var(--green);
+    }
+    .node-chip-warn {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+    .node-chip-danger {
+      border-color: var(--red);
+      color: var(--red);
     }
     @media (max-width: 640px) {
       body {
@@ -251,7 +311,18 @@
   <div class="topbar">
     <div>
       <h1>GRIDRUNNER</h1>
-      <p>operator: {{ operator_user }} · status: active</p>
+      <p>operator: {{ operator_user }} · field terminal active</p>
+      {% set wifi = wifi_status|default({}) %}
+      <div class="node-strip">
+        <span class="node-chip node-chip-ok">NODE ONLINE</span>
+        <span class="node-chip {% if wifi.get('status') == 'present' %}node-chip-ok{% else %}node-chip-warn{% endif %}">
+          WIFI {{ wifi.get('mode', 'unknown') }}
+        </span>
+        <span class="node-chip {% if event_status.status == 'fresh' %}node-chip-ok{% else %}node-chip-warn{% endif %}">
+          EVENTS {{ event_status.status }}
+        </span>
+        <span class="node-chip">ADS-B PANEL</span>
+      </div>
     </div>
   </div>
   <details class="power-tray">
@@ -330,7 +401,6 @@
   </div>
 
   <div class="panel">
-    {% set wifi = wifi_status|default({}) %}
     {% set wifi_text = wifi_output|default('Wi-Fi status unavailable until the web service restarts.') %}
     <h2>Wi-Fi</h2>
     <span class="status health-{{ wifi.get('status', 'unknown') }}">{{ wifi.get('status', 'unknown') }}</span>

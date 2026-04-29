@@ -33,6 +33,33 @@ class TemplateRenderTests(unittest.TestCase):
 
         self.assertIn(b"Wi-Fi status unavailable", response.body)
 
+    def test_index_template_includes_retrofuture_node_strip(self):
+        request = SimpleNamespace(scope={"type": "http", "method": "GET", "path": "/", "headers": []})
+
+        response = app.templates.TemplateResponse(
+            request,
+            "index.html",
+            {
+                "status": "ok",
+                "events": "event",
+                "event_status": {"status": "fresh", "message": "events updated 0s ago"},
+                "wifi_status": {"status": "present", "mode": "known-wifi"},
+                "wifi_output": "GRIDRUNNER_WIFI status=present mode=known-wifi",
+                "auth_enabled": True,
+                "operator_user": "operator",
+                "adsb_map_url": "http://gridrunner.local/tar1090/",
+                "power_action_token": "token",
+                "install_items": [],
+                "install_state": {},
+                "install_statuses": {},
+                "component_health": {},
+            },
+        )
+
+        self.assertIn(b"NODE ONLINE", response.body)
+        self.assertIn(b"WIFI known-wifi", response.body)
+        self.assertIn(b"field terminal active", response.body)
+
 
 if __name__ == "__main__":
     unittest.main()
