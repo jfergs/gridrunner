@@ -94,6 +94,47 @@ def parse_keyed_status(output, prefix):
     return {}
 
 
+def severity_for_status(status_value):
+    if status_value in {"present", "fresh", "active"}:
+        return "ok"
+    if status_value in {"missing", "failed"}:
+        return "danger"
+    return "warn"
+
+
+def build_node_status(wifi_status, event_status, component_health):
+    wifi_mode = wifi_status.get("mode", "unknown")
+    wifi_health = wifi_status.get("status", "unknown")
+    event_health = event_status.get("status", "unknown")
+    adsb_health = component_health.get("adsb-tools", {}).get("status", "unknown")
+    web_health = component_health.get("web-service", {}).get("status", "unknown")
+    events_service_health = component_health.get("events-service", {}).get("status", "unknown")
+
+    return [
+        {"label": "NODE ONLINE", "severity": "ok"},
+        {
+            "label": f"WIFI {wifi_mode}".upper(),
+            "severity": severity_for_status(wifi_health),
+        },
+        {
+            "label": f"EVENTS {event_health}".upper(),
+            "severity": severity_for_status(event_health),
+        },
+        {
+            "label": f"EVENT TIMER {events_service_health}".upper(),
+            "severity": severity_for_status(events_service_health),
+        },
+        {
+            "label": f"ADS-B {adsb_health}".upper(),
+            "severity": severity_for_status(adsb_health),
+        },
+        {
+            "label": f"WEB {web_health}".upper(),
+            "severity": severity_for_status(web_health),
+        },
+    ]
+
+
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, _user=Depends(require_auth)):
     status_output = run_cmd(COMMANDS["health"])
@@ -103,6 +144,7 @@ def index(request: Request, _user=Depends(require_auth)):
     event_status = event_freshness()
     wifi_output = run_cmd(COMMANDS["wifi_status"])
     wifi_status = parse_keyed_status(wifi_output, "GRIDRUNNER_WIFI ")
+    node_status = build_node_status(wifi_status, event_status, component_health)
 
     response = templates.TemplateResponse(
         request,
@@ -113,6 +155,7 @@ def index(request: Request, _user=Depends(require_auth)):
             "event_status": event_status,
             "wifi_status": wifi_status,
             "wifi_output": wifi_output,
+            "node_status": node_status,
             "auth_enabled": bool(WEB_PASSWORD),
             "operator_user": OPERATOR_USER,
             "adsb_map_url": adsb_map_url(request),
