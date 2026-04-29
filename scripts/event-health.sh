@@ -1,8 +1,31 @@
 #!/bin/bash
 set -u
 
-EVENTS_LOG="${GRIDRUNNER_EVENTS_LOG:-$HOME/operator-events.log}"
+OPERATOR_USER="${GRIDRUNNER_OPERATOR_USER:-$(id -un)}"
+OPERATOR_HOME="${GRIDRUNNER_OPERATOR_HOME:-$HOME}"
+EVENTS_LOG="${GRIDRUNNER_EVENTS_LOG:-}"
 STALE_SECONDS="${GRIDRUNNER_EVENTS_STALE_SECONDS:-86400}"
+
+resolve_events_log() {
+  if [ -n "$EVENTS_LOG" ]; then
+    printf '%s\n' "$EVENTS_LOG"
+    return
+  fi
+
+  if [ -e "$OPERATOR_HOME/$OPERATOR_USER-events.log" ]; then
+    printf '%s\n' "$OPERATOR_HOME/$OPERATOR_USER-events.log"
+    return
+  fi
+
+  if [ -e "$OPERATOR_HOME/operator-events.log" ]; then
+    printf '%s\n' "$OPERATOR_HOME/operator-events.log"
+    return
+  fi
+
+  printf '%s\n' "$OPERATOR_HOME/$OPERATOR_USER-events.log"
+}
+
+EVENTS_LOG="$(resolve_events_log)"
 
 if [ ! -e "$EVENTS_LOG" ]; then
   echo "GRIDRUNNER_EVENT_HEALTH status=missing detail=events-log-not-found"

@@ -12,12 +12,25 @@ OPERATOR_HOME = Path(
 )
 DEVICE_HOSTNAME = os.environ.get("GRIDRUNNER_DEVICE_HOSTNAME", "device")
 ADSB_MAP_URL = os.environ.get("GRIDRUNNER_ADSB_MAP_URL", "")
-EVENTS_LOG = Path(
-    os.environ.get(
-        "GRIDRUNNER_EVENTS_LOG",
-        OPERATOR_HOME / "operator-events.log",
-    )
-)
+
+
+def resolve_events_log():
+    configured = os.environ.get("GRIDRUNNER_EVENTS_LOG")
+    if configured:
+        return Path(configured)
+
+    operator_log = OPERATOR_HOME / f"{OPERATOR_USER}-events.log"
+    if operator_log.exists():
+        return operator_log
+
+    generic_log = OPERATOR_HOME / "operator-events.log"
+    if generic_log.exists():
+        return generic_log
+
+    return operator_log
+
+
+EVENTS_LOG = resolve_events_log()
 WEB_USER = os.environ.get("GRIDRUNNER_WEB_USER", OPERATOR_USER)
 WEB_PASSWORD = os.environ.get("GRIDRUNNER_WEB_PASSWORD", "")
 MAX_OUTPUT_CHARS = int(os.environ.get("GRIDRUNNER_MAX_OUTPUT_CHARS", "20000"))

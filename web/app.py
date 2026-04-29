@@ -71,6 +71,14 @@ def event_freshness():
     }
 
 
+def recent_events():
+    if not EVENTS_LOG.exists():
+        return f"events log missing: {EVENTS_LOG}"
+    if not EVENTS_LOG.is_file():
+        return f"events log path is not a file: {EVENTS_LOG}"
+    return run_cmd(["tail", "-n", "40", str(EVENTS_LOG)])
+
+
 def parse_keyed_status(output, prefix):
     for line in output.splitlines():
         if not line.startswith(prefix):
@@ -89,7 +97,7 @@ def parse_keyed_status(output, prefix):
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, _user=Depends(require_auth)):
     status_output = run_cmd(COMMANDS["health"])
-    events_output = run_cmd(["tail", "-n", "40", str(EVENTS_LOG)])
+    events_output = recent_events()
     install_state = load_install_state()
     component_health = parse_component_health(run_cmd(COMMANDS["component_health"]))
     event_status = event_freshness()
