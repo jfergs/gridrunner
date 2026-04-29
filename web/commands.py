@@ -1,7 +1,7 @@
 from pathlib import Path
 import subprocess
 
-from config import MAX_OUTPUT_CHARS, operator_script, project_script
+from config import MAX_OUTPUT_CHARS, project_script
 
 COMMANDS = {
     "health": ["bash", project_script("system-health.sh")],
@@ -10,7 +10,7 @@ COMMANDS = {
     "hamcheck": ["bash", project_script("ham-check.sh")],
     "adsbmode": ["bash", project_script("radio-mode.sh"), "adsb"],
     "sdrmode": ["bash", project_script("radio-mode.sh"), "sdr"],
-    "eventscan": ["bash", operator_script("operator-events.sh")],
+    "eventscan": ["bash", project_script("run-events.sh")],
     "event_health": ["bash", project_script("event-health.sh")],
     "logs": ["bash", project_script("logs.sh"), "120"],
     "wifi_status": ["bash", project_script("wifi-status.sh")],

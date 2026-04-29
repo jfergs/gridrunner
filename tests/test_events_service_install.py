@@ -1,6 +1,8 @@
 from pathlib import Path
 import json
+import os
 import subprocess
+import tempfile
 import unittest
 
 
@@ -36,7 +38,76 @@ class EventsServiceInstallTests(unittest.TestCase):
         )
 
         self.assertIn("SuccessExitStatus=124", service)
-        self.assertIn("/usr/bin/timeout 75s", service)
+        self.assertIn("scripts/run-events.sh", service)
+
+    def test_events_service_dry_run_patches_legacy_event_script(self):
+        result = subprocess.run(
+            ["bash", str(REPO_DIR / "scripts" / "install-items.sh"), "--dry-run", "events-service"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("patch-events-script.sh", result.stdout)
+
+    def test_patch_events_script_bounds_btmgmt_find(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            event_script = Path(temp_dir) / "ghost-events.sh"
+            event_script.write_text(
+                "\n".join(
+                    [
+                        "#!/bin/bash",
+                        "sudo btmgmt find",
+                        "echo done",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            event_script.chmod(0o755)
+
+            result = subprocess.run(
+                [
+                    "bash",
+                    str(REPO_DIR / "scripts" / "patch-events-script.sh"),
+                    str(event_script),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            patched = event_script.read_text(encoding="utf-8")
+            self.assertIn('timeout "${GRIDRUNNER_BTMGMT_FIND_SECONDS:-12}s" sudo btmgmt find', patched)
+            self.assertTrue((Path(str(event_script) + ".gridrunner-pre-btmgmt-timeout")).exists())
+
+    def test_run_events_uses_operator_named_script(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            operator_home = Path(temp_dir)
+            event_script = operator_home / "ghost-events.sh"
+            event_script.write_text("#!/bin/bash\necho ran-events\n", encoding="utf-8")
+            event_script.chmod(0o755)
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GRIDRUNNER_OPERATOR_USER": "ghost",
+                    "GRIDRUNNER_OPERATOR_HOME": str(operator_home),
+                    "GRIDRUNNER_EVENTS_RUN_SECONDS": "5",
+                }
+            )
+
+            result = subprocess.run(
+                ["bash", str(REPO_DIR / "scripts" / "run-events.sh")],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("ran-events", result.stdout)
 
 
 if __name__ == "__main__":

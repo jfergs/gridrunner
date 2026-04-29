@@ -210,6 +210,7 @@ install_events_service() {
   run_step mkdir -p "$project_dir/state" || return 1
 
   if [ "$MODE" = "apply" ]; then
+    bash "$project_dir/scripts/patch-events-script.sh" "$event_script" || return 1
     render_template "$service_template" "$service_rendered" "$project_dir" "$operator_user" "$operator_home" "$device_hostname" || return 1
     render_template "$timer_template" "$timer_rendered" "$project_dir" "$operator_user" "$operator_home" "$device_hostname" || return 1
     require_sudo || return 1
@@ -218,6 +219,7 @@ install_events_service() {
   else
     echo "[skip] render $service_template -> $service_rendered"
     echo "[skip] render $timer_template -> $timer_rendered"
+    echo "[skip] bash $project_dir/scripts/patch-events-script.sh $event_script"
     echo "[skip] sudo -n install -m 0644 $service_rendered /etc/systemd/system/gridrunner-events.service"
     echo "[skip] sudo -n install -m 0644 $timer_rendered /etc/systemd/system/gridrunner-events.timer"
   fi
