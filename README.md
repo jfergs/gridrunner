@@ -243,6 +243,15 @@ export GRIDRUNNER_DISK_CRITICAL_PERCENT=95
 export GRIDRUNNER_BACKUP_KEEP=5
 ```
 
+## Storage Model
+
+GRIDRUNNER keeps service-critical files on internal storage. Future external USB
+media support will only move operator data such as backups, logs, SDR captures,
+radio artifacts, ADS-B history, and media libraries.
+
+See [docs/storage-model.md](docs/storage-model.md) for the storage design,
+allowed movable paths, internal-only paths, and rollback behavior.
+
 ## Initial Install
 
 The dashboard includes an initial install pane with selectable components.

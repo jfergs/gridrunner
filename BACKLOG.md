@@ -33,6 +33,13 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 ## Recently Completed
 
+- Storage location model.
+  - Documented internal-only service/runtime paths.
+  - Defined movable data classes for backups, logs, SDR captures, radio
+    artifacts, ADS-B history, and media libraries.
+  - Defined rollback behavior when external media is missing or not writable.
+  - Captured the future web UI flow and storage environment contract.
+
 - GRIDRUNNER node status strip.
   - Web UI shows compact chips for node, Wi-Fi, events, event timer, ADS-B, and
     web service state.
@@ -231,11 +238,6 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Surface power warnings in web UI and `ghost-health.sh`.
 
 ## Storage / Data Retention
-
-- Design storage location model.
-  - Define which paths are allowed to move off the OS partition.
-  - Keep service-critical runtime files on internal storage.
-  - Define rollback behavior if an external volume is removed or fails.
 
 - Add external USB storage support.
   - Provide a modern web UI for selecting an external media volume.
