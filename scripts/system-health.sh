@@ -15,6 +15,7 @@ if [ "${GRIDRUNNER_SHOW_IDENTIFIERS:-0}" = "1" ]; then
 else
   nmcli -t -f DEVICE,STATE dev
 fi
+"$(dirname "$0")/wifi-status.sh"
 echo
 echo "--- Services ---"
 systemctl --no-pager --failed

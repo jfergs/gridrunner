@@ -279,6 +279,7 @@
     <h2>Controls</h2>
     <div class="grid">
       <form method="post" action="/run"><input type="hidden" name="action" value="health"><button>Health</button></form>
+      <form method="post" action="/run"><input type="hidden" name="action" value="wifi_status"><button>Wi-Fi Status</button></form>
       <form method="post" action="/run"><input type="hidden" name="action" value="eventscan"><button>Run Events</button></form>
       <form method="post" action="/run"><input type="hidden" name="action" value="logs"><button>Logs</button></form>
       <form method="post" action="/run"><input type="hidden" name="action" value="inventory"><button>Radio Inventory</button></form>
@@ -326,6 +327,15 @@
         <button class="danger" formaction="/install/skip" type="submit">Save Without Installing</button>
       </div>
     </form>
+  </div>
+
+  <div class="panel">
+    <h2>Wi-Fi</h2>
+    <span class="status health-{{ wifi_status.get('status', 'unknown') }}">{{ wifi_status.get('status', 'unknown') }}</span>
+    <span>mode {{ wifi_status.get('mode', 'unknown') }}</span>
+    <p>state: {{ wifi_status.get('state', 'unknown') }} · ip: {{ wifi_status.get('ip', 'unknown') }}</p>
+    <p>timer: {{ wifi_status.get('timer', 'unknown') }} / {{ wifi_status.get('timer_enabled', 'unknown') }} · service: {{ wifi_status.get('service', 'unknown') }}</p>
+    <pre>{{ wifi_output }}</pre>
   </div>
 
   <div class="panel">

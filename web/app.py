@@ -71,6 +71,21 @@ def event_freshness():
     }
 
 
+def parse_keyed_status(output, prefix):
+    for line in output.splitlines():
+        if not line.startswith(prefix):
+            continue
+
+        fields = {}
+        for field in line.split()[1:]:
+            key, _, value = field.partition("=")
+            if key:
+                fields[key] = value.replace("_", " ")
+        return fields
+
+    return {}
+
+
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, _user=Depends(require_auth)):
     status_output = run_cmd(COMMANDS["health"])
@@ -78,6 +93,8 @@ def index(request: Request, _user=Depends(require_auth)):
     install_state = load_install_state()
     component_health = parse_component_health(run_cmd(COMMANDS["component_health"]))
     event_status = event_freshness()
+    wifi_output = run_cmd(COMMANDS["wifi_status"])
+    wifi_status = parse_keyed_status(wifi_output, "GRIDRUNNER_WIFI ")
 
     response = templates.TemplateResponse(
         request,
@@ -86,6 +103,8 @@ def index(request: Request, _user=Depends(require_auth)):
             "status": status_output,
             "events": events_output,
             "event_status": event_status,
+            "wifi_status": wifi_status,
+            "wifi_output": wifi_output,
             "auth_enabled": bool(WEB_PASSWORD),
             "operator_user": OPERATOR_USER,
             "adsb_map_url": adsb_map_url(request),

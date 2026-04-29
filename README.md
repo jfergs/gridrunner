@@ -82,6 +82,7 @@ scripts/
   install-adsb-readsb.sh
   install-items.sh
   logs.sh
+  wifi-status.sh
   system-health.sh
   system-backup.sh
   ham-check.sh
@@ -271,6 +272,13 @@ The systemd timer is expected to run the installed script periodically:
 ```bash
 systemctl status gridrunner-wifi.timer
 systemctl status gridrunner-wifi.service
+```
+
+Check current Wi-Fi mode, timer state, service state, and hotspot IP with:
+
+```bash
+cd ~/gridrunner
+bash scripts/wifi-status.sh
 ```
 
 Configure or repair the hotspot profile from the device:

@@ -13,6 +13,7 @@ COMMANDS = {
     "eventscan": ["bash", operator_script("operator-events.sh")],
     "event_health": ["bash", project_script("event-health.sh")],
     "logs": ["bash", project_script("logs.sh"), "120"],
+    "wifi_status": ["bash", project_script("wifi-status.sh")],
     "install": ["bash", project_script("install-items.sh")],
     "component_health": ["bash", project_script("component-health.sh")],
     "shutdown": ["bash", project_script("power-control.sh"), "shutdown"],
