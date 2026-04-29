@@ -220,6 +220,10 @@ export HOTSPOT_PASSWORD='choose-at-least-8-chars'
 bash scripts/wifi-fallback.sh
 ```
 
+The script defaults to `GRIDRUNNER-HOTSPOT` and also recognizes legacy
+`Gridrunner-hotspot` and `DEVICE-HOTSPOT` NetworkManager profile names as the
+fallback hotspot.
+
 To inspect the NetworkManager profile:
 
 ```bash

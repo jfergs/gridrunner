@@ -2,9 +2,10 @@
 set -u
 
 IFACE="${IFACE:-wlan0}"
-HOTSPOT="${HOTSPOT:-DEVICE-HOTSPOT}"
+HOTSPOT="${HOTSPOT:-GRIDRUNNER-HOTSPOT}"
 HOTSPOT_SSID="${HOTSPOT_SSID:-$HOTSPOT}"
 HOTSPOT_PASSWORD="${HOTSPOT_PASSWORD:-}"
+HOTSPOT_ALIASES="${HOTSPOT_ALIASES:-Gridrunner-hotspot DEVICE-HOTSPOT}"
 OPERATOR_LABEL="${OPERATOR_LABEL:-operator}"
 LOG="${LOG:-$HOME/operator-events.log}"
 SCAN_SETTLE_SECONDS="${SCAN_SETTLE_SECONDS:-5}"
@@ -49,12 +50,50 @@ current_connection() {
 }
 
 known_wifi_profiles() {
-  nm -t -f NAME,TYPE connection show 2>/dev/null \
-    | awk -F: -v hotspot="$HOTSPOT" '$2 == "802-11-wireless" && $1 != hotspot {print $1}'
+  local name=""
+  local type=""
+
+  while IFS=: read -r name type; do
+    [ "$type" = "802-11-wireless" ] || continue
+    is_hotspot_name "$name" && continue
+    printf '%s\n' "$name"
+  done < <(nm -t -f NAME,TYPE connection show 2>/dev/null)
+}
+
+is_hotspot_name() {
+  local name="$1"
+  local alias=""
+
+  [ "$name" = "$HOTSPOT" ] && return 0
+  for alias in $HOTSPOT_ALIASES; do
+    [ "$name" = "$alias" ] && return 0
+  done
+
+  return 1
 }
 
 hotspot_profile_exists() {
-  nm -t -f NAME connection show 2>/dev/null | grep -Fxq "$HOTSPOT"
+  local profile="$1"
+
+  nm -t -f NAME connection show 2>/dev/null | grep -Fxq "$profile"
+}
+
+hotspot_profile_name() {
+  local alias=""
+
+  if hotspot_profile_exists "$HOTSPOT"; then
+    printf '%s\n' "$HOTSPOT"
+    return 0
+  fi
+
+  for alias in $HOTSPOT_ALIASES; do
+    if hotspot_profile_exists "$alias"; then
+      printf '%s\n' "$alias"
+      return 0
+    fi
+  done
+
+  printf '%s\n' "$HOTSPOT"
 }
 
 profile_ssid() {
@@ -98,7 +137,7 @@ join_known_network() {
         log "joining known network"
       fi
       if [ "$from_hotspot" = "yes" ]; then
-        nm connection down "$HOTSPOT" >/dev/null 2>&1 || true
+        nm connection down "$(hotspot_profile_name)" >/dev/null 2>&1 || true
         sleep 2
       fi
       if nm connection up "$profile" >/dev/null 2>&1; then
@@ -120,42 +159,46 @@ join_known_network() {
 
 start_hotspot() {
   local output=""
+  local profile=""
 
   log "starting hotspot"
 
-  ensure_hotspot_profile || return 1
+  profile="$(hotspot_profile_name)"
+  ensure_hotspot_profile "$profile" || return 1
 
-  nm connection down "$HOTSPOT" >/dev/null 2>&1 || true
+  nm connection down "$profile" >/dev/null 2>&1 || true
   sleep 1
 
-  if output="$(nm connection up "$HOTSPOT" 2>&1)"; then
+  if output="$(nm connection up "$profile" 2>&1)"; then
     return 0
   fi
 
-  log "failed to start hotspot profile: $HOTSPOT"
+  log "failed to start hotspot profile: $profile"
   log "$output"
   return 1
 }
 
 ensure_hotspot_profile() {
   local output=""
+  local profile="${1:-$HOTSPOT}"
 
-  if hotspot_profile_exists; then
-    if ! output="$(nm connection modify "$HOTSPOT" \
+  if hotspot_profile_exists "$profile"; then
+    if ! output="$(nm connection modify "$profile" \
       connection.autoconnect no \
+      connection.interface-name "$IFACE" \
       802-11-wireless.mode ap \
       802-11-wireless.ssid "$HOTSPOT_SSID" \
       ipv4.method shared \
       ipv6.method disabled 2>&1)"; then
-      log "failed to update hotspot profile: $HOTSPOT"
+      log "failed to update hotspot profile: $profile"
       log "$output"
       return 1
     fi
     if [ -n "$HOTSPOT_PASSWORD" ]; then
-      if ! output="$(nm connection modify "$HOTSPOT" \
+      if ! output="$(nm connection modify "$profile" \
         wifi-sec.key-mgmt wpa-psk \
         wifi-sec.psk "$HOTSPOT_PASSWORD" 2>&1)"; then
-        log "failed to update hotspot password: $HOTSPOT"
+        log "failed to update hotspot password: $profile"
         log "$output"
         return 1
       fi
@@ -206,7 +249,7 @@ main() {
 
   current="$(current_connection)"
 
-  if [ -n "$current" ] && [ "$current" != "$HOTSPOT" ]; then
+  if [ -n "$current" ] && ! is_hotspot_name "$current"; then
     if [ "${GRIDRUNNER_SHOW_IDENTIFIERS:-0}" = "1" ]; then
       echo "$OPERATOR_LABEL: wifi connected to $current"
     else
@@ -215,7 +258,7 @@ main() {
     exit 0
   fi
 
-  if [ "$current" = "$HOTSPOT" ]; then
+  if [ -n "$current" ] && is_hotspot_name "$current"; then
     echo "$OPERATOR_LABEL: hotspot active, scanning for known networks..."
     scan_wifi
 

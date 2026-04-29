@@ -5,6 +5,20 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 ## Top Priority
 
+- ADS-B regression prevention.
+  - Keep the ADS-B Map control as a direct link to the resolved tar1090 map
+    URL, not a postback to the main web UI.
+  - Protect default map URL resolution for hostname, IPv4/hostname, IPv6, and
+    explicit `GRIDRUNNER_ADSB_MAP_URL` overrides.
+  - Keep ADS-B mode switching separate from ADS-B map navigation.
+
+- Wi-Fi failover stability.
+  - Prefer the `GRIDRUNNER-HOTSPOT` NetworkManager profile name by default.
+  - Recognize legacy fallback hotspot profile names so existing devices do not
+    misclassify the hotspot as a normal known Wi-Fi network.
+  - Improve hotspot startup diagnostics when NetworkManager cannot create,
+    update, or activate the profile.
+
 - Investigate stale GRIDRUNNER events and log access permissions.
   - Symptom: `events` output has not updated since 2026-04-27.
   - Symptom: running `logs` as the operator shows journal permission errors:
