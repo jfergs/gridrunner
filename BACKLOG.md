@@ -29,6 +29,70 @@ work here; roll up only the current priorities to the global backlog tracker.
     - `journalctl -u gridrunner-wifi.service -n 80 --no-pager`
     - `nmcli -t -f DEVICE,STATE,CONNECTION dev`
 
+- Investigate home Wi-Fi slowdowns caused by periodic GRIDRUNNER scans.
+  - Symptom: when GRIDRUNNER is connected to the home Wi-Fi network, the whole
+    network appears to slow down for roughly 30 seconds every couple of minutes.
+  - Suspected causes:
+    - Wi-Fi fallback timer calling `nmcli dev wifi rescan` while already healthy
+      on a known network.
+    - BLE scanning bursts causing 2.4 GHz airtime contention.
+    - Network discovery scripts using `arp-scan`, `nmap`, or ping sweeps too
+      often.
+    - Multiple dashboard/timer paths running the same scans concurrently.
+  - Acceptance criteria:
+    - Add diagnostics that show when Wi-Fi, BLE, and network scans start/stop.
+    - Web UI and/or `ghost-health` surfaces active scan timers and last scan
+      timestamps.
+    - Identify whether `gridrunner-wifi.timer`, event collection, tmux dashboard,
+      or manual scripts are triggering the periodic slowdown.
+    - Provide a temporary mitigation command or web control to pause background
+      scanning.
+    - Confirm that stopping the suspected timer/script eliminates the slowdown.
+  - Validation commands:
+    - `systemctl list-timers --all`
+    - `ps aux | grep -E 'wifi|ble|scan|nmap|nmcli|arp-scan|btmgmt'`
+    - `journalctl -u gridrunner-wifi.service -f`
+    - `journalctl -u gridrunner-events.service -f`
+    - `nmcli general connectivity`
+
+- Throttle or eliminate unnecessary Wi-Fi rescans while connected.
+  - Problem: local Wi-Fi rescans can briefly disrupt the Pi Wi-Fi radio and may
+    degrade nearby network performance if they occur too frequently.
+  - Acceptance criteria:
+    - `wifi-fallback.sh` exits early when connected to a known network and
+      NetworkManager reports full connectivity.
+    - Do not call `nmcli dev wifi rescan` on every timer run while connectivity
+      is healthy.
+    - Add minimum interval guard for forced Wi-Fi rescans.
+    - Add configurable environment variables:
+      - `GRIDRUNNER_WIFI_RESCAN_MIN_SECONDS`
+      - `GRIDRUNNER_WIFI_CONNECTIVITY_CHECK_HOST`
+    - Log only meaningful state transitions instead of every healthy timer run.
+    - Unit or shell tests cover healthy connected, degraded connected,
+      disconnected, and hotspot active states.
+  - Validation:
+    - With known Wi-Fi healthy, repeated timer runs should not issue a local
+      Wi-Fi rescan.
+    - When Wi-Fi is disconnected, fallback hotspot still starts.
+    - When hotspot is active and known Wi-Fi returns, GRIDRUNNER switches back.
+
+- Reduce background RF/network scan contention.
+  - Problem: BLE, Wi-Fi, ADS-B, and network discovery scans may run at overlapping
+    intervals and create bursts of CPU, USB, or RF contention.
+  - Acceptance criteria:
+    - Centralize scan cadence configuration for BLE, network presence, Wi-Fi
+      fallback, and event collection.
+    - Ensure BLE scans are bounded and not continuous.
+    - Ensure network presence scans avoid heavy `nmap` sweeps by default.
+    - Add a low-impact mode for home Wi-Fi use.
+    - Add a field/aggressive mode for mobile deployment.
+    - Document recommended default scan intervals.
+  - Suggested defaults:
+    - Wi-Fi fallback timer: 2 to 5 minutes when connected, faster only when
+      disconnected or hotspot active.
+    - BLE scan: bounded 8 to 12 second bursts.
+    - Network presence: ARP-only by default, no heavy nmap unless requested.
+
 ## Recently Completed
 
 - Web UI exposure hardening.
