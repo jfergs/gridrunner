@@ -135,6 +135,33 @@ def load_scan_controls():
     return controls
 
 
+def describe_scan_controls(controls, now=None):
+    now = int(time.time() if now is None else now)
+    described = dict(controls)
+    active = []
+
+    if described.get("bluetooth_mode") == "continuous":
+        active.append("Bluetooth")
+    if described.get("network_mode") == "continuous":
+        active.append("Network")
+
+    described["active_scanners"] = ", ".join(active) if active else "none"
+    described["state_label"] = "armed" if active else "off"
+
+    try:
+        last_run = int(described.get("last_run", 0))
+    except (TypeError, ValueError):
+        last_run = 0
+
+    if last_run > 0:
+        age_seconds = max(0, now - last_run)
+        described["last_run_message"] = f"last scan {age_seconds}s ago"
+    else:
+        described["last_run_message"] = "last scan never"
+
+    return described
+
+
 def save_scan_controls(controls):
     bluetooth_mode = controls.get("bluetooth_mode", "off")
     network_mode = controls.get("network_mode", "off")
@@ -352,7 +379,7 @@ def index(request: Request, _user=Depends(require_auth)):
     wifi_output = run_cmd(COMMANDS["wifi_status"])
     wifi_status = parse_keyed_status(wifi_output, "GRIDRUNNER_WIFI ")
     service_health = parse_service_health(run_cmd(COMMANDS["service_health"]))
-    scan_controls = load_scan_controls()
+    scan_controls = describe_scan_controls(load_scan_controls())
     node_status = build_node_status(wifi_status, event_status, component_health)
     auth_enabled = bool(WEB_PASSWORD)
     self_tests = build_self_tests(

@@ -80,7 +80,6 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Problem: BLE, Wi-Fi, ADS-B, and network discovery scans may run at overlapping
     intervals and create bursts of CPU, USB, or RF contention.
   - Acceptance criteria:
-    - Surface last scan timestamps and active scanner state in the web UI.
     - Continue moving legacy scan logic into repo-managed scripts where
       Bluetooth and network phases can be tested directly.
   - Completed foundation:
@@ -89,6 +88,7 @@ work here; roll up only the current priorities to the global backlog tracker.
     - Continuous Bluetooth and network modes are independently gated.
     - Legacy `btmgmt`, `arp-scan`, and `nmap` calls are patched behind scan
       phase controls.
+    - Web UI surfaces armed scanner state and last scan age.
   - Remaining acceptance criteria:
     - Add a low-impact mode for home Wi-Fi use.
     - Add a field/aggressive mode for mobile deployment.
@@ -169,6 +169,7 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Scan interval state is stored in `state/scan-controls.env`.
   - Legacy `btmgmt`, `arp-scan`, and `nmap` calls are patched behind the
     dashboard scan controls.
+  - Web UI shows which scanners are armed and when the last scan ran.
 
 ## Web UI / Control Plane
 

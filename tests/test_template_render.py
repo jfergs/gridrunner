@@ -230,6 +230,35 @@ class TemplateRenderTests(unittest.TestCase):
         finally:
             app.SCAN_STATE_FILE = original_scan_state_file
 
+    def test_scan_control_description_shows_armed_state_and_age(self):
+        described = app.describe_scan_controls(
+            {
+                "bluetooth_mode": "continuous",
+                "network_mode": "off",
+                "interval_seconds": 300,
+                "last_run": 100,
+            },
+            now=145,
+        )
+
+        self.assertEqual(described["state_label"], "armed")
+        self.assertEqual(described["active_scanners"], "Bluetooth")
+        self.assertEqual(described["last_run_message"], "last scan 45s ago")
+
+        disabled = app.describe_scan_controls(
+            {
+                "bluetooth_mode": "off",
+                "network_mode": "off",
+                "interval_seconds": 300,
+                "last_run": 0,
+            },
+            now=145,
+        )
+
+        self.assertEqual(disabled["state_label"], "off")
+        self.assertEqual(disabled["active_scanners"], "none")
+        self.assertEqual(disabled["last_run_message"], "last scan never")
+
     def test_index_template_warns_for_missing_web_password(self):
         request = SimpleNamespace(scope={"type": "http", "method": "GET", "path": "/", "headers": []})
 

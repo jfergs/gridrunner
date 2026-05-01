@@ -496,9 +496,13 @@
         {% set scans = scan_controls|default({"bluetooth_mode": "off", "network_mode": "off", "interval_seconds": 300, "last_run": 0}) %}
         <h2>Scan Controls</h2>
         <span class="status {% if scans.bluetooth_mode == 'off' and scans.network_mode == 'off' %}status-skipped{% else %}health-present{% endif %}">
-          {% if scans.bluetooth_mode == 'off' and scans.network_mode == 'off' %}off{% else %}armed{% endif %}
+          {{ scans.state_label|default('off') }}
         </span>
         <span>interval {{ scans.interval_seconds }}s</span>
+        <div class="telemetry-grid">
+          <div class="telemetry"><span>Armed</span><strong>{{ scans.active_scanners|default('none') }}</strong></div>
+          <div class="telemetry"><span>Last Run</span><strong>{{ scans.last_run_message|default('last scan never') }}</strong></div>
+        </div>
         <form method="post" action="/scans" class="scan-controls">
           <input type="hidden" name="action" value="save">
           <div class="scan-row">
