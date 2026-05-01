@@ -128,6 +128,7 @@ class EventsServiceInstallTests(unittest.TestCase):
                     "GRIDRUNNER_OPERATOR_USER": "ghost",
                     "GRIDRUNNER_OPERATOR_HOME": str(operator_home),
                     "GRIDRUNNER_EVENTS_RUN_SECONDS": "5",
+                    "GRIDRUNNER_SCAN_RUN_ONCE": "1",
                 }
             )
 
@@ -168,6 +169,7 @@ class EventsServiceInstallTests(unittest.TestCase):
                     "GRIDRUNNER_OPERATOR_HOME": str(operator_home),
                     "GRIDRUNNER_EVENTS_LOG": str(events_log),
                     "GRIDRUNNER_EVENTS_RUN_SECONDS": "5",
+                    "GRIDRUNNER_SCAN_RUN_ONCE": "1",
                 }
             )
 
@@ -181,6 +183,82 @@ class EventsServiceInstallTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("legacy script exit 127", result.stdout)
+
+    def test_run_events_skips_legacy_script_when_scans_are_off(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            operator_home = Path(temp_dir)
+            event_script = operator_home / "ghost-events.sh"
+            event_script.write_text("#!/bin/bash\necho should-not-run\n", encoding="utf-8")
+            event_script.chmod(0o755)
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GRIDRUNNER_OPERATOR_USER": "ghost",
+                    "GRIDRUNNER_OPERATOR_HOME": str(operator_home),
+                    "GRIDRUNNER_SCAN_STATE_FILE": str(operator_home / "scan-controls.env"),
+                }
+            )
+
+            result = subprocess.run(
+                ["bash", str(REPO_DIR / "scripts" / "run-events.sh")],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("Bluetooth and network scans are off", result.stdout)
+            self.assertNotIn("should-not-run", result.stdout)
+
+    def test_run_events_honors_continuous_interval(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            operator_home = Path(temp_dir)
+            state_file = operator_home / "scan-controls.env"
+            event_script = operator_home / "ghost-events.sh"
+            event_script.write_text("#!/bin/bash\necho ran-continuous\n", encoding="utf-8")
+            event_script.chmod(0o755)
+            state_file.write_text(
+                "\n".join(
+                    [
+                        "GRIDRUNNER_SCAN_BLUETOOTH_MODE=continuous",
+                        "GRIDRUNNER_SCAN_NETWORK_MODE=off",
+                        "GRIDRUNNER_SCAN_INTERVAL_SECONDS=60",
+                        "GRIDRUNNER_SCAN_LAST_RUN=0",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GRIDRUNNER_OPERATOR_USER": "ghost",
+                    "GRIDRUNNER_OPERATOR_HOME": str(operator_home),
+                    "GRIDRUNNER_SCAN_STATE_FILE": str(state_file),
+                    "GRIDRUNNER_EVENTS_RUN_SECONDS": "5",
+                }
+            )
+
+            first = subprocess.run(
+                ["bash", str(REPO_DIR / "scripts" / "run-events.sh")],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+            second = subprocess.run(
+                ["bash", str(REPO_DIR / "scripts" / "run-events.sh")],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+
+            self.assertEqual(first.returncode, 0, first.stderr)
+            self.assertIn("ran-continuous", first.stdout)
+            self.assertEqual(second.returncode, 0, second.stderr)
+            self.assertIn("next scan interval has not elapsed", second.stdout)
 
 
 if __name__ == "__main__":

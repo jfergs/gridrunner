@@ -22,7 +22,7 @@ COMMANDS = {
 }
 
 
-def run_cmd(cmd):
+def run_cmd(cmd, env=None):
     script = Path(cmd[1])
     if cmd[:1] == ["bash"] and script.is_absolute() and not script.exists():
         return f"ERROR: missing script: {script}"
@@ -33,6 +33,7 @@ def run_cmd(cmd):
             capture_output=True,
             text=True,
             timeout=30,
+            env=env,
         )
         output = result.stdout + result.stderr
         if len(output) > MAX_OUTPUT_CHARS:

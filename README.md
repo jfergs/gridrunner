@@ -200,8 +200,18 @@ This installs:
 /etc/systemd/system/gridrunner-events.timer
 ```
 
-The timer runs shortly after boot and every five minutes. It calls
-`scripts/run-events.sh`, which resolves the operator event script at:
+The timer runs shortly after boot and every five minutes. Bluetooth and
+network discovery scans default to off, so the timer skips legacy scan work
+until scan controls are enabled from the web panel. Use `Scan Now` for a
+single run, or set Bluetooth and/or Network to `Continuous` and choose the
+minimum interval from the dashboard. The runner stores those controls in:
+
+```text
+~/gridrunner/state/scan-controls.env
+```
+
+When scans are enabled, the timer calls `scripts/run-events.sh`, which
+resolves the operator event script at:
 
 ```text
 /home/<operator-user>/<operator-user>-events.sh

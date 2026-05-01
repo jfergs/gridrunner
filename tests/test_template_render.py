@@ -1,5 +1,6 @@
 from pathlib import Path
 from types import SimpleNamespace
+import tempfile
 import unittest
 
 import sys
@@ -188,6 +189,45 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"DISK", response.body)
         self.assertIn(b"Observe", response.body)
         self.assertIn(b"Operate", response.body)
+        self.assertIn(b"Scan Controls", response.body)
+        self.assertIn(b"Scan Now", response.body)
+
+    def test_scan_control_state_round_trips_with_safe_defaults(self):
+        original_scan_state_file = app.SCAN_STATE_FILE
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                app.SCAN_STATE_FILE = Path(temp_dir) / "scan-controls.env"
+
+                self.assertEqual(
+                    app.load_scan_controls(),
+                    {
+                        "bluetooth_mode": "off",
+                        "network_mode": "off",
+                        "interval_seconds": 300,
+                        "last_run": 0,
+                    },
+                )
+
+                app.save_scan_controls(
+                    {
+                        "bluetooth_mode": "continuous",
+                        "network_mode": "invalid",
+                        "interval_seconds": 9999,
+                        "last_run": 42,
+                    }
+                )
+
+                self.assertEqual(
+                    app.load_scan_controls(),
+                    {
+                        "bluetooth_mode": "continuous",
+                        "network_mode": "off",
+                        "interval_seconds": 1800,
+                        "last_run": 42,
+                    },
+                )
+        finally:
+            app.SCAN_STATE_FILE = original_scan_state_file
 
     def test_index_template_warns_for_missing_web_password(self):
         request = SimpleNamespace(scope={"type": "http", "method": "GET", "path": "/", "headers": []})

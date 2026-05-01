@@ -5,11 +5,78 @@ OPERATOR_USER="${GRIDRUNNER_OPERATOR_USER:-$(id -un)}"
 OPERATOR_HOME="${GRIDRUNNER_OPERATOR_HOME:-$HOME}"
 EVENT_TIMEOUT_SECONDS="${GRIDRUNNER_EVENTS_RUN_SECONDS:-75}"
 EVENTS_LOG="${GRIDRUNNER_EVENTS_LOG:-$OPERATOR_HOME/$OPERATOR_USER-events.log}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+project_dir="$(cd "$script_dir/.." && pwd)"
+STATE_FILE="${GRIDRUNNER_SCAN_STATE_FILE:-$project_dir/state/scan-controls.env}"
+SCAN_INTERVAL_SECONDS="${GRIDRUNNER_SCAN_INTERVAL_SECONDS:-300}"
+SCAN_BLUETOOTH_MODE="${GRIDRUNNER_SCAN_BLUETOOTH_MODE:-off}"
+SCAN_NETWORK_MODE="${GRIDRUNNER_SCAN_NETWORK_MODE:-off}"
+SCAN_LAST_RUN="${GRIDRUNNER_SCAN_LAST_RUN:-0}"
+SCAN_RUN_ONCE="${GRIDRUNNER_SCAN_RUN_ONCE:-0}"
 
 event_script=""
 before_mtime="0"
 after_mtime="0"
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+now_seconds="$(date +%s)"
+
+if [ -f "$STATE_FILE" ]; then
+  while IFS='=' read -r key value; do
+    case "$key" in
+      GRIDRUNNER_SCAN_INTERVAL_SECONDS)
+        GRIDRUNNER_SCAN_INTERVAL_SECONDS="$value"
+        ;;
+      GRIDRUNNER_SCAN_BLUETOOTH_MODE)
+        GRIDRUNNER_SCAN_BLUETOOTH_MODE="$value"
+        ;;
+      GRIDRUNNER_SCAN_NETWORK_MODE)
+        GRIDRUNNER_SCAN_NETWORK_MODE="$value"
+        ;;
+      GRIDRUNNER_SCAN_LAST_RUN)
+        GRIDRUNNER_SCAN_LAST_RUN="$value"
+        ;;
+    esac
+  done < "$STATE_FILE"
+fi
+
+SCAN_INTERVAL_SECONDS="${GRIDRUNNER_SCAN_INTERVAL_SECONDS:-300}"
+SCAN_BLUETOOTH_MODE="${GRIDRUNNER_SCAN_BLUETOOTH_MODE:-off}"
+SCAN_NETWORK_MODE="${GRIDRUNNER_SCAN_NETWORK_MODE:-off}"
+SCAN_LAST_RUN="${GRIDRUNNER_SCAN_LAST_RUN:-0}"
+SCAN_RUN_ONCE="${GRIDRUNNER_SCAN_RUN_ONCE:-0}"
+
+case "$SCAN_INTERVAL_SECONDS" in
+  ''|*[!0-9]*)
+    SCAN_INTERVAL_SECONDS=300
+    ;;
+esac
+
+case "$SCAN_LAST_RUN" in
+  ''|*[!0-9]*)
+    SCAN_LAST_RUN=0
+    ;;
+esac
+
+write_scan_state() {
+  mkdir -p "$(dirname "$STATE_FILE")"
+  {
+    printf 'GRIDRUNNER_SCAN_BLUETOOTH_MODE=%s\n' "$SCAN_BLUETOOTH_MODE"
+    printf 'GRIDRUNNER_SCAN_NETWORK_MODE=%s\n' "$SCAN_NETWORK_MODE"
+    printf 'GRIDRUNNER_SCAN_INTERVAL_SECONDS=%s\n' "$SCAN_INTERVAL_SECONDS"
+    printf 'GRIDRUNNER_SCAN_LAST_RUN=%s\n' "$1"
+  } > "$STATE_FILE"
+}
+
+if [ "$SCAN_RUN_ONCE" != "1" ]; then
+  if [ "$SCAN_BLUETOOTH_MODE" != "continuous" ] && [ "$SCAN_NETWORK_MODE" != "continuous" ]; then
+    echo "event collection skipped: Bluetooth and network scans are off"
+    exit 0
+  fi
+
+  if [ $((now_seconds - SCAN_LAST_RUN)) -lt "$SCAN_INTERVAL_SECONDS" ]; then
+    echo "event collection skipped: next scan interval has not elapsed"
+    exit 0
+  fi
+fi
 
 for candidate in \
   "$OPERATOR_HOME/$OPERATOR_USER-events.sh" \
@@ -48,8 +115,13 @@ if [ -e "$EVENTS_LOG" ]; then
 fi
 
 if [ "$status" -ne 0 ] && [ "$after_mtime" -gt "$before_mtime" ]; then
+  write_scan_state "$now_seconds"
   echo "event collection updated log despite legacy script exit $status"
   exit 0
+fi
+
+if [ "$status" -eq 0 ]; then
+  write_scan_state "$now_seconds"
 fi
 
 exit "$status"

@@ -1,3 +1,4 @@
+import os
 import re
 import secrets
 import time
@@ -8,7 +9,16 @@ from fastapi.templating import Jinja2Templates
 
 from auth import require_auth
 from commands import COMMANDS, run_cmd
-from config import ADSB_MAP_URL, DEVICE_HOSTNAME, EVENTS_LOG, EVENTS_STALE_SECONDS, OPERATOR_USER, WEB_DIR, WEB_PASSWORD
+from config import (
+    ADSB_MAP_URL,
+    DEVICE_HOSTNAME,
+    EVENTS_LOG,
+    EVENTS_STALE_SECONDS,
+    OPERATOR_USER,
+    SCAN_STATE_FILE,
+    WEB_DIR,
+    WEB_PASSWORD,
+)
 from install import (
     INSTALL_ITEMS,
     install_statuses,
@@ -22,6 +32,10 @@ from install import (
 app = FastAPI()
 templates = Jinja2Templates(directory=str(WEB_DIR / "templates"))
 POWER_ACTION_TOKEN = secrets.token_urlsafe(32)
+SCAN_MODES = {"off", "continuous"}
+SCAN_INTERVAL_MIN = 60
+SCAN_INTERVAL_MAX = 1800
+SCAN_INTERVAL_DEFAULT = 300
 
 
 def no_store(response: Response):
@@ -77,6 +91,85 @@ def recent_events():
     if not EVENTS_LOG.is_file():
         return f"events log path is not a file: {EVENTS_LOG}"
     return run_cmd(["tail", "-n", "40", str(EVENTS_LOG)])
+
+
+def clamp_scan_interval(value):
+    try:
+        interval = int(value)
+    except (TypeError, ValueError):
+        interval = SCAN_INTERVAL_DEFAULT
+    return min(SCAN_INTERVAL_MAX, max(SCAN_INTERVAL_MIN, interval))
+
+
+def load_scan_controls():
+    controls = {
+        "bluetooth_mode": "off",
+        "network_mode": "off",
+        "interval_seconds": SCAN_INTERVAL_DEFAULT,
+        "last_run": 0,
+    }
+
+    try:
+        lines = SCAN_STATE_FILE.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return controls
+    except OSError:
+        controls["status"] = "unreadable"
+        return controls
+
+    for line in lines:
+        key, _, value = line.partition("=")
+        value = value.strip()
+        if key == "GRIDRUNNER_SCAN_BLUETOOTH_MODE" and value in SCAN_MODES:
+            controls["bluetooth_mode"] = value
+        elif key == "GRIDRUNNER_SCAN_NETWORK_MODE" and value in SCAN_MODES:
+            controls["network_mode"] = value
+        elif key == "GRIDRUNNER_SCAN_INTERVAL_SECONDS":
+            controls["interval_seconds"] = clamp_scan_interval(value)
+        elif key == "GRIDRUNNER_SCAN_LAST_RUN":
+            try:
+                controls["last_run"] = max(0, int(value))
+            except ValueError:
+                controls["last_run"] = 0
+
+    return controls
+
+
+def save_scan_controls(controls):
+    bluetooth_mode = controls.get("bluetooth_mode", "off")
+    network_mode = controls.get("network_mode", "off")
+    if bluetooth_mode not in SCAN_MODES:
+        bluetooth_mode = "off"
+    if network_mode not in SCAN_MODES:
+        network_mode = "off"
+
+    interval = clamp_scan_interval(controls.get("interval_seconds"))
+    last_run = controls.get("last_run", 0)
+    try:
+        last_run = max(0, int(last_run))
+    except (TypeError, ValueError):
+        last_run = 0
+
+    SCAN_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SCAN_STATE_FILE.write_text(
+        "\n".join(
+            [
+                f"GRIDRUNNER_SCAN_BLUETOOTH_MODE={bluetooth_mode}",
+                f"GRIDRUNNER_SCAN_NETWORK_MODE={network_mode}",
+                f"GRIDRUNNER_SCAN_INTERVAL_SECONDS={interval}",
+                f"GRIDRUNNER_SCAN_LAST_RUN={last_run}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def run_event_scan_once():
+    env = os.environ.copy()
+    env["GRIDRUNNER_SCAN_RUN_ONCE"] = "1"
+    env["GRIDRUNNER_SCAN_STATE_FILE"] = str(SCAN_STATE_FILE)
+    return run_cmd(COMMANDS["eventscan"], env=env)
 
 
 def parse_keyed_status(output, prefix):
@@ -255,6 +348,7 @@ def index(request: Request, _user=Depends(require_auth)):
     wifi_output = run_cmd(COMMANDS["wifi_status"])
     wifi_status = parse_keyed_status(wifi_output, "GRIDRUNNER_WIFI ")
     service_health = parse_service_health(run_cmd(COMMANDS["service_health"]))
+    scan_controls = load_scan_controls()
     node_status = build_node_status(wifi_status, event_status, component_health)
     auth_enabled = bool(WEB_PASSWORD)
     self_tests = build_self_tests(
@@ -285,6 +379,45 @@ def index(request: Request, _user=Depends(require_auth)):
             "install_state": install_state,
             "install_statuses": install_statuses(install_state),
             "component_health": component_health,
+            "scan_controls": scan_controls,
+        },
+    )
+    no_store(response)
+    return response
+
+
+@app.post("/scans", response_class=HTMLResponse)
+def scan_action(
+    request: Request,
+    action: str = Form(...),
+    bluetooth_mode: str = Form("off"),
+    network_mode: str = Form("off"),
+    interval_seconds: int = Form(SCAN_INTERVAL_DEFAULT),
+    _user=Depends(require_auth),
+):
+    controls = load_scan_controls()
+
+    if action == "save":
+        controls.update(
+            {
+                "bluetooth_mode": bluetooth_mode,
+                "network_mode": network_mode,
+                "interval_seconds": interval_seconds,
+            }
+        )
+        save_scan_controls(controls)
+        output = "Scan controls saved."
+    elif action == "scan-now":
+        output = run_event_scan_once()
+    else:
+        output = f"Unknown scan action: {action}"
+
+    response = templates.TemplateResponse(
+        request,
+        "result.html",
+        {
+            "title": "GRIDRUNNER SCANS",
+            "output": output,
         },
     )
     no_store(response)

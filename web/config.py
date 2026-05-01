@@ -38,6 +38,7 @@ EVENTS_STALE_SECONDS = int(os.environ.get("GRIDRUNNER_EVENTS_STALE_SECONDS", "90
 STATE_DIR = Path(os.environ.get("GRIDRUNNER_STATE_DIR", PROJECT_DIR / "state"))
 INSTALL_STATE_FILE = STATE_DIR / "install.json"
 INSTALL_MANIFEST_FILE = PROJECT_DIR / "install-items.json"
+SCAN_STATE_FILE = STATE_DIR / "scan-controls.env"
 
 
 def project_script(name):
