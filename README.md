@@ -414,6 +414,17 @@ Expected behavior:
 - Start the configured fallback hotspot when no known network is visible.
 - While hotspot is active, keep scanning and switch back to known Wi-Fi when available.
 
+When NetworkManager reports full connectivity on a known Wi-Fi network, the
+fallback check exits without rescanning. Degraded connectivity checks use a
+minimum local rescan interval to reduce radio churn:
+
+```bash
+export GRIDRUNNER_WIFI_RESCAN_MIN_SECONDS=60
+```
+
+The last rescan timestamp is stored in `~/gridrunner/state/wifi-rescan.last` by
+default.
+
 ## Notes
 
 Runtime logs, backups, virtual environments, and generated cache files are intentionally ignored by git.

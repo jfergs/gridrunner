@@ -16,6 +16,8 @@ OPERATOR_LABEL="${OPERATOR_LABEL:-operator}"
 LOG="${LOG:-$HOME/operator-events.log}"
 SCAN_SETTLE_SECONDS="${SCAN_SETTLE_SECONDS:-5}"
 MIN_KNOWN_WIFI_SIGNAL="${MIN_KNOWN_WIFI_SIGNAL:-15}"
+WIFI_RESCAN_MIN_SECONDS="${GRIDRUNNER_WIFI_RESCAN_MIN_SECONDS:-60}"
+WIFI_RESCAN_STATE="${GRIDRUNNER_WIFI_RESCAN_STATE:-${GRIDRUNNER_STATE_DIR:-$HOME/gridrunner/state}/wifi-rescan.last}"
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') $OPERATOR_LABEL: wifi: $1" | tee -a "$LOG"
@@ -116,8 +118,34 @@ profile_ssid() {
 }
 
 scan_wifi() {
+  local now_seconds=""
+  local last_scan="0"
+
+  case "$WIFI_RESCAN_MIN_SECONDS" in
+    ''|*[!0-9]*)
+      WIFI_RESCAN_MIN_SECONDS=60
+      ;;
+  esac
+
+  now_seconds="$(date +%s)"
+  if [ -r "$WIFI_RESCAN_STATE" ]; then
+    last_scan="$(cat "$WIFI_RESCAN_STATE" 2>/dev/null || echo 0)"
+  fi
+  case "$last_scan" in
+    ''|*[!0-9]*)
+      last_scan=0
+      ;;
+  esac
+
+  if [ $((now_seconds - last_scan)) -lt "$WIFI_RESCAN_MIN_SECONDS" ]; then
+    return 1
+  fi
+
   nm dev wifi rescan ifname "$IFACE" >/dev/null 2>&1 || true
+  mkdir -p "$(dirname "$WIFI_RESCAN_STATE")" 2>/dev/null || true
+  printf '%s\n' "$now_seconds" > "$WIFI_RESCAN_STATE" 2>/dev/null || true
   sleep "$SCAN_SETTLE_SECONDS"
+  return 0
 }
 
 network_connectivity() {
@@ -156,7 +184,9 @@ known_connection_usable() {
     return 0
   fi
 
-  scan_wifi
+  if ! scan_wifi; then
+    return 0
+  fi
 
   if [ -n "$ssid" ] && ssid_visible_with_signal "$ssid"; then
     return 0

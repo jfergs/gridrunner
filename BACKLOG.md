@@ -63,9 +63,7 @@ work here; roll up only the current priorities to the global backlog tracker.
       NetworkManager reports full connectivity.
     - Do not call `nmcli dev wifi rescan` on every timer run while connectivity
       is healthy.
-    - Add minimum interval guard for forced Wi-Fi rescans.
-    - Add configurable environment variables:
-      - `GRIDRUNNER_WIFI_RESCAN_MIN_SECONDS`
+    - Add configurable environment variable:
       - `GRIDRUNNER_WIFI_CONNECTIVITY_CHECK_HOST`
     - Log only meaningful state transitions instead of every healthy timer run.
     - Unit or shell tests cover healthy connected, degraded connected,
@@ -169,6 +167,11 @@ work here; roll up only the current priorities to the global backlog tracker.
     dashboard scan controls.
   - Web UI shows which scanners are armed and when the last scan ran.
   - Web UI includes Low Impact and Field scan profile presets.
+
+- Wi-Fi rescan throttling.
+  - `wifi-fallback.sh` skips healthy known Wi-Fi without rescanning.
+  - Degraded stale-link checks respect `GRIDRUNNER_WIFI_RESCAN_MIN_SECONDS`.
+  - Last Wi-Fi rescan timestamp is stored in `state/wifi-rescan.last`.
 
 ## Web UI / Control Plane
 
