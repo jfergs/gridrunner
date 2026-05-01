@@ -13,6 +13,7 @@ SCAN_BLUETOOTH_MODE="${GRIDRUNNER_SCAN_BLUETOOTH_MODE:-off}"
 SCAN_NETWORK_MODE="${GRIDRUNNER_SCAN_NETWORK_MODE:-off}"
 SCAN_LAST_RUN="${GRIDRUNNER_SCAN_LAST_RUN:-0}"
 SCAN_RUN_ONCE="${GRIDRUNNER_SCAN_RUN_ONCE:-0}"
+SCAN_ONCE_TARGET="${GRIDRUNNER_SCAN_ONCE_TARGET:-all}"
 
 event_script=""
 before_mtime="0"
@@ -43,6 +44,7 @@ SCAN_BLUETOOTH_MODE="${GRIDRUNNER_SCAN_BLUETOOTH_MODE:-off}"
 SCAN_NETWORK_MODE="${GRIDRUNNER_SCAN_NETWORK_MODE:-off}"
 SCAN_LAST_RUN="${GRIDRUNNER_SCAN_LAST_RUN:-0}"
 SCAN_RUN_ONCE="${GRIDRUNNER_SCAN_RUN_ONCE:-0}"
+SCAN_ONCE_TARGET="${GRIDRUNNER_SCAN_ONCE_TARGET:-all}"
 
 case "$SCAN_INTERVAL_SECONDS" in
   ''|*[!0-9]*)
@@ -78,6 +80,34 @@ if [ "$SCAN_RUN_ONCE" != "1" ]; then
   fi
 fi
 
+GRIDRUNNER_SCAN_BLUETOOTH_ENABLED=0
+GRIDRUNNER_SCAN_NETWORK_ENABLED=0
+
+if [ "$SCAN_RUN_ONCE" = "1" ]; then
+  case "$SCAN_ONCE_TARGET" in
+    bluetooth)
+      GRIDRUNNER_SCAN_BLUETOOTH_ENABLED=1
+      ;;
+    network)
+      GRIDRUNNER_SCAN_NETWORK_ENABLED=1
+      ;;
+    *)
+      GRIDRUNNER_SCAN_BLUETOOTH_ENABLED=1
+      GRIDRUNNER_SCAN_NETWORK_ENABLED=1
+      ;;
+  esac
+else
+  if [ "$SCAN_BLUETOOTH_MODE" = "continuous" ]; then
+    GRIDRUNNER_SCAN_BLUETOOTH_ENABLED=1
+  fi
+  if [ "$SCAN_NETWORK_MODE" = "continuous" ]; then
+    GRIDRUNNER_SCAN_NETWORK_ENABLED=1
+  fi
+fi
+
+export GRIDRUNNER_SCAN_BLUETOOTH_ENABLED
+export GRIDRUNNER_SCAN_NETWORK_ENABLED
+
 for candidate in \
   "$OPERATOR_HOME/$OPERATOR_USER-events.sh" \
   "$OPERATOR_HOME/operator-events.sh"; do
@@ -92,6 +122,7 @@ if [ -z "$event_script" ]; then
   exit 1
 fi
 
+"$script_dir/patch-events-script.sh" "$event_script" >/dev/null 2>&1 || true
 "$script_dir/rotate-logs.sh" >/dev/null 2>&1 || true
 
 if [ -e "$EVENTS_LOG" ]; then

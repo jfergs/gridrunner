@@ -190,7 +190,8 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Observe", response.body)
         self.assertIn(b"Operate", response.body)
         self.assertIn(b"Scan Controls", response.body)
-        self.assertIn(b"Scan Now", response.body)
+        self.assertIn(b"Bluetooth Scan", response.body)
+        self.assertIn(b"Network Scan", response.body)
 
     def test_scan_control_state_round_trips_with_safe_defaults(self):
         original_scan_state_file = app.SCAN_STATE_FILE

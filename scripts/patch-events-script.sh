@@ -14,6 +14,8 @@ if [ ! -f "$event_script" ]; then
 fi
 
 needs_btmgmt_patch=0
+needs_bluetooth_gate_patch=0
+needs_network_gate_patch=0
 needs_air_copy_patch=0
 
 if ! grep -Fq 'GRIDRUNNER_BTMGMT_FIND_SECONDS' "$event_script" &&
@@ -21,11 +23,24 @@ if ! grep -Fq 'GRIDRUNNER_BTMGMT_FIND_SECONDS' "$event_script" &&
   needs_btmgmt_patch=1
 fi
 
+if grep -Eq '(^|[[:space:]])(timeout[[:space:]]+"?\$\{GRIDRUNNER_BTMGMT_FIND_SECONDS:-12\}s"?[[:space:]]+)?(sudo[[:space:]]+)?btmgmt[[:space:]]+find([[:space:]]|$)' "$event_script" &&
+  ! grep -Fq 'GRIDRUNNER_SCAN_BLUETOOTH_ENABLED' "$event_script"; then
+  needs_bluetooth_gate_patch=1
+fi
+
+if grep -Eq '(^|[[:space:]])(sudo[[:space:]]+)?(arp-scan|nmap)([[:space:]]|$)' "$event_script" &&
+  ! grep -Fq 'GRIDRUNNER_SCAN_NETWORK_ENABLED' "$event_script"; then
+  needs_network_gate_patch=1
+fi
+
 if grep -Eq 'cp[[:space:]]+"\$AIR_NOW"[[:space:]]+"\$AIR_LAST"0;177;25M0;177;25m' "$event_script"; then
   needs_air_copy_patch=1
 fi
 
-if [ "$needs_btmgmt_patch" -eq 0 ] && [ "$needs_air_copy_patch" -eq 0 ]; then
+if [ "$needs_btmgmt_patch" -eq 0 ] &&
+  [ "$needs_bluetooth_gate_patch" -eq 0 ] &&
+  [ "$needs_network_gate_patch" -eq 0 ] &&
+  [ "$needs_air_copy_patch" -eq 0 ]; then
   echo "events script needs no GRIDRUNNER legacy patches: $event_script"
   exit 0
 fi
@@ -48,6 +63,18 @@ awk '
     sub(/btmgmt[[:space:]]+find/, "timeout \"${GRIDRUNNER_BTMGMT_FIND_SECONDS:-12}s\" btmgmt find")
     patched = 1
   }
+  !/GRIDRUNNER_SCAN_BLUETOOTH_ENABLED/ && /(^|[[:space:]])(timeout[[:space:]]+"?\$\{GRIDRUNNER_BTMGMT_FIND_SECONDS:-12\}s"?[[:space:]]+)?(sudo[[:space:]]+)?btmgmt[[:space:]]+find([[:space:]]|$)/ {
+    print "if [ \"${GRIDRUNNER_SCAN_BLUETOOTH_ENABLED:-0}\" = \"1\" ]; then"
+    print $0
+    print "fi"
+    next
+  }
+  !/GRIDRUNNER_SCAN_NETWORK_ENABLED/ && /(^|[[:space:]])(sudo[[:space:]]+)?(arp-scan|nmap)([[:space:]]|$)/ {
+    print "if [ \"${GRIDRUNNER_SCAN_NETWORK_ENABLED:-0}\" = \"1\" ]; then"
+    print $0
+    print "fi"
+    next
+  }
   { print }
 ' "$event_script" > "$tmp" || {
   rm -f "$tmp"
@@ -59,6 +86,12 @@ mv "$tmp" "$event_script"
 
 if [ "$needs_btmgmt_patch" -eq 1 ]; then
   echo "bounded btmgmt find in events script: $event_script"
+fi
+if [ "$needs_bluetooth_gate_patch" -eq 1 ]; then
+  echo "gated Bluetooth scan commands in events script: $event_script"
+fi
+if [ "$needs_network_gate_patch" -eq 1 ]; then
+  echo "gated network scan commands in events script: $event_script"
 fi
 if [ "$needs_air_copy_patch" -eq 1 ]; then
   echo "repaired corrupted AIR_LAST copy in events script: $event_script"

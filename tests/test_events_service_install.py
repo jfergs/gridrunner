@@ -80,8 +80,44 @@ class EventsServiceInstallTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             patched = event_script.read_text(encoding="utf-8")
+            self.assertIn('GRIDRUNNER_SCAN_BLUETOOTH_ENABLED', patched)
             self.assertIn('timeout "${GRIDRUNNER_BTMGMT_FIND_SECONDS:-12}s" sudo btmgmt find', patched)
             self.assertTrue((Path(str(event_script) + ".gridrunner-pre-legacy-patch")).exists())
+
+    def test_patch_events_script_gates_network_scanners(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            event_script = Path(temp_dir) / "ghost-events.sh"
+            event_script.write_text(
+                "\n".join(
+                    [
+                        "#!/bin/bash",
+                        "sudo arp-scan --localnet",
+                        "nmap -sn 10.0.0.0/24",
+                        "echo done",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            event_script.chmod(0o755)
+
+            result = subprocess.run(
+                [
+                    "bash",
+                    str(REPO_DIR / "scripts" / "patch-events-script.sh"),
+                    str(event_script),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            patched = event_script.read_text(encoding="utf-8")
+            self.assertEqual(patched.count('GRIDRUNNER_SCAN_NETWORK_ENABLED'), 2)
+            self.assertIn("sudo arp-scan --localnet", patched)
+            self.assertIn("nmap -sn 10.0.0.0/24", patched)
+            self.assertIn("gated network scan commands", result.stdout)
 
     def test_patch_events_script_repairs_corrupted_air_copy_line(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -259,6 +295,45 @@ class EventsServiceInstallTests(unittest.TestCase):
             self.assertIn("ran-continuous", first.stdout)
             self.assertEqual(second.returncode, 0, second.stderr)
             self.assertIn("next scan interval has not elapsed", second.stdout)
+
+    def test_run_events_exports_single_scan_phase(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            operator_home = Path(temp_dir)
+            event_script = operator_home / "ghost-events.sh"
+            event_script.write_text(
+                "\n".join(
+                    [
+                        "#!/bin/bash",
+                        'echo bluetooth=$GRIDRUNNER_SCAN_BLUETOOTH_ENABLED',
+                        'echo network=$GRIDRUNNER_SCAN_NETWORK_ENABLED',
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            event_script.chmod(0o755)
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GRIDRUNNER_OPERATOR_USER": "ghost",
+                    "GRIDRUNNER_OPERATOR_HOME": str(operator_home),
+                    "GRIDRUNNER_EVENTS_RUN_SECONDS": "5",
+                    "GRIDRUNNER_SCAN_RUN_ONCE": "1",
+                    "GRIDRUNNER_SCAN_ONCE_TARGET": "network",
+                }
+            )
+
+            result = subprocess.run(
+                ["bash", str(REPO_DIR / "scripts" / "run-events.sh")],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("bluetooth=0", result.stdout)
+            self.assertIn("network=1", result.stdout)
 
 
 if __name__ == "__main__":

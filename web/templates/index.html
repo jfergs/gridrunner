@@ -521,10 +521,18 @@
           </div>
           <button>Save Scan Controls</button>
         </form>
-        <form method="post" action="/scans" class="actions">
+        <div class="actions">
+        <form method="post" action="/scans">
           <input type="hidden" name="action" value="scan-now">
-          <button>Scan Now</button>
+          <input type="hidden" name="scan_target" value="bluetooth">
+          <button>Bluetooth Scan</button>
         </form>
+        <form method="post" action="/scans">
+          <input type="hidden" name="action" value="scan-now">
+          <input type="hidden" name="scan_target" value="network">
+          <button>Network Scan</button>
+        </form>
+        </div>
       </div>
 
       <div class="panel">

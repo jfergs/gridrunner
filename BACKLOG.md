@@ -80,10 +80,16 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Problem: BLE, Wi-Fi, ADS-B, and network discovery scans may run at overlapping
     intervals and create bursts of CPU, USB, or RF contention.
   - Acceptance criteria:
-    - Centralize scan cadence configuration for BLE, network presence, Wi-Fi
-      fallback, and event collection.
-    - Ensure BLE scans are bounded and not continuous.
-    - Ensure network presence scans avoid heavy `nmap` sweeps by default.
+    - Surface last scan timestamps and active scanner state in the web UI.
+    - Continue moving legacy scan logic into repo-managed scripts where
+      Bluetooth and network phases can be tested directly.
+  - Completed foundation:
+    - Bluetooth and network scans default to off.
+    - Web UI provides separate Bluetooth and Network one-shot scan controls.
+    - Continuous Bluetooth and network modes are independently gated.
+    - Legacy `btmgmt`, `arp-scan`, and `nmap` calls are patched behind scan
+      phase controls.
+  - Remaining acceptance criteria:
     - Add a low-impact mode for home Wi-Fi use.
     - Add a field/aggressive mode for mobile deployment.
     - Document recommended default scan intervals.
@@ -155,6 +161,14 @@ work here; roll up only the current priorities to the global backlog tracker.
     event freshness, ADS-B RTL support, and disk state.
   - `scripts/service-health.sh` emits machine-readable service unit health.
   - `scripts/system-health.sh` includes service and disk guardrail output.
+
+- Dashboard scan controls.
+  - Bluetooth and network discovery scans default to off.
+  - Web UI supports separate Bluetooth and Network one-shot scan controls.
+  - Continuous Bluetooth and network modes are independently gated.
+  - Scan interval state is stored in `state/scan-controls.env`.
+  - Legacy `btmgmt`, `arp-scan`, and `nmap` calls are patched behind the
+    dashboard scan controls.
 
 ## Web UI / Control Plane
 

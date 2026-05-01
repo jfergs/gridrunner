@@ -165,9 +165,13 @@ def save_scan_controls(controls):
     )
 
 
-def run_event_scan_once():
+def run_event_scan_once(target="all"):
+    if target not in {"all", "bluetooth", "network"}:
+        target = "all"
+
     env = os.environ.copy()
     env["GRIDRUNNER_SCAN_RUN_ONCE"] = "1"
+    env["GRIDRUNNER_SCAN_ONCE_TARGET"] = target
     env["GRIDRUNNER_SCAN_STATE_FILE"] = str(SCAN_STATE_FILE)
     return run_cmd(COMMANDS["eventscan"], env=env)
 
@@ -390,6 +394,7 @@ def index(request: Request, _user=Depends(require_auth)):
 def scan_action(
     request: Request,
     action: str = Form(...),
+    scan_target: str = Form("all"),
     bluetooth_mode: str = Form("off"),
     network_mode: str = Form("off"),
     interval_seconds: int = Form(SCAN_INTERVAL_DEFAULT),
@@ -408,7 +413,7 @@ def scan_action(
         save_scan_controls(controls)
         output = "Scan controls saved."
     elif action == "scan-now":
-        output = run_event_scan_once()
+        output = run_event_scan_once(scan_target)
     else:
         output = f"Unknown scan action: {action}"
 

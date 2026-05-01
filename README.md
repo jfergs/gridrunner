@@ -202,9 +202,10 @@ This installs:
 
 The timer runs shortly after boot and every five minutes. Bluetooth and
 network discovery scans default to off, so the timer skips legacy scan work
-until scan controls are enabled from the web panel. Use `Scan Now` for a
-single run, or set Bluetooth and/or Network to `Continuous` and choose the
-minimum interval from the dashboard. The runner stores those controls in:
+until scan controls are enabled from the web panel. Use `Bluetooth Scan` or
+`Network Scan` for a single phase-specific run, or set Bluetooth and/or Network
+to `Continuous` and choose the minimum interval from the dashboard. The runner
+stores those controls in:
 
 ```text
 ~/gridrunner/state/scan-controls.env
@@ -218,7 +219,8 @@ resolves the operator event script at:
 ```
 
 During `events-service` install, `scripts/patch-events-script.sh` bounds legacy
-`btmgmt find` calls. Override that scanner timeout with:
+`btmgmt find` calls and gates known Bluetooth/network discovery commands behind
+the dashboard scan controls. Override the Bluetooth scanner timeout with:
 
 ```bash
 export GRIDRUNNER_BTMGMT_FIND_SECONDS=12
