@@ -10,6 +10,9 @@ fi
 IFACE="${IFACE:-wlan0}"
 HOTSPOT="${HOTSPOT:-GRIDRUNNER-HOTSPOT}"
 HOTSPOT_ALIASES="${HOTSPOT_ALIASES:-Gridrunner-hotspot DEVICE-HOTSPOT}"
+WIFI_ACTION_STATE="${GRIDRUNNER_WIFI_ACTION_STATE:-${GRIDRUNNER_STATE_DIR:-$HOME/gridrunner/state}/wifi-action.env}"
+last_action="unknown"
+last_action_at="0"
 
 field() {
   local value="$1"
@@ -55,6 +58,44 @@ service_enabled() {
   systemctl is-enabled "$unit" 2>/dev/null || true
 }
 
+load_last_action() {
+  local key=""
+  local value=""
+
+  if [ ! -r "$WIFI_ACTION_STATE" ]; then
+    return
+  fi
+
+  while IFS='=' read -r key value; do
+    case "$key" in
+      GRIDRUNNER_WIFI_LAST_ACTION)
+        last_action="$value"
+        ;;
+      GRIDRUNNER_WIFI_LAST_ACTION_AT)
+        last_action_at="$value"
+        ;;
+    esac
+  done < "$WIFI_ACTION_STATE"
+
+  case "$last_action_at" in
+    ''|*[!0-9]*)
+      last_action_at=0
+      ;;
+  esac
+}
+
+last_action_age() {
+  local now_seconds=""
+
+  if [ "$last_action_at" = "0" ]; then
+    printf 'unknown'
+    return
+  fi
+
+  now_seconds="$(date +%s)"
+  printf '%s' "$((now_seconds - last_action_at))"
+}
+
 if ! command -v nmcli >/dev/null 2>&1; then
   echo "GRIDRUNNER_WIFI status=missing detail=nmcli-not-found"
   echo "wifi tools missing: nmcli"
@@ -68,6 +109,8 @@ ip_address="$(nmcli -g IP4.ADDRESS dev show "$IFACE" 2>/dev/null | head -1 | cut
 timer_state="$(service_state gridrunner-wifi.timer)"
 timer_enabled="$(service_enabled gridrunner-wifi.timer)"
 service_active="$(service_state gridrunner-wifi.service)"
+load_last_action
+last_action_age_seconds="$(last_action_age)"
 
 mode="disconnected"
 status="degraded"
@@ -88,9 +131,9 @@ if [ "$timer_state" != "active" ] && [ "$timer_enabled" != "enabled" ]; then
 fi
 
 if [ "${GRIDRUNNER_SHOW_IDENTIFIERS:-0}" = "1" ]; then
-  echo "GRIDRUNNER_WIFI status=$(field "$status") mode=$(field "$mode") device=$(field "$IFACE") state=$(field "$device_state") connection=$(field "$active_connection") ip=$(field "$ip_address") timer=$(field "$timer_state") timer_enabled=$(field "$timer_enabled") service=$(field "$service_active")"
+  echo "GRIDRUNNER_WIFI status=$(field "$status") mode=$(field "$mode") device=$(field "$IFACE") state=$(field "$device_state") connection=$(field "$active_connection") ip=$(field "$ip_address") timer=$(field "$timer_state") timer_enabled=$(field "$timer_enabled") service=$(field "$service_active") last_action=$(field "$last_action") last_action_age_seconds=$(field "$last_action_age_seconds")"
 else
-  echo "GRIDRUNNER_WIFI status=$(field "$status") mode=$(field "$mode") device=$(field "$IFACE") state=$(field "$device_state") ip=$(field "$ip_address") timer=$(field "$timer_state") timer_enabled=$(field "$timer_enabled") service=$(field "$service_active")"
+  echo "GRIDRUNNER_WIFI status=$(field "$status") mode=$(field "$mode") device=$(field "$IFACE") state=$(field "$device_state") ip=$(field "$ip_address") timer=$(field "$timer_state") timer_enabled=$(field "$timer_enabled") service=$(field "$service_active") last_action=$(field "$last_action") last_action_age_seconds=$(field "$last_action_age_seconds")"
 fi
 
 echo "mode: $mode"
@@ -101,3 +144,5 @@ fi
 echo "ip: ${ip_address:-unknown}"
 echo "timer: $timer_state ($timer_enabled)"
 echo "service: $service_active"
+echo "last action: $last_action"
+echo "last action age: ${last_action_age_seconds}s"

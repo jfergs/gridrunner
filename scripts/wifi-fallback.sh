@@ -18,9 +18,22 @@ SCAN_SETTLE_SECONDS="${SCAN_SETTLE_SECONDS:-5}"
 MIN_KNOWN_WIFI_SIGNAL="${MIN_KNOWN_WIFI_SIGNAL:-15}"
 WIFI_RESCAN_MIN_SECONDS="${GRIDRUNNER_WIFI_RESCAN_MIN_SECONDS:-60}"
 WIFI_RESCAN_STATE="${GRIDRUNNER_WIFI_RESCAN_STATE:-${GRIDRUNNER_STATE_DIR:-$HOME/gridrunner/state}/wifi-rescan.last}"
+WIFI_ACTION_STATE="${GRIDRUNNER_WIFI_ACTION_STATE:-${GRIDRUNNER_STATE_DIR:-$HOME/gridrunner/state}/wifi-action.env}"
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') $OPERATOR_LABEL: wifi: $1" | tee -a "$LOG"
+}
+
+record_action() {
+  local action="$1"
+  local now_seconds=""
+
+  now_seconds="$(date +%s)"
+  mkdir -p "$(dirname "$WIFI_ACTION_STATE")" 2>/dev/null || true
+  {
+    printf 'GRIDRUNNER_WIFI_LAST_ACTION=%s\n' "$action"
+    printf 'GRIDRUNNER_WIFI_LAST_ACTION_AT=%s\n' "$now_seconds"
+  } > "$WIFI_ACTION_STATE" 2>/dev/null || true
 }
 
 nm() {
@@ -181,18 +194,22 @@ known_connection_usable() {
   ssid="$(profile_ssid "$profile")"
   connectivity="$(network_connectivity)"
   if [ "$connectivity" = "full" ]; then
+    record_action "known-wifi-healthy"
     return 0
   fi
 
   if ! scan_wifi; then
+    record_action "rescan-throttled"
     return 0
   fi
 
   if [ -n "$ssid" ] && ssid_visible_with_signal "$ssid"; then
+    record_action "known-wifi-visible"
     return 0
   fi
 
   log "known wifi connection appears stale; switching to fallback"
+  record_action "known-wifi-stale"
   nm connection down "$profile" >/dev/null 2>&1 || true
   sleep 2
   return 1
@@ -220,6 +237,7 @@ join_known_network() {
         sleep 2
       fi
       if nm connection up "$profile" >/dev/null 2>&1; then
+        record_action "joined-known-wifi"
         return 0
       fi
       if [ "${GRIDRUNNER_SHOW_IDENTIFIERS:-0}" = "1" ]; then
@@ -249,10 +267,12 @@ start_hotspot() {
   sleep 1
 
   if output="$(nm connection up "$profile" 2>&1)"; then
+    record_action "started-hotspot"
     return 0
   fi
 
   log "failed to start hotspot profile: $profile"
+  record_action "failed-hotspot"
   log "$output"
   return 1
 }

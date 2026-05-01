@@ -183,6 +183,7 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"WEB PRESENT", response.body)
         self.assertIn(b"field terminal active", response.body)
         self.assertIn(b"Wi-Fi Telemetry", response.body)
+        self.assertIn(b"Last Action", response.body)
         self.assertIn(b"Self Test", response.body)
         self.assertIn(b"WEB AUTH", response.body)
         self.assertIn(b"WEB SERVICE", response.body)

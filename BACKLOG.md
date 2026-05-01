@@ -173,6 +173,11 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Degraded stale-link checks respect `GRIDRUNNER_WIFI_RESCAN_MIN_SECONDS`.
   - Last Wi-Fi rescan timestamp is stored in `state/wifi-rescan.last`.
 
+- Wi-Fi fallback action visibility.
+  - `wifi-fallback.sh` records the last fallback action in `state/wifi-action.env`.
+  - `wifi-status.sh` emits `last_action` and `last_action_age_seconds`.
+  - Web UI Wi-Fi Telemetry shows the last fallback action.
+
 ## Web UI / Control Plane
 
 - Continue retrofuture field terminal refinement.

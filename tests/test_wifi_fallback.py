@@ -31,6 +31,7 @@ class WifiFallbackTests(unittest.TestCase):
                     "SCAN_SETTLE_SECONDS": "0",
                     "NMCLI_CALLS": str(calls),
                     "GRIDRUNNER_WIFI_RESCAN_STATE": str(temp_path / "wifi-rescan.last"),
+                    "GRIDRUNNER_WIFI_ACTION_STATE": str(temp_path / "wifi-action.env"),
                 }
             )
             if env:

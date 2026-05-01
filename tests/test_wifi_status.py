@@ -16,7 +16,7 @@ import app
 
 
 class WifiStatusTests(unittest.TestCase):
-    def run_with_fakes(self, connection):
+    def run_with_fakes(self, connection, action_state=None):
         with tempfile.TemporaryDirectory() as temp_dir:
             fake_bin = Path(temp_dir) / "bin"
             fake_bin.mkdir()
@@ -59,6 +59,8 @@ class WifiStatusTests(unittest.TestCase):
 
             env = os.environ.copy()
             env["PATH"] = f"{fake_bin}:{env['PATH']}"
+            if action_state:
+                env["GRIDRUNNER_WIFI_ACTION_STATE"] = str(action_state)
 
             return subprocess.run(
                 ["bash", str(SCRIPT)],
@@ -93,6 +95,26 @@ class WifiStatusTests(unittest.TestCase):
         self.assertEqual(parsed["status"], "present")
         self.assertEqual(parsed["mode"], "known-wifi")
         self.assertEqual(parsed["ip"], "192.168.8.1")
+
+    def test_status_includes_last_wifi_action(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_file = Path(temp_dir) / "wifi-action.env"
+            state_file.write_text(
+                "\n".join(
+                    [
+                        "GRIDRUNNER_WIFI_LAST_ACTION=started-hotspot",
+                        "GRIDRUNNER_WIFI_LAST_ACTION_AT=1",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_with_fakes("GRIDRUNNER-HOTSPOT", state_file)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("last_action=started-hotspot", result.stdout)
+        self.assertIn("last action: started-hotspot", result.stdout)
 
 
 if __name__ == "__main__":

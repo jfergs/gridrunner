@@ -425,6 +425,9 @@ export GRIDRUNNER_WIFI_RESCAN_MIN_SECONDS=60
 The last rescan timestamp is stored in `~/gridrunner/state/wifi-rescan.last` by
 default.
 
+The last fallback action is stored in `~/gridrunner/state/wifi-action.env` and
+shown by `scripts/wifi-status.sh` and the web dashboard.
+
 ## Notes
 
 Runtime logs, backups, virtual environments, and generated cache files are intentionally ignored by git.
