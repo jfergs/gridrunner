@@ -36,6 +36,20 @@ SCAN_MODES = {"off", "continuous"}
 SCAN_INTERVAL_MIN = 60
 SCAN_INTERVAL_MAX = 1800
 SCAN_INTERVAL_DEFAULT = 300
+SCAN_PROFILES = {
+    "low-impact": {
+        "bluetooth_mode": "off",
+        "network_mode": "off",
+        "interval_seconds": 900,
+        "label": "Low Impact",
+    },
+    "field": {
+        "bluetooth_mode": "continuous",
+        "network_mode": "continuous",
+        "interval_seconds": 300,
+        "label": "Field",
+    },
+}
 
 
 def no_store(response: Response):
@@ -135,6 +149,24 @@ def load_scan_controls():
     return controls
 
 
+def scan_profile_for(controls):
+    for profile_id, profile in SCAN_PROFILES.items():
+        if (
+            controls.get("bluetooth_mode") == profile["bluetooth_mode"]
+            and controls.get("network_mode") == profile["network_mode"]
+            and clamp_scan_interval(controls.get("interval_seconds")) == profile["interval_seconds"]
+        ):
+            return {
+                "id": profile_id,
+                "label": profile["label"],
+            }
+
+    return {
+        "id": "custom",
+        "label": "Custom",
+    }
+
+
 def describe_scan_controls(controls, now=None):
     now = int(time.time() if now is None else now)
     described = dict(controls)
@@ -147,6 +179,7 @@ def describe_scan_controls(controls, now=None):
 
     described["active_scanners"] = ", ".join(active) if active else "none"
     described["state_label"] = "armed" if active else "off"
+    described["profile"] = scan_profile_for(described)
 
     try:
         last_run = int(described.get("last_run", 0))
@@ -190,6 +223,22 @@ def save_scan_controls(controls):
         ),
         encoding="utf-8",
     )
+
+
+def scan_controls_for_profile(profile_id, current_controls=None):
+    controls = dict(current_controls or load_scan_controls())
+    profile = SCAN_PROFILES.get(profile_id)
+    if not profile:
+        return controls
+
+    controls.update(
+        {
+            "bluetooth_mode": profile["bluetooth_mode"],
+            "network_mode": profile["network_mode"],
+            "interval_seconds": profile["interval_seconds"],
+        }
+    )
+    return controls
 
 
 def run_event_scan_once(target="all"):
@@ -439,6 +488,12 @@ def scan_action(
         )
         save_scan_controls(controls)
         output = "Scan controls saved."
+    elif action.startswith("profile:"):
+        profile_id = action.partition(":")[2]
+        controls = scan_controls_for_profile(profile_id, controls)
+        save_scan_controls(controls)
+        profile = scan_profile_for(controls)
+        output = f"Scan profile applied: {profile['label']}."
     elif action == "scan-now":
         output = run_event_scan_once(scan_target)
     else:

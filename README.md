@@ -211,6 +211,12 @@ stores those controls in:
 ~/gridrunner/state/scan-controls.env
 ```
 
+The dashboard also provides scan profiles:
+
+- `Low Impact`: continuous Bluetooth and network scans off, interval saved as
+  15 minutes for future continuous use.
+- `Field`: continuous Bluetooth and network scans on, interval 5 minutes.
+
 When scans are enabled, the timer calls `scripts/run-events.sh`, which
 resolves the operator event script at:
 

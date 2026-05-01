@@ -190,6 +190,8 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Observe", response.body)
         self.assertIn(b"Operate", response.body)
         self.assertIn(b"Scan Controls", response.body)
+        self.assertIn(b"Low Impact", response.body)
+        self.assertIn(b"Field Scan", response.body)
         self.assertIn(b"Bluetooth Scan", response.body)
         self.assertIn(b"Network Scan", response.body)
 
@@ -244,12 +246,13 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertEqual(described["state_label"], "armed")
         self.assertEqual(described["active_scanners"], "Bluetooth")
         self.assertEqual(described["last_run_message"], "last scan 45s ago")
+        self.assertEqual(described["profile"]["label"], "Custom")
 
         disabled = app.describe_scan_controls(
             {
                 "bluetooth_mode": "off",
                 "network_mode": "off",
-                "interval_seconds": 300,
+                "interval_seconds": 900,
                 "last_run": 0,
             },
             now=145,
@@ -258,6 +261,26 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertEqual(disabled["state_label"], "off")
         self.assertEqual(disabled["active_scanners"], "none")
         self.assertEqual(disabled["last_run_message"], "last scan never")
+        self.assertEqual(disabled["profile"]["label"], "Low Impact")
+
+    def test_scan_profile_presets_apply_expected_controls(self):
+        current = {
+            "bluetooth_mode": "continuous",
+            "network_mode": "off",
+            "interval_seconds": 120,
+            "last_run": 42,
+        }
+
+        low_impact = app.scan_controls_for_profile("low-impact", current)
+        self.assertEqual(low_impact["bluetooth_mode"], "off")
+        self.assertEqual(low_impact["network_mode"], "off")
+        self.assertEqual(low_impact["interval_seconds"], 900)
+        self.assertEqual(low_impact["last_run"], 42)
+
+        field = app.scan_controls_for_profile("field", current)
+        self.assertEqual(field["bluetooth_mode"], "continuous")
+        self.assertEqual(field["network_mode"], "continuous")
+        self.assertEqual(field["interval_seconds"], 300)
 
     def test_index_template_warns_for_missing_web_password(self):
         request = SimpleNamespace(scope={"type": "http", "method": "GET", "path": "/", "headers": []})

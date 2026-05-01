@@ -90,8 +90,6 @@ work here; roll up only the current priorities to the global backlog tracker.
       phase controls.
     - Web UI surfaces armed scanner state and last scan age.
   - Remaining acceptance criteria:
-    - Add a low-impact mode for home Wi-Fi use.
-    - Add a field/aggressive mode for mobile deployment.
     - Document recommended default scan intervals.
   - Suggested defaults:
     - Wi-Fi fallback timer: 2 to 5 minutes when connected, faster only when
@@ -170,6 +168,7 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Legacy `btmgmt`, `arp-scan`, and `nmap` calls are patched behind the
     dashboard scan controls.
   - Web UI shows which scanners are armed and when the last scan ran.
+  - Web UI includes Low Impact and Field scan profile presets.
 
 ## Web UI / Control Plane
 
