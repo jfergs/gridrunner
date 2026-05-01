@@ -15,6 +15,7 @@ HOTSPOT_ALIASES="${HOTSPOT_ALIASES:-Gridrunner-hotspot DEVICE-HOTSPOT}"
 OPERATOR_LABEL="${OPERATOR_LABEL:-operator}"
 LOG="${LOG:-$HOME/operator-events.log}"
 SCAN_SETTLE_SECONDS="${SCAN_SETTLE_SECONDS:-5}"
+MIN_KNOWN_WIFI_SIGNAL="${MIN_KNOWN_WIFI_SIGNAL:-15}"
 
 log() {
   echo "$(date '+%Y-%m-%d %H:%M:%S') $OPERATOR_LABEL: wifi: $1" | tee -a "$LOG"
@@ -129,24 +130,37 @@ ssid_visible() {
   nm -t -f SSID dev wifi list ifname "$IFACE" 2>/dev/null | grep -Fxq "$ssid"
 }
 
+ssid_signal() {
+  local ssid="$1"
+
+  nm -t -f SSID,SIGNAL dev wifi list ifname "$IFACE" 2>/dev/null \
+    | awk -F: -v target="$ssid" '$1 == target && $2 ~ /^[0-9]+$/ { if ($2 > max) max = $2 } END { print max + 0 }'
+}
+
+ssid_visible_with_signal() {
+  local ssid="$1"
+  local signal=""
+
+  signal="$(ssid_signal "$ssid")"
+  [ "$signal" -ge "$MIN_KNOWN_WIFI_SIGNAL" ]
+}
+
 known_connection_usable() {
   local profile="$1"
   local ssid=""
   local connectivity=""
 
   ssid="$(profile_ssid "$profile")"
-  scan_wifi
-
-  if [ -n "$ssid" ] && ssid_visible "$ssid"; then
+  connectivity="$(network_connectivity)"
+  if [ "$connectivity" = "full" ]; then
     return 0
   fi
 
-  connectivity="$(network_connectivity)"
-  case "$connectivity" in
-    full|limited|portal)
-      return 0
-      ;;
-  esac
+  scan_wifi
+
+  if [ -n "$ssid" ] && ssid_visible_with_signal "$ssid"; then
+    return 0
+  fi
 
   log "known wifi connection appears stale; switching to fallback"
   nm connection down "$profile" >/dev/null 2>&1 || true

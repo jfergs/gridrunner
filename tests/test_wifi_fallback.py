@@ -172,7 +172,7 @@ class WifiFallbackTests(unittest.TestCase):
             self.assertIn("ssid Field Runner", calls)
             self.assertIn("wifi-sec.psk password123", calls)
 
-    def test_active_known_wifi_exits_when_ssid_is_visible(self):
+    def test_active_known_wifi_with_full_connectivity_exits_without_rescan(self):
         nmcli_script = textwrap.dedent(
             """\
             #!/bin/bash
@@ -185,8 +185,40 @@ class WifiFallbackTests(unittest.TestCase):
               echo "HomeWiFi:wlan0"
             elif [ "$*" = "-g 802-11-wireless.ssid connection show HomeWiFi" ]; then
               echo "HomeWiFi"
+            elif [ "$*" = "-t -f CONNECTIVITY general" ]; then
+              echo full
+            elif [ "$*" = "dev wifi rescan ifname wlan0" ]; then
+              exit 1
+            fi
+            exit 0
+            """
+        )
+
+        result, calls, _log = self.run_with_fake_nmcli(nmcli_script)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("dev wifi rescan ifname wlan0", calls)
+        self.assertNotIn("connection up GRIDRUNNER-HOTSPOT", calls)
+
+    def test_active_known_wifi_exits_when_ssid_has_signal_after_rescan(self):
+        nmcli_script = textwrap.dedent(
+            """\
+            #!/bin/bash
+            echo "$*" >> "$NMCLI_CALLS"
+            if [ "$*" = "-t -f RUNNING general" ]; then
+              echo running
+            elif [ "$*" = "-t -f WIFI general" ]; then
+              echo enabled
+            elif [ "$*" = "-t -f NAME,DEVICE connection show --active" ]; then
+              echo "HomeWiFi:wlan0"
+            elif [ "$*" = "-g 802-11-wireless.ssid connection show HomeWiFi" ]; then
+              echo "HomeWiFi"
+            elif [ "$*" = "-t -f CONNECTIVITY general" ]; then
+              echo none
             elif [ "$*" = "-t -f SSID dev wifi list ifname wlan0" ]; then
               echo "HomeWiFi"
+            elif [ "$*" = "-t -f SSID,SIGNAL dev wifi list ifname wlan0" ]; then
+              echo "HomeWiFi:70"
             elif [ "$*" = "dev wifi rescan ifname wlan0" ]; then
               exit 0
             fi
@@ -215,6 +247,8 @@ class WifiFallbackTests(unittest.TestCase):
               echo "HomeWiFi"
             elif [ "$*" = "-t -f SSID dev wifi list ifname wlan0" ]; then
               exit 0
+            elif [ "$*" = "-t -f SSID,SIGNAL dev wifi list ifname wlan0" ]; then
+              echo "HomeWiFi:0"
             elif [ "$*" = "-t -f CONNECTIVITY general" ]; then
               echo none
             elif [ "$*" = "-t -f NAME,TYPE connection show" ]; then
@@ -240,6 +274,51 @@ class WifiFallbackTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("connection down HomeWiFi", calls)
+        self.assertIn("connection up GRIDRUNNER-HOTSPOT", calls)
+        self.assertIn("known wifi connection appears stale", log)
+
+    def test_limited_connectivity_with_low_signal_falls_back_to_hotspot(self):
+        nmcli_script = textwrap.dedent(
+            """\
+            #!/bin/bash
+            echo "$*" >> "$NMCLI_CALLS"
+            if [ "$*" = "-t -f RUNNING general" ]; then
+              echo running
+            elif [ "$*" = "-t -f WIFI general" ]; then
+              echo enabled
+            elif [ "$*" = "-t -f NAME,DEVICE connection show --active" ]; then
+              echo "HomeWiFi:wlan0"
+            elif [ "$*" = "-g 802-11-wireless.ssid connection show HomeWiFi" ]; then
+              echo "HomeWiFi"
+            elif [ "$*" = "-t -f CONNECTIVITY general" ]; then
+              echo limited
+            elif [ "$*" = "-t -f SSID,SIGNAL dev wifi list ifname wlan0" ]; then
+              echo "HomeWiFi:5"
+            elif [ "$*" = "-t -f NAME,TYPE connection show" ]; then
+              echo "HomeWiFi:802-11-wireless"
+            elif [ "$*" = "-t -f NAME connection show" ]; then
+              exit 0
+            elif [ "$*" = "dev wifi rescan ifname wlan0" ]; then
+              exit 0
+            elif [ "$1 $2" = "connection down" ]; then
+              exit 0
+            elif [ "$1 $2 $3" = "connection add type" ]; then
+              exit 0
+            elif [ "$1 $2 $3" = "connection up GRIDRUNNER-HOTSPOT" ]; then
+              exit 0
+            fi
+            exit 0
+            """
+        )
+
+        result, calls, log = self.run_with_fake_nmcli(
+            nmcli_script,
+            {"HOTSPOT_PASSWORD": "password123"},
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("dev wifi rescan ifname wlan0", calls)
         self.assertIn("connection down HomeWiFi", calls)
         self.assertIn("connection up GRIDRUNNER-HOTSPOT", calls)
         self.assertIn("known wifi connection appears stale", log)
