@@ -244,7 +244,7 @@ class EventsServiceInstallTests(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn("Bluetooth and network scans are off", result.stdout)
+            self.assertIn("Bluetooth and network device scans are off", result.stdout)
             self.assertNotIn("should-not-run", result.stdout)
 
     def test_run_events_honors_continuous_interval(self):

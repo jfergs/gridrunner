@@ -201,10 +201,11 @@ This installs:
 ```
 
 The timer runs shortly after boot and every five minutes. Bluetooth and
-network discovery scans default to off, so the timer skips legacy scan work
-until scan controls are enabled from the web panel. Use `Bluetooth Scan` or
-`Network Scan` for a single phase-specific run, or set Bluetooth and/or Network
-to `Continuous` and choose the minimum interval from the dashboard. The runner
+network device discovery scans default to off, so the timer skips legacy scan
+work until scan controls are enabled from the web panel. Use `Bluetooth Scan`
+or `Network Device Scan` for a single phase-specific run, or set Bluetooth
+and/or Network Devices to `Continuous` and choose the minimum interval from the
+dashboard. The runner
 stores those controls in:
 
 ```text
@@ -213,9 +214,9 @@ stores those controls in:
 
 The dashboard also provides scan profiles:
 
-- `Low Impact`: continuous Bluetooth and network scans off, interval saved as
-  15 minutes for future continuous use.
-- `Field`: continuous Bluetooth and network scans on, interval 5 minutes.
+- `Low Impact`: continuous Bluetooth and network device scans off, interval
+  saved as 15 minutes for future continuous use.
+- `Field`: continuous Bluetooth and network device scans on, interval 5 minutes.
 
 When scans are enabled, the timer calls `scripts/run-events.sh`, which
 resolves the operator event script at:

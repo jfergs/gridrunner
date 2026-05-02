@@ -194,7 +194,8 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Low Impact", response.body)
         self.assertIn(b"Field Scan", response.body)
         self.assertIn(b"Bluetooth Scan", response.body)
-        self.assertIn(b"Network Scan", response.body)
+        self.assertIn(b"Network Devices", response.body)
+        self.assertIn(b"Network Device Scan", response.body)
 
     def test_scan_control_state_round_trips_with_safe_defaults(self):
         original_scan_state_file = app.SCAN_STATE_FILE
@@ -206,7 +207,7 @@ class TemplateRenderTests(unittest.TestCase):
                     app.load_scan_controls(),
                     {
                         "bluetooth_mode": "off",
-                        "network_mode": "off",
+                        "network_device_mode": "off",
                         "interval_seconds": 300,
                         "last_run": 0,
                     },
@@ -215,7 +216,7 @@ class TemplateRenderTests(unittest.TestCase):
                 app.save_scan_controls(
                     {
                         "bluetooth_mode": "continuous",
-                        "network_mode": "invalid",
+                        "network_device_mode": "invalid",
                         "interval_seconds": 9999,
                         "last_run": 42,
                     }
@@ -225,11 +226,35 @@ class TemplateRenderTests(unittest.TestCase):
                     app.load_scan_controls(),
                     {
                         "bluetooth_mode": "continuous",
-                        "network_mode": "off",
+                        "network_device_mode": "off",
                         "interval_seconds": 1800,
                         "last_run": 42,
                     },
                 )
+
+                state_text = app.SCAN_STATE_FILE.read_text(encoding="utf-8")
+                self.assertIn("GRIDRUNNER_SCAN_NETWORK_DEVICE_MODE=off", state_text)
+                self.assertIn("GRIDRUNNER_SCAN_NETWORK_MODE=off", state_text)
+        finally:
+            app.SCAN_STATE_FILE = original_scan_state_file
+
+    def test_scan_control_state_loads_legacy_network_device_mode(self):
+        original_scan_state_file = app.SCAN_STATE_FILE
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                app.SCAN_STATE_FILE = Path(temp_dir) / "scan-controls.env"
+                app.SCAN_STATE_FILE.write_text(
+                    "\n".join(
+                        [
+                            "GRIDRUNNER_SCAN_BLUETOOTH_MODE=off",
+                            "GRIDRUNNER_SCAN_NETWORK_MODE=continuous",
+                            "",
+                        ]
+                    ),
+                    encoding="utf-8",
+                )
+
+                self.assertEqual(app.load_scan_controls()["network_device_mode"], "continuous")
         finally:
             app.SCAN_STATE_FILE = original_scan_state_file
 
@@ -237,7 +262,7 @@ class TemplateRenderTests(unittest.TestCase):
         described = app.describe_scan_controls(
             {
                 "bluetooth_mode": "continuous",
-                "network_mode": "off",
+                "network_device_mode": "off",
                 "interval_seconds": 300,
                 "last_run": 100,
             },
@@ -252,7 +277,7 @@ class TemplateRenderTests(unittest.TestCase):
         disabled = app.describe_scan_controls(
             {
                 "bluetooth_mode": "off",
-                "network_mode": "off",
+                "network_device_mode": "off",
                 "interval_seconds": 900,
                 "last_run": 0,
             },
@@ -267,20 +292,20 @@ class TemplateRenderTests(unittest.TestCase):
     def test_scan_profile_presets_apply_expected_controls(self):
         current = {
             "bluetooth_mode": "continuous",
-            "network_mode": "off",
+            "network_device_mode": "off",
             "interval_seconds": 120,
             "last_run": 42,
         }
 
         low_impact = app.scan_controls_for_profile("low-impact", current)
         self.assertEqual(low_impact["bluetooth_mode"], "off")
-        self.assertEqual(low_impact["network_mode"], "off")
+        self.assertEqual(low_impact["network_device_mode"], "off")
         self.assertEqual(low_impact["interval_seconds"], 900)
         self.assertEqual(low_impact["last_run"], 42)
 
         field = app.scan_controls_for_profile("field", current)
         self.assertEqual(field["bluetooth_mode"], "continuous")
-        self.assertEqual(field["network_mode"], "continuous")
+        self.assertEqual(field["network_device_mode"], "continuous")
         self.assertEqual(field["interval_seconds"], 300)
 
     def test_index_template_warns_for_missing_web_password(self):

@@ -494,10 +494,10 @@
       </div>
 
       <div class="panel">
-        {% set scans = scan_controls|default({"bluetooth_mode": "off", "network_mode": "off", "interval_seconds": 300, "last_run": 0}) %}
+        {% set scans = scan_controls|default({"bluetooth_mode": "off", "network_device_mode": "off", "interval_seconds": 300, "last_run": 0}) %}
         {% set scan_profile = scans.profile|default({"label": "Custom"}) %}
         <h2>Scan Controls</h2>
-        <span class="status {% if scans.bluetooth_mode == 'off' and scans.network_mode == 'off' %}status-skipped{% else %}health-present{% endif %}">
+        <span class="status {% if scans.bluetooth_mode == 'off' and scans.network_device_mode == 'off' %}status-skipped{% else %}health-present{% endif %}">
           {{ scans.state_label|default('off') }}
         </span>
         <span>profile {{ scan_profile.label }}</span>
@@ -527,10 +527,10 @@
             </select>
           </div>
           <div class="scan-row">
-            <label for="network-mode">Network</label>
-            <select id="network-mode" name="network_mode">
-              <option value="off" {% if scans.network_mode == 'off' %}selected{% endif %}>Off</option>
-              <option value="continuous" {% if scans.network_mode == 'continuous' %}selected{% endif %}>Continuous</option>
+            <label for="network-device-mode">Network Devices</label>
+            <select id="network-device-mode" name="network_device_mode">
+              <option value="off" {% if scans.network_device_mode == 'off' %}selected{% endif %}>Off</option>
+              <option value="continuous" {% if scans.network_device_mode == 'continuous' %}selected{% endif %}>Continuous</option>
             </select>
           </div>
           <div class="scan-slider">
@@ -548,7 +548,7 @@
         <form method="post" action="/scans">
           <input type="hidden" name="action" value="scan-now">
           <input type="hidden" name="scan_target" value="network">
-          <button>Network Scan</button>
+          <button>Network Device Scan</button>
         </form>
         </div>
       </div>
