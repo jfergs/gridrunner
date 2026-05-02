@@ -39,13 +39,13 @@ SCAN_INTERVAL_DEFAULT = 300
 SCAN_PROFILES = {
     "low-impact": {
         "bluetooth_mode": "off",
-        "network_mode": "off",
+        "network_device_mode": "off",
         "interval_seconds": 900,
         "label": "Low Impact",
     },
     "field": {
         "bluetooth_mode": "continuous",
-        "network_mode": "continuous",
+        "network_device_mode": "continuous",
         "interval_seconds": 300,
         "label": "Field",
     },
@@ -118,7 +118,7 @@ def clamp_scan_interval(value):
 def load_scan_controls():
     controls = {
         "bluetooth_mode": "off",
-        "network_mode": "off",
+        "network_device_mode": "off",
         "interval_seconds": SCAN_INTERVAL_DEFAULT,
         "last_run": 0,
     }
@@ -136,8 +136,10 @@ def load_scan_controls():
         value = value.strip()
         if key == "GRIDRUNNER_SCAN_BLUETOOTH_MODE" and value in SCAN_MODES:
             controls["bluetooth_mode"] = value
+        elif key == "GRIDRUNNER_SCAN_NETWORK_DEVICE_MODE" and value in SCAN_MODES:
+            controls["network_device_mode"] = value
         elif key == "GRIDRUNNER_SCAN_NETWORK_MODE" and value in SCAN_MODES:
-            controls["network_mode"] = value
+            controls["network_device_mode"] = value
         elif key == "GRIDRUNNER_SCAN_INTERVAL_SECONDS":
             controls["interval_seconds"] = clamp_scan_interval(value)
         elif key == "GRIDRUNNER_SCAN_LAST_RUN":
@@ -153,7 +155,7 @@ def scan_profile_for(controls):
     for profile_id, profile in SCAN_PROFILES.items():
         if (
             controls.get("bluetooth_mode") == profile["bluetooth_mode"]
-            and controls.get("network_mode") == profile["network_mode"]
+            and controls.get("network_device_mode") == profile["network_device_mode"]
             and clamp_scan_interval(controls.get("interval_seconds")) == profile["interval_seconds"]
         ):
             return {
@@ -174,8 +176,8 @@ def describe_scan_controls(controls, now=None):
 
     if described.get("bluetooth_mode") == "continuous":
         active.append("Bluetooth")
-    if described.get("network_mode") == "continuous":
-        active.append("Network")
+    if described.get("network_device_mode") == "continuous":
+        active.append("Network Devices")
 
     described["active_scanners"] = ", ".join(active) if active else "none"
     described["state_label"] = "armed" if active else "off"
@@ -197,11 +199,11 @@ def describe_scan_controls(controls, now=None):
 
 def save_scan_controls(controls):
     bluetooth_mode = controls.get("bluetooth_mode", "off")
-    network_mode = controls.get("network_mode", "off")
+    network_device_mode = controls.get("network_device_mode", controls.get("network_mode", "off"))
     if bluetooth_mode not in SCAN_MODES:
         bluetooth_mode = "off"
-    if network_mode not in SCAN_MODES:
-        network_mode = "off"
+    if network_device_mode not in SCAN_MODES:
+        network_device_mode = "off"
 
     interval = clamp_scan_interval(controls.get("interval_seconds"))
     last_run = controls.get("last_run", 0)
@@ -215,7 +217,8 @@ def save_scan_controls(controls):
         "\n".join(
             [
                 f"GRIDRUNNER_SCAN_BLUETOOTH_MODE={bluetooth_mode}",
-                f"GRIDRUNNER_SCAN_NETWORK_MODE={network_mode}",
+                f"GRIDRUNNER_SCAN_NETWORK_DEVICE_MODE={network_device_mode}",
+                f"GRIDRUNNER_SCAN_NETWORK_MODE={network_device_mode}",
                 f"GRIDRUNNER_SCAN_INTERVAL_SECONDS={interval}",
                 f"GRIDRUNNER_SCAN_LAST_RUN={last_run}",
                 "",
@@ -234,7 +237,7 @@ def scan_controls_for_profile(profile_id, current_controls=None):
     controls.update(
         {
             "bluetooth_mode": profile["bluetooth_mode"],
-            "network_mode": profile["network_mode"],
+            "network_device_mode": profile["network_device_mode"],
             "interval_seconds": profile["interval_seconds"],
         }
     )
@@ -472,17 +475,19 @@ def scan_action(
     action: str = Form(...),
     scan_target: str = Form("all"),
     bluetooth_mode: str = Form("off"),
-    network_mode: str = Form("off"),
+    network_device_mode: str = Form(""),
+    network_mode: str = Form(""),
     interval_seconds: int = Form(SCAN_INTERVAL_DEFAULT),
     _user=Depends(require_auth),
 ):
     controls = load_scan_controls()
 
     if action == "save":
+        network_device_mode = network_device_mode or network_mode
         controls.update(
             {
                 "bluetooth_mode": bluetooth_mode,
-                "network_mode": network_mode,
+                "network_device_mode": network_device_mode,
                 "interval_seconds": interval_seconds,
             }
         )
