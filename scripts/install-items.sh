@@ -230,6 +230,22 @@ install_events_service() {
   echo "gridrunner-events.timer installed and enabled."
 }
 
+install_presence_script() {
+  local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
+  local operator_user="${GRIDRUNNER_OPERATOR_USER:-$(id -un)}"
+  local operator_home="${GRIDRUNNER_OPERATOR_HOME:-$HOME}"
+  local source_script="$project_dir/scripts/ghost-presence.sh"
+  local installed_script="$operator_home/$operator_user-presence.sh"
+
+  if [ ! -f "$source_script" ]; then
+    echo "presence script not found: $source_script"
+    return 1
+  fi
+
+  run_step install -m 0755 "$source_script" "$installed_script"
+  echo "presence script installed: $installed_script"
+}
+
 if [ "$#" -eq 0 ]; then
   echo "No install items selected."
   exit 0
@@ -263,6 +279,9 @@ for item in "$@"; do
       ;;
     events-service)
       install_events_service
+      ;;
+    presence-script)
+      install_presence_script
       ;;
     *)
       echo "Unknown install item: $item"
