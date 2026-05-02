@@ -108,6 +108,61 @@ class PresenceTests(unittest.TestCase):
             calls_output = calls.read_text(encoding="utf-8") if calls.exists() else ""
             return result, calls_output
 
+    def test_installed_presence_script_defaults_to_home_gridrunner_state(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            home = temp_path / "home"
+            gridrunner = home / "gridrunner"
+            scripts = gridrunner / "scripts"
+            state_dir = gridrunner / "state"
+            fake_bin = temp_path / "bin"
+            scripts.mkdir(parents=True)
+            state_dir.mkdir()
+            fake_bin.mkdir()
+
+            installed_script = home / "ghost-presence.sh"
+            installed_script.write_text(SCRIPT.read_text(encoding="utf-8"), encoding="utf-8")
+            installed_script.chmod(installed_script.stat().st_mode | stat.S_IXUSR)
+            (scripts / "ghost-presence.sh").write_text("# repo marker\n", encoding="utf-8")
+            (state_dir / "scan-controls.env").write_text(
+                "GRIDRUNNER_SCAN_NETWORK_MODE=continuous\n",
+                encoding="utf-8",
+            )
+
+            calls = temp_path / "calls.log"
+            arp_scan = fake_bin / "arp-scan"
+            arp_scan.write_text(
+                "#!/bin/bash\n"
+                'echo "$*" >> "$GRIDRUNNER_TEST_CALLS"\n',
+                encoding="utf-8",
+            )
+            arp_scan.chmod(arp_scan.stat().st_mode | stat.S_IXUSR)
+
+            timeout = fake_bin / "timeout"
+            timeout.write_text("#!/bin/bash\nshift\n\"$@\"\n", encoding="utf-8")
+            timeout.chmod(timeout.stat().st_mode | stat.S_IXUSR)
+
+            env = os.environ.copy()
+            env.update(
+                {
+                    "HOME": str(home),
+                    "PATH": f"{fake_bin}:{env['PATH']}",
+                    "GRIDRUNNER_TEST_CALLS": str(calls),
+                    "GRIDRUNNER_PRESENCE_RUN_ONCE": "1",
+                }
+            )
+
+            result = subprocess.run(
+                ["bash", str(installed_script)],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("--localnet", calls.read_text(encoding="utf-8"))
+
     def test_presence_skips_network_scan_when_controls_are_off(self):
         result, calls = self.run_presence(
             "\n".join(

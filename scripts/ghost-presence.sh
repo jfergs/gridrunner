@@ -2,7 +2,11 @@
 set -u
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-project_dir="$(cd "$script_dir/.." && pwd)"
+detected_project_dir="$(cd "$script_dir/.." && pwd)"
+project_dir="${GRIDRUNNER_HOME:-$detected_project_dir}"
+if [ ! -f "$project_dir/scripts/ghost-presence.sh" ] && [ -f "$HOME/gridrunner/scripts/ghost-presence.sh" ]; then
+  project_dir="$HOME/gridrunner"
+fi
 STATE_FILE="${GRIDRUNNER_SCAN_STATE_FILE:-$project_dir/state/scan-controls.env}"
 PRESENCE_INTERVAL_SECONDS="${GRIDRUNNER_PRESENCE_INTERVAL_SECONDS:-30}"
 PRESENCE_SCAN_TIMEOUT_SECONDS="${GRIDRUNNER_PRESENCE_SCAN_TIMEOUT_SECONDS:-25}"
