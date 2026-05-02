@@ -422,6 +422,14 @@ cd ~/gridrunner
 bash scripts/wifi-fallback.sh hotspot
 ```
 
+Use `Connect Known Wi-Fi` from the same panel to leave hotspot mode and join a
+visible known network. The terminal equivalent is:
+
+```bash
+cd ~/gridrunner
+bash scripts/wifi-fallback.sh known
+```
+
 Configure or repair the hotspot profile from the device:
 
 ```bash
