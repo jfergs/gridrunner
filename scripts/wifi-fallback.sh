@@ -40,6 +40,14 @@ nm() {
   nmcli "$@"
 }
 
+nm_write() {
+  if [ "$(id -u)" -eq 0 ]; then
+    nmcli "$@"
+  else
+    sudo -n nmcli "$@"
+  fi
+}
+
 wait_for_networkmanager() {
   local state=""
 
@@ -59,7 +67,7 @@ wifi_enabled() {
   wifi_state="$(nm -t -f WIFI general 2>/dev/null || true)"
   if [ "$wifi_state" != "enabled" ]; then
     log "wifi radio is $wifi_state; enabling"
-    nm radio wifi on >/dev/null 2>&1 || return 1
+    nm_write radio wifi on >/dev/null 2>&1 || return 1
     sleep 2
   fi
 
@@ -209,7 +217,7 @@ known_connection_usable() {
 
   log "known wifi connection appears stale; switching to fallback"
   record_action "known-wifi-stale"
-  nm connection down "$profile" >/dev/null 2>&1 || true
+  nm_write connection down "$profile" >/dev/null 2>&1 || true
   sleep 2
   return 1
 }
@@ -232,10 +240,10 @@ join_known_network() {
         log "joining known network"
       fi
       if [ "$from_hotspot" = "yes" ]; then
-        nm connection down "$(hotspot_profile_name)" >/dev/null 2>&1 || true
+        nm_write connection down "$(hotspot_profile_name)" >/dev/null 2>&1 || true
         sleep 2
       fi
-      if nm connection up "$profile" >/dev/null 2>&1; then
+      if nm_write connection up "$profile" >/dev/null 2>&1; then
         record_action "joined-known-wifi"
         return 0
       fi
@@ -263,10 +271,10 @@ start_hotspot() {
   profile="$(hotspot_profile_name)"
   ensure_hotspot_profile "$profile" || return 1
 
-  nm connection down "$profile" >/dev/null 2>&1 || true
+  nm_write connection down "$profile" >/dev/null 2>&1 || true
   sleep 1
 
-  if output="$(nm connection up "$profile" 2>&1)"; then
+  if output="$(nm_write connection up "$profile" 2>&1)"; then
     record_action "$action"
     return 0
   fi
@@ -289,7 +297,7 @@ manual_hotspot() {
   current="$(current_connection)"
   if [ -n "$current" ] && ! is_hotspot_name "$current"; then
     log "manual hotspot requested; disconnecting current wifi"
-    nm connection down "$current" >/dev/null 2>&1 || true
+    nm_write connection down "$current" >/dev/null 2>&1 || true
     sleep 2
   fi
 
@@ -306,7 +314,7 @@ ensure_hotspot_profile() {
   local profile="${1:-$HOTSPOT}"
 
   if hotspot_profile_exists "$profile"; then
-    if ! output="$(nm connection modify "$profile" \
+    if ! output="$(nm_write connection modify "$profile" \
       connection.autoconnect no \
       connection.interface-name "$IFACE" \
       802-11-wireless.mode ap \
@@ -318,7 +326,7 @@ ensure_hotspot_profile() {
       return 1
     fi
     if [ -n "$HOTSPOT_PASSWORD" ]; then
-      if ! output="$(nm connection modify "$profile" \
+      if ! output="$(nm_write connection modify "$profile" \
         wifi-sec.key-mgmt wpa-psk \
         wifi-sec.psk "$HOTSPOT_PASSWORD" 2>&1)"; then
         log "failed to update hotspot password: $profile"
@@ -341,7 +349,7 @@ ensure_hotspot_profile() {
   fi
 
   log "creating hotspot profile: $HOTSPOT"
-  if output="$(nm connection add \
+  if output="$(nm_write connection add \
     type wifi \
     ifname "$IFACE" \
     con-name "$HOTSPOT" \

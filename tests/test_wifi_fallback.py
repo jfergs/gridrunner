@@ -18,10 +18,18 @@ class WifiFallbackTests(unittest.TestCase):
             fake_bin = temp_path / "bin"
             fake_bin.mkdir()
             nmcli = fake_bin / "nmcli"
+            sudo = fake_bin / "sudo"
             calls = temp_path / "nmcli-calls.log"
             log = temp_path / "events.log"
             nmcli.write_text(nmcli_script, encoding="utf-8")
             nmcli.chmod(nmcli.stat().st_mode | stat.S_IXUSR)
+            sudo.write_text(
+                "#!/bin/bash\n"
+                'if [ "${1:-}" = "-n" ]; then shift; fi\n'
+                '"$@"\n',
+                encoding="utf-8",
+            )
+            sudo.chmod(sudo.stat().st_mode | stat.S_IXUSR)
 
             run_env = os.environ.copy()
             run_env.update(
