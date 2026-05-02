@@ -483,6 +483,16 @@
           <div class="telemetry"><span>Service</span><strong>{{ wifi.get('service', 'unknown') }}</strong></div>
           <div class="telemetry"><span>Last Action</span><strong>{{ wifi.get('last_action', 'unknown') }}</strong></div>
         </div>
+        <div class="actions">
+          <form method="post" action="/run" onsubmit="return confirm('Enable fallback hotspot mode now? This may disconnect the current Wi-Fi session.');">
+            <input type="hidden" name="action" value="wifi_hotspot">
+            <button>Enable Hotspot</button>
+          </form>
+          <form method="post" action="/run">
+            <input type="hidden" name="action" value="wifi_status">
+            <button>Refresh Wi-Fi Status</button>
+          </form>
+        </div>
         <pre>{{ wifi_text }}</pre>
       </div>
 

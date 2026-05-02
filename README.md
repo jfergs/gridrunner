@@ -413,6 +413,15 @@ cd ~/gridrunner
 bash scripts/wifi-status.sh
 ```
 
+The web dashboard Wi-Fi panel includes `Enable Hotspot` for manually switching
+to the configured fallback hotspot. The same action is available from a
+terminal with:
+
+```bash
+cd ~/gridrunner
+bash scripts/wifi-fallback.sh hotspot
+```
+
 Configure or repair the hotspot profile from the device:
 
 ```bash

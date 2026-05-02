@@ -12,7 +12,7 @@ SCRIPT = REPO_DIR / "scripts" / "wifi-fallback.sh"
 
 
 class WifiFallbackTests(unittest.TestCase):
-    def run_with_fake_nmcli(self, nmcli_script, env=None):
+    def run_with_fake_nmcli(self, nmcli_script, env=None, args=None):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             fake_bin = temp_path / "bin"
@@ -38,7 +38,7 @@ class WifiFallbackTests(unittest.TestCase):
                 run_env.update(env)
 
             result = subprocess.run(
-                ["bash", str(SCRIPT)],
+                ["bash", str(SCRIPT), *(args or [])],
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -173,6 +173,48 @@ class WifiFallbackTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("ssid Field Runner", calls)
             self.assertIn("wifi-sec.psk password123", calls)
+
+    def test_manual_hotspot_disconnects_known_wifi_and_starts_hotspot(self):
+        nmcli_script = textwrap.dedent(
+            """\
+            #!/bin/bash
+            echo "$*" >> "$NMCLI_CALLS"
+            if [ "$*" = "-t -f RUNNING general" ]; then
+              echo running
+            elif [ "$*" = "-t -f WIFI general" ]; then
+              echo enabled
+            elif [ "$*" = "-t -f NAME,DEVICE connection show --active" ]; then
+              echo "HomeWiFi:wlan0"
+            elif [ "$*" = "-t -f NAME connection show" ]; then
+              echo "GRIDRUNNER-HOTSPOT"
+              echo "HomeWiFi"
+            elif [ "$1 $2 $3" = "connection modify GRIDRUNNER-HOTSPOT" ]; then
+              exit 0
+            elif [ "$*" = "connection down HomeWiFi" ]; then
+              exit 0
+            elif [ "$*" = "connection down GRIDRUNNER-HOTSPOT" ]; then
+              exit 0
+            elif [ "$*" = "connection up GRIDRUNNER-HOTSPOT" ]; then
+              exit 0
+            fi
+            exit 0
+            """
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            action_state = Path(temp_dir) / "wifi-action.env"
+            result, calls, log = self.run_with_fake_nmcli(
+                nmcli_script,
+                {"GRIDRUNNER_WIFI_ACTION_STATE": str(action_state)},
+                ["hotspot"],
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("hotspot enabled", result.stdout)
+            self.assertIn("connection down HomeWiFi", calls)
+            self.assertIn("connection up GRIDRUNNER-HOTSPOT", calls)
+            self.assertIn("manual hotspot requested", log)
+            self.assertIn("GRIDRUNNER_WIFI_LAST_ACTION=manual-hotspot", action_state.read_text(encoding="utf-8"))
 
     def test_active_known_wifi_with_full_connectivity_exits_without_rescan(self):
         nmcli_script = textwrap.dedent(

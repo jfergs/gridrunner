@@ -254,6 +254,7 @@ join_known_network() {
 }
 
 start_hotspot() {
+  local action="${1:-started-hotspot}"
   local output=""
   local profile=""
 
@@ -266,7 +267,7 @@ start_hotspot() {
   sleep 1
 
   if output="$(nm connection up "$profile" 2>&1)"; then
-    record_action "started-hotspot"
+    record_action "$action"
     return 0
   fi
 
@@ -274,6 +275,30 @@ start_hotspot() {
   record_action "failed-hotspot"
   log "$output"
   return 1
+}
+
+manual_hotspot() {
+  local current=""
+
+  wait_for_networkmanager || exit 1
+  wifi_enabled || {
+    log "failed to enable wifi radio"
+    exit 1
+  }
+
+  current="$(current_connection)"
+  if [ -n "$current" ] && ! is_hotspot_name "$current"; then
+    log "manual hotspot requested; disconnecting current wifi"
+    nm connection down "$current" >/dev/null 2>&1 || true
+    sleep 2
+  fi
+
+  if start_hotspot "manual-hotspot"; then
+    echo "$OPERATOR_LABEL: hotspot enabled"
+    exit 0
+  fi
+
+  exit 1
 }
 
 ensure_hotspot_profile() {
@@ -381,4 +406,15 @@ main() {
   start_hotspot
 }
 
-main "$@"
+case "${1:-auto}" in
+  auto)
+    main
+    ;;
+  hotspot)
+    manual_hotspot
+    ;;
+  *)
+    echo "Usage: $0 [auto|hotspot]"
+    exit 2
+    ;;
+esac

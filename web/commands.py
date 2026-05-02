@@ -14,6 +14,7 @@ COMMANDS = {
     "event_health": ["bash", project_script("event-health.sh")],
     "logs": ["bash", project_script("logs.sh"), "120"],
     "wifi_status": ["bash", project_script("wifi-status.sh")],
+    "wifi_hotspot": ["bash", project_script("wifi-fallback.sh"), "hotspot"],
     "service_health": ["bash", project_script("service-health.sh")],
     "install": ["bash", project_script("install-items.sh")],
     "component_health": ["bash", project_script("component-health.sh")],
