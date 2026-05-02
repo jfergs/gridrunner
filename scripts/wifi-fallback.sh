@@ -200,7 +200,6 @@ known_connection_usable() {
 
   if ! scan_wifi; then
     record_action "rescan-throttled"
-    return 0
   fi
 
   if [ -n "$ssid" ] && ssid_visible_with_signal "$ssid"; then

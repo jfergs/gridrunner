@@ -5,6 +5,38 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 ## Top Priority
 
+- Security hardening from full code review.
+  - Context: May 2026 review found no failing tests, but identified several
+    hardening items that should be handled before expanding remote access or
+    adding more privileged controls.
+  - Acceptance criteria:
+    - Add CSRF protection to all mutating web POST routes:
+      - `/scans`
+      - `/run`
+      - `/install`
+      - `/install/skip`
+      - keep `/power` protected with the same shared form-token mechanism.
+    - Narrow `scripts/setup-sudoers.sh` NOPASSWD rules:
+      - Replace wildcard `apt-get install -y *` with fixed package command
+        shapes used by `install-items.sh`.
+      - Replace wildcard systemd install source paths with exact
+        `~/gridrunner/state/*.service` and `*.timer` paths or generated
+        project paths.
+      - Replace `bash */scripts/install-adsb-readsb.sh` with an exact script
+        path.
+    - Replace shell-sourced Wi-Fi config parsing in `wifi-fallback.sh` and
+      `wifi-status.sh` with explicit parsing of expected keys only.
+    - Harden ADS-B installer supply chain:
+      - Prefer pinned installer URL or commit.
+      - Download to a file before execution.
+      - Add checksum or documented manual verification path.
+    - Clean test lint warnings so `ruff check web tests` passes.
+  - Validation commands:
+    - `web/.venv/bin/python -m unittest discover -s tests`
+    - `bash -n scripts/*.sh`
+    - `python3 -m py_compile web/*.py tests/*.py`
+    - `ruff check web tests`
+
 - Stabilize Wi-Fi failover and fallback hotspot behavior.
   - Goal: GRIDRUNNER joins known Wi-Fi networks when available and starts its
     own fallback hotspot when no known networks are reachable.

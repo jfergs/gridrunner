@@ -325,7 +325,7 @@ class WifiFallbackTests(unittest.TestCase):
         self.assertIn("connection up GRIDRUNNER-HOTSPOT", calls)
         self.assertIn("known wifi connection appears stale", log)
 
-    def test_recent_rescan_guard_skips_stale_disconnect(self):
+    def test_recent_rescan_guard_still_falls_back_when_cached_signal_is_missing(self):
         nmcli_script = textwrap.dedent(
             """\
             #!/bin/bash
@@ -340,8 +340,20 @@ class WifiFallbackTests(unittest.TestCase):
               echo "HomeWiFi"
             elif [ "$*" = "-t -f CONNECTIVITY general" ]; then
               echo limited
+            elif [ "$*" = "-t -f SSID,SIGNAL dev wifi list ifname wlan0" ]; then
+              exit 0
+            elif [ "$*" = "-t -f NAME,TYPE connection show" ]; then
+              echo "HomeWiFi:802-11-wireless"
+            elif [ "$*" = "-t -f NAME connection show" ]; then
+              exit 0
             elif [ "$*" = "dev wifi rescan ifname wlan0" ]; then
               exit 1
+            elif [ "$1 $2" = "connection down" ]; then
+              exit 0
+            elif [ "$1 $2 $3" = "connection add type" ]; then
+              exit 0
+            elif [ "$1 $2 $3" = "connection up GRIDRUNNER-HOTSPOT" ]; then
+              exit 0
             fi
             exit 0
             """
@@ -354,6 +366,7 @@ class WifiFallbackTests(unittest.TestCase):
             result, calls, _log = self.run_with_fake_nmcli(
                 nmcli_script,
                 {
+                    "HOTSPOT_PASSWORD": "password123",
                     "GRIDRUNNER_WIFI_RESCAN_MIN_SECONDS": "3600",
                     "GRIDRUNNER_WIFI_RESCAN_STATE": str(state_file),
                 },
@@ -361,8 +374,8 @@ class WifiFallbackTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("dev wifi rescan ifname wlan0", calls)
-        self.assertNotIn("connection down HomeWiFi", calls)
-        self.assertNotIn("connection up GRIDRUNNER-HOTSPOT", calls)
+        self.assertIn("connection down HomeWiFi", calls)
+        self.assertIn("connection up GRIDRUNNER-HOTSPOT", calls)
 
 
 if __name__ == "__main__":
