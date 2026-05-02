@@ -11,6 +11,15 @@ class SudoersTests(unittest.TestCase):
 
         self.assertIn("/usr/bin/systemctl restart gridrunner-web.service", script)
 
+    def test_sudoers_allows_networkmanager_wifi_controls(self):
+        script = (REPO_DIR / "scripts" / "setup-sudoers.sh").read_text(encoding="utf-8")
+
+        self.assertIn("/usr/bin/nmcli radio wifi on", script)
+        self.assertIn("/usr/bin/nmcli connection up *", script)
+        self.assertIn("/usr/bin/nmcli connection down *", script)
+        self.assertIn("/usr/bin/nmcli connection modify *", script)
+        self.assertIn("/usr/bin/nmcli connection add *", script)
+
 
 if __name__ == "__main__":
     unittest.main()
