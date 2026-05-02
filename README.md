@@ -253,6 +253,33 @@ export GRIDRUNNER_EVENTS_LOG_MAX_BYTES=5242880
 export GRIDRUNNER_EVENTS_LOG_KEEP=5
 ```
 
+Install the managed foreground presence scanner with:
+
+```bash
+cd ~/gridrunner
+bash scripts/install-items.sh --apply presence-script
+```
+
+That installs the wrapper at:
+
+```text
+/home/<operator-user>/<operator-user>-presence.sh
+```
+
+You can also run the maintained copy directly:
+
+```bash
+cd ~/gridrunner
+bash scripts/ghost-presence.sh
+```
+
+It reads the same `state/scan-controls.env` file as the dashboard and skips
+`arp-scan --localnet` unless Network scanning is set to `Continuous` or the
+process is explicitly launched with `GRIDRUNNER_SCAN_NETWORK_ENABLED=1`.
+Avoid unmanaged `arp-scan --localnet` loops on `wlan0`; they put the Wi-Fi
+interface into promiscuous mode and can trigger Broadcom scan errors while the
+device is connected to known Wi-Fi.
+
 Disk usage guardrails are reported by:
 
 ```bash

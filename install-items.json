@@ -30,6 +30,12 @@
     "default": true
   },
   {
+    "id": "presence-script",
+    "label": "Presence Script",
+    "description": "Install the scan-control-aware foreground presence scanner.",
+    "default": true
+  },
+  {
     "id": "wifi-tools",
     "label": "Wi-Fi Fallback",
     "description": "NetworkManager tooling for known-network and hotspot fallback.",
