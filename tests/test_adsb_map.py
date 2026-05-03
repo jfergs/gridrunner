@@ -1,6 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 import json
+import os
 import tempfile
 import unittest
 
@@ -74,12 +75,15 @@ class AdsbMapTests(unittest.TestCase):
                     ),
                     encoding="utf-8",
                 )
+                os.utime(aircraft_file, (100, 100))
                 app.ADSB_AIRCRAFT_CANDIDATES = [aircraft_file]
 
-                summary = app.adsb_aircraft_summary()
+                summary = app.adsb_aircraft_summary(now=145)
 
                 self.assertEqual(summary["status"], "present")
                 self.assertEqual(summary["count"], 2)
+                self.assertEqual(summary["age_seconds"], 45)
+                self.assertEqual(summary["updated_message"], "updated 45s ago")
                 self.assertEqual(summary["aircraft"][0]["ident"], "GRID01")
                 self.assertEqual(summary["aircraft"][0]["seen"], "2s")
                 self.assertEqual(summary["aircraft"][1]["ident"], "def456")

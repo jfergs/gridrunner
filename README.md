@@ -372,6 +372,27 @@ directory when needed:
 export GRIDRUNNER_STATE_DIR=/path/to/state
 ```
 
+## Pi Update Smoke Test
+
+After pulling an update on the Pi, use this quick path to confirm privileged web
+actions, Wi-Fi mode controls, and ADS-B are still healthy:
+
+```bash
+cd ~/gridrunner
+git pull --ff-only
+sudo scripts/setup-sudoers.sh
+sudo systemctl restart gridrunner-web.service
+bash scripts/wifi-status.sh
+bash scripts/wifi-fallback.sh hotspot
+bash scripts/wifi-status.sh
+bash scripts/wifi-fallback.sh known
+bash scripts/adsb-health.sh
+```
+
+Then open `http://<device-hostname>.local:8088`, confirm the ADS-B data age is
+current, and test the `Enable Hotspot`, `Connect Known Wi-Fi`, `ADS-B Mode`, and
+`SDR Mode` controls from the web UI.
+
 ## Web Service
 
 The `Web Service` install item renders `deploy/systemd/gridrunner-web.service`

@@ -1,5 +1,6 @@
 from pathlib import Path
 from types import SimpleNamespace
+import asyncio
 import tempfile
 import unittest
 
@@ -111,6 +112,20 @@ class TemplateRenderTests(unittest.TestCase):
 
         self.assertIn(b"invalid form token", response.body)
 
+    def test_install_action_rejects_invalid_form_token(self):
+        request = SimpleNamespace(scope={"type": "http", "method": "POST", "path": "/install", "headers": []})
+
+        response = asyncio.run(app.run_install(request, mode="dry-run", confirm_token="bad-token"))
+
+        self.assertIn(b"invalid form token", response.body)
+
+    def test_install_skip_rejects_invalid_form_token(self):
+        request = SimpleNamespace(scope={"type": "http", "method": "POST", "path": "/install/skip", "headers": []})
+
+        response = asyncio.run(app.skip_install(request, confirm_token="bad-token"))
+
+        self.assertIn(b"invalid form token", response.body)
+
     def test_index_template_renders_without_wifi_status_context(self):
         request = SimpleNamespace(scope={"type": "http", "method": "GET", "path": "/", "headers": []})
 
@@ -126,7 +141,13 @@ class TemplateRenderTests(unittest.TestCase):
                 "adsb_map_url": "http://gridrunner.local/tar1090/",
                 "form_action_token": "token",
                 "power_action_token": "token",
-                "adsb_summary": {"status": "missing", "count": 0, "message": "aircraft data missing", "aircraft": []},
+                "adsb_summary": {
+                    "status": "missing",
+                    "count": 0,
+                    "message": "aircraft data missing",
+                    "updated_message": "aircraft file missing",
+                    "aircraft": [],
+                },
                 "install_items": [],
                 "install_state": {},
                 "install_statuses": {},
@@ -159,6 +180,7 @@ class TemplateRenderTests(unittest.TestCase):
                     "status": "present",
                     "count": 1,
                     "message": "1 aircraft tracked",
+                    "updated_message": "updated 2s ago",
                     "aircraft": [
                         {
                             "ident": "GRID01",
@@ -215,6 +237,7 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"field terminal active", response.body)
         self.assertIn(b"ADS-B", response.body)
         self.assertIn(b"1 aircraft tracked", response.body)
+        self.assertIn(b"updated 2s ago", response.body)
         self.assertIn(b"GRID01", response.body)
         self.assertIn(b"Wi-Fi Telemetry", response.body)
         self.assertIn(b"Enable Hotspot", response.body)
@@ -233,6 +256,7 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Bluetooth Scan", response.body)
         self.assertIn(b"Network Devices", response.body)
         self.assertIn(b"Network Device Scan", response.body)
+        self.assertIn(b'name="confirm_token" value="token"', response.body)
 
     def test_scan_control_state_round_trips_with_safe_defaults(self):
         original_scan_state_file = app.SCAN_STATE_FILE
