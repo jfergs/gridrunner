@@ -12,7 +12,7 @@ REPO_DIR = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_DIR / "scripts" / "wifi-status.sh"
 sys.path.insert(0, str(REPO_DIR / "web"))
 
-import app
+import app  # noqa: E402
 
 
 class WifiStatusTests(unittest.TestCase):

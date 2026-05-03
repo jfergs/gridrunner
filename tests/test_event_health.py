@@ -10,8 +10,8 @@ import sys
 REPO_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_DIR / "web"))
 
-import app
-import config
+import app  # noqa: E402
+import config  # noqa: E402
 
 
 class EventHealthTests(unittest.TestCase):
