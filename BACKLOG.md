@@ -112,6 +112,7 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Acceptance criteria:
     - Continue moving legacy scan logic into repo-managed scripts where
       Bluetooth and network phases can be tested directly.
+    - Document recommended default scan intervals.
   - Completed foundation:
     - Bluetooth and network scans default to off.
     - Web UI provides separate Bluetooth and Network one-shot scan controls.
@@ -119,9 +120,8 @@ work here; roll up only the current priorities to the global backlog tracker.
     - Legacy `btmgmt`, `arp-scan`, and `nmap` calls are patched behind scan
       phase controls.
     - Web UI surfaces armed scanner state and last scan age.
-  - Remaining acceptance criteria:
-    - Document recommended default scan intervals.
-  - Suggested defaults:
+    - Recommended default scan intervals are documented in README.
+  - Documented defaults:
     - Wi-Fi fallback timer: 2 to 5 minutes when connected, faster only when
       disconnected or hotspot active.
     - BLE scan: bounded 8 to 12 second bursts.
@@ -243,6 +243,9 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Display a short recent aircraft list with flight, altitude, ground speed,
     track, and last seen time.
   - Handle ADS-B unavailable/degraded state gracefully.
+  - Current foundation:
+    - Dashboard shows tar1090 link, aircraft count, and a short recent aircraft
+      list from local tar1090/readsb aircraft JSON when available.
 
 - Add safe script controls to the web UI.
   - Keep command execution restricted to a whitelist.

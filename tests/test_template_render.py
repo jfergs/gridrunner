@@ -97,6 +97,20 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertEqual(services["readsb"]["status"], "active")
         self.assertEqual(services["readsb"]["unit"], "readsb.service")
 
+    def test_run_action_rejects_invalid_form_token(self):
+        request = SimpleNamespace(scope={"type": "http", "method": "POST", "path": "/run", "headers": []})
+
+        response = app.run_action(request, action="health", confirm_token="bad-token")
+
+        self.assertIn(b"invalid form token", response.body)
+
+    def test_scan_action_rejects_invalid_form_token(self):
+        request = SimpleNamespace(scope={"type": "http", "method": "POST", "path": "/scans", "headers": []})
+
+        response = app.scan_action(request, action="scan-now", confirm_token="bad-token")
+
+        self.assertIn(b"invalid form token", response.body)
+
     def test_index_template_renders_without_wifi_status_context(self):
         request = SimpleNamespace(scope={"type": "http", "method": "GET", "path": "/", "headers": []})
 
@@ -110,7 +124,9 @@ class TemplateRenderTests(unittest.TestCase):
                 "auth_enabled": True,
                 "operator_user": "operator",
                 "adsb_map_url": "http://gridrunner.local/tar1090/",
+                "form_action_token": "token",
                 "power_action_token": "token",
+                "adsb_summary": {"status": "missing", "count": 0, "message": "aircraft data missing", "aircraft": []},
                 "install_items": [],
                 "install_state": {},
                 "install_statuses": {},
@@ -137,7 +153,22 @@ class TemplateRenderTests(unittest.TestCase):
                 "auth_enabled": True,
                 "operator_user": "operator",
                 "adsb_map_url": "http://gridrunner.local/tar1090/",
+                "form_action_token": "token",
                 "power_action_token": "token",
+                "adsb_summary": {
+                    "status": "present",
+                    "count": 1,
+                    "message": "1 aircraft tracked",
+                    "aircraft": [
+                        {
+                            "ident": "GRID01",
+                            "altitude": "1200",
+                            "speed": "145",
+                            "track": "87",
+                            "seen": "2s",
+                        }
+                    ],
+                },
                 "install_items": [],
                 "install_state": {},
                 "install_statuses": {},
@@ -182,6 +213,9 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"ADS-B PRESENT", response.body)
         self.assertIn(b"WEB PRESENT", response.body)
         self.assertIn(b"field terminal active", response.body)
+        self.assertIn(b"ADS-B", response.body)
+        self.assertIn(b"1 aircraft tracked", response.body)
+        self.assertIn(b"GRID01", response.body)
         self.assertIn(b"Wi-Fi Telemetry", response.body)
         self.assertIn(b"Enable Hotspot", response.body)
         self.assertIn(b"Connect Known Wi-Fi", response.body)
@@ -326,7 +360,9 @@ class TemplateRenderTests(unittest.TestCase):
                 "auth_enabled": False,
                 "operator_user": "operator",
                 "adsb_map_url": "http://gridrunner.local/tar1090/",
+                "form_action_token": "token",
                 "power_action_token": "token",
+                "adsb_summary": {"status": "missing", "count": 0, "message": "aircraft data missing", "aircraft": []},
                 "install_items": [],
                 "install_state": {},
                 "install_statuses": {},

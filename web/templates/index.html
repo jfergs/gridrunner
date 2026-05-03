@@ -486,14 +486,17 @@
         <div class="actions">
           <form method="post" action="/run" onsubmit="return confirm('Enable fallback hotspot mode now? This may disconnect the current Wi-Fi session.');">
             <input type="hidden" name="action" value="wifi_hotspot">
+            <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
             <button>Enable Hotspot</button>
           </form>
           <form method="post" action="/run" onsubmit="return confirm('Leave hotspot mode and connect to a known Wi-Fi network if one is visible?');">
             <input type="hidden" name="action" value="wifi_known">
+            <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
             <button>Connect Known Wi-Fi</button>
           </form>
           <form method="post" action="/run">
             <input type="hidden" name="action" value="wifi_status">
+            <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
             <button>Refresh Wi-Fi Status</button>
           </form>
         </div>
@@ -524,15 +527,18 @@
         <div class="actions">
         <form method="post" action="/scans">
           <input type="hidden" name="action" value="profile:low-impact">
+          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
           <button>Low Impact</button>
         </form>
         <form method="post" action="/scans">
           <input type="hidden" name="action" value="profile:field">
+          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
           <button>Field Scan</button>
         </form>
         </div>
         <form method="post" action="/scans" class="scan-controls">
           <input type="hidden" name="action" value="save">
+          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
           <div class="scan-row">
             <label for="bluetooth-mode">Bluetooth</label>
             <select id="bluetooth-mode" name="bluetooth_mode">
@@ -557,11 +563,13 @@
         <form method="post" action="/scans">
           <input type="hidden" name="action" value="scan-now">
           <input type="hidden" name="scan_target" value="bluetooth">
+          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
           <button>Bluetooth Scan</button>
         </form>
         <form method="post" action="/scans">
           <input type="hidden" name="action" value="scan-now">
           <input type="hidden" name="scan_target" value="network">
+          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
           <button>Network Device Scan</button>
         </form>
         </div>
@@ -588,23 +596,40 @@
 
     <aside class="stack">
       <div class="panel">
+        {% set adsb = adsb_summary|default({"status": "missing", "count": 0, "message": "aircraft data missing", "aircraft": []}) %}
+        <h2>ADS-B</h2>
+        <span class="status health-{{ adsb.status }}">{{ adsb.status }}</span>
+        <span>{{ adsb.message }}</span>
+        <div class="telemetry-grid">
+          <div class="telemetry"><span>Aircraft</span><strong>{{ adsb.count }}</strong></div>
+          <div class="telemetry"><span>Map</span><strong><a href="{{ adsb_map_url }}" target="_blank" rel="noopener">tar1090</a></strong></div>
+        </div>
+        {% if adsb.aircraft %}
+        <pre>{% for aircraft in adsb.aircraft %}{{ aircraft.ident }} alt={{ aircraft.altitude }} gs={{ aircraft.speed }} track={{ aircraft.track }} seen={{ aircraft.seen }}
+{% endfor %}</pre>
+        {% else %}
+        <pre>No recent aircraft.</pre>
+        {% endif %}
+      </div>
+
+      <div class="panel">
         <h2>Controls</h2>
         <div class="control-section">
           <h3>Observe</h3>
           <div class="grid">
-            <form method="post" action="/run"><input type="hidden" name="action" value="health"><button>Health</button></form>
-            <form method="post" action="/run"><input type="hidden" name="action" value="wifi_status"><button>Wi-Fi Status</button></form>
-            <form method="post" action="/run"><input type="hidden" name="action" value="logs"><button>Logs</button></form>
-            <form method="post" action="/run"><input type="hidden" name="action" value="inventory"><button>Radio Inventory</button></form>
-            <form method="post" action="/run"><input type="hidden" name="action" value="hamcheck"><button>Ham Check</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="health"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Health</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="wifi_status"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Wi-Fi Status</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="logs"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Logs</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="inventory"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Radio Inventory</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="hamcheck"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Ham Check</button></form>
           </div>
         </div>
         <div class="control-section">
           <h3>Operate</h3>
           <div class="grid">
-            <form method="post" action="/run"><input type="hidden" name="action" value="backup"><button>Backup</button></form>
-            <form method="post" action="/run"><input type="hidden" name="action" value="adsbmode"><button>ADS-B Mode</button></form>
-            <form method="post" action="/run"><input type="hidden" name="action" value="sdrmode"><button class="danger">SDR Mode</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="backup"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Backup</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="adsbmode"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>ADS-B Mode</button></form>
+            <form method="post" action="/run"><input type="hidden" name="action" value="sdrmode"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button class="danger">SDR Mode</button></form>
             <a class="control-link" href="{{ adsb_map_url }}" target="_blank" rel="noopener">ADS-B Map</a>
           </div>
         </div>

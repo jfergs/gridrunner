@@ -1,5 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
+import json
+import tempfile
 import unittest
 
 import sys
@@ -44,6 +46,45 @@ class AdsbMapTests(unittest.TestCase):
         self.assertIn('href="{{ adsb_map_url }}"', template)
         self.assertIn("ADS-B Map", template)
         self.assertNotIn('name="action" value="adsbmap"', template)
+
+    def test_adsb_aircraft_summary_reads_recent_aircraft(self):
+        original_candidates = app.ADSB_AIRCRAFT_CANDIDATES
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                aircraft_file = Path(temp_dir) / "aircraft.json"
+                aircraft_file.write_text(
+                    json.dumps(
+                        {
+                            "aircraft": [
+                                {
+                                    "hex": "abc123",
+                                    "flight": "GRID01 ",
+                                    "alt_baro": 1200,
+                                    "gs": 145.5,
+                                    "track": 87,
+                                    "seen": 2.4,
+                                },
+                                {
+                                    "hex": "def456",
+                                    "alt_geom": 2200,
+                                    "seen": 14,
+                                },
+                            ]
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                app.ADSB_AIRCRAFT_CANDIDATES = [aircraft_file]
+
+                summary = app.adsb_aircraft_summary()
+
+                self.assertEqual(summary["status"], "present")
+                self.assertEqual(summary["count"], 2)
+                self.assertEqual(summary["aircraft"][0]["ident"], "GRID01")
+                self.assertEqual(summary["aircraft"][0]["seen"], "2s")
+                self.assertEqual(summary["aircraft"][1]["ident"], "def456")
+        finally:
+            app.ADSB_AIRCRAFT_CANDIDATES = original_candidates
 
 
 if __name__ == "__main__":

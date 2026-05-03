@@ -218,6 +218,16 @@ The dashboard also provides scan profiles:
   saved as 15 minutes for future continuous use.
 - `Field`: continuous Bluetooth and network device scans on, interval 5 minutes.
 
+Recommended defaults for low-contention field use:
+
+- Keep continuous Bluetooth and Network Devices off unless actively surveying.
+- Use `Low Impact` as the parked/default profile.
+- Use `Field Scan` for short survey windows, then return to `Low Impact`.
+- Keep Bluetooth bursts bounded to 8-12 seconds with
+  `GRIDRUNNER_BTMGMT_FIND_SECONDS`.
+- Prefer ARP-only network device discovery; avoid heavier `nmap` sweeps unless
+  intentionally troubleshooting.
+
 When scans are enabled, the timer calls `scripts/run-events.sh`, which
 resolves the operator event script at:
 
