@@ -5,81 +5,90 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 ## Top Priority
 
-- Security hardening from full code review.
-  - Context: May 2026 review found no failing tests, but identified several
-    hardening items that should be handled before expanding remote access or
-    adding more privileged controls.
-  - Acceptance criteria:
-    - Add CSRF protection to all mutating web POST routes:
-      - `/scans`
-      - `/run`
+- Finish web/security hardening.
+  - Context: May 2026 review found no failing tests, but identified hardening
+    items that should be handled before broader remote access.
+  - Completed foundation:
+    - `/run` and `/scans` use shared form-token protection.
+    - `/power` uses the same shared token validation.
+    - `ruff check web tests` passes after targeted test import annotations.
+    - `shellcheck scripts/*.sh` has one reviewed informational finding in
+      `scripts/patch-events-script.sh` for literal shell text matching.
+  - Remaining acceptance criteria:
+    - Add shared form-token protection to install routes:
       - `/install`
       - `/install/skip`
-      - keep `/power` protected with the same shared form-token mechanism.
     - Narrow `scripts/setup-sudoers.sh` NOPASSWD rules:
       - Replace wildcard `apt-get install -y *` with fixed package command
         shapes used by `install-items.sh`.
-      - Replace wildcard systemd install source paths with exact
-        `~/gridrunner/state/*.service` and `*.timer` paths or generated
+      - Replace wildcard systemd install source paths with exact generated
         project paths.
       - Replace `bash */scripts/install-adsb-readsb.sh` with an exact script
         path.
+      - Replace broad `nmcli connection *` rules with the narrowest practical
+        hotspot/known-network command shapes.
     - Replace shell-sourced Wi-Fi config parsing in `wifi-fallback.sh` and
       `wifi-status.sh` with explicit parsing of expected keys only.
     - Harden ADS-B installer supply chain:
       - Prefer pinned installer URL or commit.
       - Download to a file before execution.
       - Add checksum or documented manual verification path.
-    - Clean test lint warnings so `ruff check web tests` passes.
   - Validation commands:
     - `web/.venv/bin/python -m unittest discover -s tests`
     - `bash -n scripts/*.sh`
     - `python3 -m py_compile web/*.py tests/*.py`
-    - `ruff check web tests`
+    - `web/.venv/bin/python -m ruff check web tests`
+    - `shellcheck scripts/*.sh`
 
-- Stabilize Wi-Fi failover and fallback hotspot behavior.
+- Validate Wi-Fi failover and fallback hotspot behavior on device.
   - Goal: GRIDRUNNER joins known Wi-Fi networks when available and starts its
     own fallback hotspot when no known networks are reachable.
-  - Failure mode observed: failover did not work after leaving known Wi-Fi range
-    and rebooting out of range.
-  - Acceptance criteria:
-    - `gridrunner-wifi.service` runs with permissions sufficient to control
-      NetworkManager.
-    - `gridrunner-wifi.timer` runs reliably at boot and on a regular interval.
-    - If a known Wi-Fi network is reachable, GRIDRUNNER connects to it.
-    - If no known Wi-Fi is reachable, GRIDRUNNER starts `GRIDRUNNER-HOTSPOT`.
-    - If a known Wi-Fi network returns while hotspot mode is active, GRIDRUNNER
-      switches back to known Wi-Fi.
-    - Web UI surfaces current network mode, active connection, and hotspot IP.
-    - Avoid unnecessary local Wi-Fi rescans when NetworkManager reports full
-      connectivity on a known network.
-    - Only rescan for stale-link validation when connectivity is degraded,
-      unknown, or unavailable.
+  - Completed foundation:
+    - `wifi-fallback.sh` exits early when connected to known Wi-Fi and
+      NetworkManager reports full connectivity.
+    - Degraded stale-link checks respect `GRIDRUNNER_WIFI_RESCAN_MIN_SECONDS`.
+    - Web UI surfaces mode, IP, timer/service state, and last Wi-Fi action.
+    - Web UI includes manual `Enable Hotspot` and `Connect Known Wi-Fi`
+      controls with matching `wifi-fallback.sh hotspot|known` commands.
+  - Remaining acceptance criteria:
+    - Confirm `gridrunner-wifi.timer` runs reliably at boot and on a regular
+      interval after `sudo scripts/setup-sudoers.sh` has been rerun on-device.
+    - Confirm automatic failover starts `GRIDRUNNER-HOTSPOT` when no known
+      Wi-Fi is reachable.
+    - Confirm automatic return to known Wi-Fi when a known network returns while
+      hotspot mode is active.
+    - Confirm manual web controls work from iPhone/laptop against the running
+      device.
   - Validation commands:
+    - `bash scripts/wifi-fallback.sh hotspot`
+    - `bash scripts/wifi-fallback.sh known`
+    - `bash scripts/wifi-status.sh`
     - `systemctl status gridrunner-wifi.timer --no-pager`
     - `systemctl status gridrunner-wifi.service --no-pager`
     - `journalctl -u gridrunner-wifi.service -n 80 --no-pager`
     - `nmcli -t -f DEVICE,STATE,CONNECTION dev`
 
-- Investigate home Wi-Fi slowdowns caused by periodic GRIDRUNNER scans.
+- Add scan contention diagnostics and pause controls.
   - Symptom: when GRIDRUNNER is connected to the home Wi-Fi network, the whole
     network appears to slow down for roughly 30 seconds every couple of minutes.
-  - Suspected causes:
-    - Wi-Fi fallback timer calling `nmcli dev wifi rescan` while already healthy
-      on a known network.
-    - BLE scanning bursts causing 2.4 GHz airtime contention.
-    - Network discovery scripts using `arp-scan`, `nmap`, or ping sweeps too
-      often.
-    - Multiple dashboard/timer paths running the same scans concurrently.
-  - Acceptance criteria:
+  - Completed foundation:
+    - Bluetooth and network device scans default to off.
+    - Web UI provides separate Bluetooth and Network Device one-shot controls.
+    - Continuous Bluetooth and Network Device modes are independently gated.
+    - Legacy `btmgmt`, `arp-scan`, and `nmap` calls are patched behind scan
+      phase controls.
+    - Web UI surfaces armed scanner state and last scan age.
+    - Recommended low-contention defaults are documented in README.
+  - Remaining acceptance criteria:
     - Add diagnostics that show when Wi-Fi, BLE, and network scans start/stop.
     - Web UI and/or `ghost-health` surfaces active scan timers and last scan
       timestamps.
     - Identify whether `gridrunner-wifi.timer`, event collection, tmux dashboard,
-      or manual scripts are triggering the periodic slowdown.
+      or manual scripts are triggering periodic slowdown.
     - Provide a temporary mitigation command or web control to pause background
       scanning.
-    - Confirm that stopping the suspected timer/script eliminates the slowdown.
+    - Add optional `GRIDRUNNER_WIFI_CONNECTIVITY_CHECK_HOST` for degraded-link
+      checks without changing the healthy known-Wi-Fi fast path.
   - Validation commands:
     - `systemctl list-timers --all`
     - `ps aux | grep -E 'wifi|ble|scan|nmap|nmcli|arp-scan|btmgmt'`
@@ -87,47 +96,40 @@ work here; roll up only the current priorities to the global backlog tracker.
     - `journalctl -u gridrunner-events.service -f`
     - `nmcli general connectivity`
 
-- Throttle or eliminate unnecessary Wi-Fi rescans while connected.
-  - Problem: local Wi-Fi rescans can briefly disrupt the Pi Wi-Fi radio and may
-    degrade nearby network performance if they occur too frequently.
-  - Acceptance criteria:
-    - `wifi-fallback.sh` exits early when connected to a known network and
-      NetworkManager reports full connectivity.
-    - Do not call `nmcli dev wifi rescan` on every timer run while connectivity
-      is healthy.
-    - Add configurable environment variable:
-      - `GRIDRUNNER_WIFI_CONNECTIVITY_CHECK_HOST`
-    - Log only meaningful state transitions instead of every healthy timer run.
-    - Unit or shell tests cover healthy connected, degraded connected,
-      disconnected, and hotspot active states.
-  - Validation:
-    - With known Wi-Fi healthy, repeated timer runs should not issue a local
-      Wi-Fi rescan.
-    - When Wi-Fi is disconnected, fallback hotspot still starts.
-    - When hotspot is active and known Wi-Fi returns, GRIDRUNNER switches back.
-
-- Reduce background RF/network scan contention.
-  - Problem: BLE, Wi-Fi, ADS-B, and network discovery scans may run at overlapping
-    intervals and create bursts of CPU, USB, or RF contention.
-  - Acceptance criteria:
-    - Continue moving legacy scan logic into repo-managed scripts where
-      Bluetooth and network phases can be tested directly.
-    - Document recommended default scan intervals.
-  - Completed foundation:
-    - Bluetooth and network scans default to off.
-    - Web UI provides separate Bluetooth and Network one-shot scan controls.
-    - Continuous Bluetooth and network modes are independently gated.
-    - Legacy `btmgmt`, `arp-scan`, and `nmap` calls are patched behind scan
-      phase controls.
-    - Web UI surfaces armed scanner state and last scan age.
-    - Recommended default scan intervals are documented in README.
-  - Documented defaults:
-    - Wi-Fi fallback timer: 2 to 5 minutes when connected, faster only when
-      disconnected or hotspot active.
-    - BLE scan: bounded 8 to 12 second bursts.
-    - Network presence: ARP-only by default, no heavy nmap unless requested.
-
 ## Recently Completed
+
+- Web form-token hardening for controls.
+  - `/run` and `/scans` reject invalid form tokens.
+  - `/power` uses the same shared token validation path.
+  - Dashboard `/run` and `/scans` forms include hidden form tokens.
+
+- ADS-B dashboard foundation.
+  - Dashboard shows a tar1090 link, aircraft count, and a short recent aircraft
+    list from local tar1090/readsb aircraft JSON when available.
+  - `GRIDRUNNER_ADSB_AIRCRAFT_JSON` can override the local aircraft JSON path.
+  - Missing or unreadable aircraft data degrades gracefully in the panel.
+
+- Lint/tooling baseline.
+  - `ruff` is installed in `web/.venv`.
+  - `web/.venv/bin/python -m ruff check web tests` passes.
+  - `shellcheck` is installed for shell script linting.
+  - Current `shellcheck scripts/*.sh` baseline has one informational SC2016
+    finding for intentional literal shell text matching.
+
+- Wi-Fi manual controls.
+  - Web UI includes `Enable Hotspot` and `Connect Known Wi-Fi`.
+  - `scripts/wifi-fallback.sh hotspot` forces fallback hotspot mode.
+  - `scripts/wifi-fallback.sh known` leaves hotspot mode only when a known
+    network is visible, avoiding accidental loss of access.
+  - `scripts/setup-sudoers.sh` grants NetworkManager write operations needed by
+    the web/operator Wi-Fi controls.
+
+- Managed foreground presence scanner.
+  - `scripts/ghost-presence.sh` installs as
+    `/home/<operator-user>/<operator-user>-presence.sh`.
+  - The wrapper respects dashboard Network Device scan controls before running
+    `arp-scan --localnet`.
+  - Installed wrapper resolves `~/gridrunner/state/scan-controls.env` correctly.
 
 - Web UI exposure hardening.
   - Web UI self-test reports whether `GRIDRUNNER_WEB_PASSWORD` is configured.
@@ -192,13 +194,14 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 - Dashboard scan controls.
   - Bluetooth and network discovery scans default to off.
-  - Web UI supports separate Bluetooth and Network one-shot scan controls.
-  - Continuous Bluetooth and network modes are independently gated.
+  - Web UI supports separate Bluetooth and Network Device one-shot scan controls.
+  - Continuous Bluetooth and Network Device modes are independently gated.
   - Scan interval state is stored in `state/scan-controls.env`.
   - Legacy `btmgmt`, `arp-scan`, and `nmap` calls are patched behind the
     dashboard scan controls.
   - Web UI shows which scanners are armed and when the last scan ran.
   - Web UI includes Low Impact and Field scan profile presets.
+  - Recommended low-contention scan defaults are documented in README.
 
 - Wi-Fi rescan throttling.
   - `wifi-fallback.sh` skips healthy known Wi-Fi without rescanning.
@@ -237,23 +240,26 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Use motion only for meaningful state such as scanning, live, degraded, or
     reconnecting.
 
-- Add ADS-B integration to the web UI.
-  - Provide a link to `http://gridrunner.local/tar1090/`.
-  - Display aircraft count from `/tar1090/data/aircraft.json`.
-  - Display a short recent aircraft list with flight, altitude, ground speed,
-    track, and last seen time.
-  - Handle ADS-B unavailable/degraded state gracefully.
+- Deepen ADS-B integration in the web UI.
   - Current foundation:
     - Dashboard shows tar1090 link, aircraft count, and a short recent aircraft
       list from local tar1090/readsb aircraft JSON when available.
+  - Remaining acceptance criteria:
+    - Add aircraft freshness/age for the aircraft JSON file itself.
+    - Display readsb/lighttpd service state alongside aircraft count.
+    - Add richer aircraft fields when available, such as squawk, category,
+      vertical rate, and emergency state.
+    - Handle ADS-B unavailable/degraded state with explicit operator guidance.
 
 - Add safe script controls to the web UI.
   - Keep command execution restricted to a whitelist.
-  - Buttons should include health, backup, inventory, ham check, ADS-B mode,
-    SDR mode, run events, and Wi-Fi status.
+  - Current foundation:
+    - Buttons include health, backup, inventory, ham check, ADS-B mode, SDR
+      mode, logs, Wi-Fi status, Wi-Fi hotspot, known Wi-Fi, and scan controls.
+  - Remaining acceptance criteria:
+    - Add clearer warnings for disruptive radio actions such as switching SDR
+      mode or stopping ADS-B.
   - Do not add arbitrary shell execution.
-  - Add clear warnings for disruptive actions such as switching SDR mode or
-    stopping ADS-B.
 
 - Add event log viewer and freshness indicator.
   - Show recent `ghost-events.log` lines.
