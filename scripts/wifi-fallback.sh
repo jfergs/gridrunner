@@ -309,6 +309,47 @@ manual_hotspot() {
   exit 1
 }
 
+manual_known_wifi() {
+  local current=""
+
+  wait_for_networkmanager || exit 1
+  wifi_enabled || {
+    log "failed to enable wifi radio"
+    exit 1
+  }
+
+  current="$(current_connection)"
+  if [ -n "$current" ] && ! is_hotspot_name "$current"; then
+    record_action "known-wifi-active"
+    echo "$OPERATOR_LABEL: already connected to known wifi"
+    exit 0
+  fi
+
+  WIFI_RESCAN_MIN_SECONDS=0
+  scan_wifi || true
+
+  if [ -n "$current" ] && is_hotspot_name "$current"; then
+    echo "$OPERATOR_LABEL: hotspot active, joining known networks..."
+    if join_known_network yes; then
+      echo "$OPERATOR_LABEL: known wifi enabled"
+      exit 0
+    fi
+
+    echo "$OPERATOR_LABEL: no known networks found, staying hotspot"
+    exit 1
+  fi
+
+  echo "$OPERATOR_LABEL: joining known networks..."
+  if join_known_network no; then
+    echo "$OPERATOR_LABEL: known wifi enabled"
+    exit 0
+  fi
+
+  log "no known wifi found"
+  record_action "known-wifi-unavailable"
+  exit 1
+}
+
 ensure_hotspot_profile() {
   local output=""
   local profile="${1:-$HOTSPOT}"
@@ -421,8 +462,11 @@ case "${1:-auto}" in
   hotspot)
     manual_hotspot
     ;;
+  known)
+    manual_known_wifi
+    ;;
   *)
-    echo "Usage: $0 [auto|hotspot]"
+    echo "Usage: $0 [auto|hotspot|known]"
     exit 2
     ;;
 esac

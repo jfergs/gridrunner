@@ -224,6 +224,82 @@ class WifiFallbackTests(unittest.TestCase):
             self.assertIn("manual hotspot requested", log)
             self.assertIn("GRIDRUNNER_WIFI_LAST_ACTION=manual-hotspot", action_state.read_text(encoding="utf-8"))
 
+    def test_manual_known_wifi_leaves_hotspot_and_joins_visible_known_network(self):
+        nmcli_script = textwrap.dedent(
+            """\
+            #!/bin/bash
+            echo "$*" >> "$NMCLI_CALLS"
+            if [ "$*" = "-t -f RUNNING general" ]; then
+              echo running
+            elif [ "$*" = "-t -f WIFI general" ]; then
+              echo enabled
+            elif [ "$*" = "-t -f NAME,DEVICE connection show --active" ]; then
+              echo "GRIDRUNNER-HOTSPOT:wlan0"
+            elif [ "$*" = "-t -f NAME,TYPE connection show" ]; then
+              echo "GRIDRUNNER-HOTSPOT:802-11-wireless"
+              echo "HomeWiFi:802-11-wireless"
+            elif [ "$*" = "-t -f NAME connection show" ]; then
+              echo "GRIDRUNNER-HOTSPOT"
+              echo "HomeWiFi"
+            elif [ "$*" = "-g 802-11-wireless.ssid connection show HomeWiFi" ]; then
+              echo "HomeWiFi"
+            elif [ "$*" = "-t -f SSID dev wifi list ifname wlan0" ]; then
+              echo "HomeWiFi"
+            elif [ "$*" = "dev wifi rescan ifname wlan0" ]; then
+              exit 0
+            elif [ "$*" = "connection down GRIDRUNNER-HOTSPOT" ]; then
+              exit 0
+            elif [ "$*" = "connection up HomeWiFi" ]; then
+              exit 0
+            fi
+            exit 0
+            """
+        )
+
+        result, calls, _log = self.run_with_fake_nmcli(nmcli_script, args=["known"])
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("known wifi enabled", result.stdout)
+        self.assertIn("dev wifi rescan ifname wlan0", calls)
+        self.assertIn("connection down GRIDRUNNER-HOTSPOT", calls)
+        self.assertIn("connection up HomeWiFi", calls)
+        self.assertNotIn("connection up GRIDRUNNER-HOTSPOT", calls)
+
+    def test_manual_known_wifi_keeps_hotspot_when_no_known_network_is_visible(self):
+        nmcli_script = textwrap.dedent(
+            """\
+            #!/bin/bash
+            echo "$*" >> "$NMCLI_CALLS"
+            if [ "$*" = "-t -f RUNNING general" ]; then
+              echo running
+            elif [ "$*" = "-t -f WIFI general" ]; then
+              echo enabled
+            elif [ "$*" = "-t -f NAME,DEVICE connection show --active" ]; then
+              echo "GRIDRUNNER-HOTSPOT:wlan0"
+            elif [ "$*" = "-t -f NAME,TYPE connection show" ]; then
+              echo "GRIDRUNNER-HOTSPOT:802-11-wireless"
+              echo "HomeWiFi:802-11-wireless"
+            elif [ "$*" = "-t -f NAME connection show" ]; then
+              echo "GRIDRUNNER-HOTSPOT"
+              echo "HomeWiFi"
+            elif [ "$*" = "-g 802-11-wireless.ssid connection show HomeWiFi" ]; then
+              echo "HomeWiFi"
+            elif [ "$*" = "-t -f SSID dev wifi list ifname wlan0" ]; then
+              exit 0
+            elif [ "$*" = "dev wifi rescan ifname wlan0" ]; then
+              exit 0
+            fi
+            exit 0
+            """
+        )
+
+        result, calls, _log = self.run_with_fake_nmcli(nmcli_script, args=["known"])
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("no known networks found, staying hotspot", result.stdout)
+        self.assertIn("dev wifi rescan ifname wlan0", calls)
+        self.assertNotIn("connection down GRIDRUNNER-HOTSPOT", calls)
+
     def test_active_known_wifi_with_full_connectivity_exits_without_rescan(self):
         nmcli_script = textwrap.dedent(
             """\

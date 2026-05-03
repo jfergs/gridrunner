@@ -184,6 +184,7 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"field terminal active", response.body)
         self.assertIn(b"Wi-Fi Telemetry", response.body)
         self.assertIn(b"Enable Hotspot", response.body)
+        self.assertIn(b"Connect Known Wi-Fi", response.body)
         self.assertIn(b"Refresh Wi-Fi Status", response.body)
         self.assertIn(b"Last Action", response.body)
         self.assertIn(b"Self Test", response.body)
