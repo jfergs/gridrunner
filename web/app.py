@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import secrets
@@ -11,6 +12,7 @@ from auth import require_auth
 from commands import COMMANDS, run_cmd
 from config import (
     ADSB_MAP_URL,
+    ADSB_AIRCRAFT_JSON,
     DEVICE_HOSTNAME,
     EVENTS_LOG,
     EVENTS_STALE_SECONDS,
@@ -31,7 +33,8 @@ from install import (
 
 app = FastAPI()
 templates = Jinja2Templates(directory=str(WEB_DIR / "templates"))
-POWER_ACTION_TOKEN = secrets.token_urlsafe(32)
+FORM_ACTION_TOKEN = secrets.token_urlsafe(32)
+POWER_ACTION_TOKEN = FORM_ACTION_TOKEN
 SCAN_MODES = {"off", "continuous"}
 SCAN_INTERVAL_MIN = 60
 SCAN_INTERVAL_MAX = 1800
@@ -51,6 +54,11 @@ SCAN_PROFILES = {
     },
 }
 
+ADSB_AIRCRAFT_CANDIDATES = [
+    ADSB_AIRCRAFT_JSON,
+    ADSB_AIRCRAFT_JSON.parent / "data" / ADSB_AIRCRAFT_JSON.name,
+]
+
 
 def no_store(response: Response):
     response.headers["Cache-Control"] = "no-store"
@@ -66,6 +74,91 @@ def adsb_map_url(request: Request):
     if ":" in hostname and not hostname.startswith("["):
         hostname = f"[{hostname}]"
     return f"http://{hostname}/tar1090/"
+
+
+def valid_form_token(confirm_token):
+    return secrets.compare_digest(confirm_token, FORM_ACTION_TOKEN)
+
+
+def csrf_rejected_response(request, title):
+    response = templates.TemplateResponse(
+        request,
+        "result.html",
+        {
+            "title": title,
+            "output": "Action rejected: invalid form token.",
+        },
+    )
+    no_store(response)
+    return response
+
+
+def adsb_aircraft_file():
+    for candidate in ADSB_AIRCRAFT_CANDIDATES:
+        if candidate.exists():
+            return candidate
+    return ADSB_AIRCRAFT_JSON
+
+
+def short_aircraft_value(value, default="-"):
+    if value in (None, ""):
+        return default
+    return str(value).strip() or default
+
+
+def adsb_aircraft_summary(limit=5):
+    aircraft_file = adsb_aircraft_file()
+    summary = {
+        "status": "missing",
+        "message": "aircraft data missing",
+        "count": 0,
+        "aircraft": [],
+        "path": str(aircraft_file),
+    }
+
+    try:
+        data = json.loads(aircraft_file.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return summary
+    except (OSError, json.JSONDecodeError):
+        summary["status"] = "degraded"
+        summary["message"] = "aircraft data unreadable"
+        return summary
+
+    aircraft = data.get("aircraft", [])
+    if not isinstance(aircraft, list):
+        summary["status"] = "degraded"
+        summary["message"] = "aircraft data invalid"
+        return summary
+
+    seen_aircraft = [item for item in aircraft if isinstance(item, dict)]
+    summary["status"] = "present"
+    summary["count"] = len(seen_aircraft)
+    summary["message"] = f"{len(seen_aircraft)} aircraft tracked"
+
+    sortable = sorted(
+        seen_aircraft,
+        key=lambda item: item.get("seen", 999999)
+        if isinstance(item.get("seen", 999999), (int, float))
+        else 999999,
+    )
+    for item in sortable[:limit]:
+        seen = item.get("seen")
+        if isinstance(seen, (int, float)):
+            seen_text = f"{max(0, int(seen))}s"
+        else:
+            seen_text = "-"
+        summary["aircraft"].append(
+            {
+                "ident": short_aircraft_value(item.get("flight"), short_aircraft_value(item.get("hex"))),
+                "altitude": short_aircraft_value(item.get("alt_baro", item.get("alt_geom"))),
+                "speed": short_aircraft_value(item.get("gs")),
+                "track": short_aircraft_value(item.get("track")),
+                "seen": seen_text,
+            }
+        )
+
+    return summary
 
 
 def event_freshness():
@@ -432,6 +525,7 @@ def index(request: Request, _user=Depends(require_auth)):
     wifi_status = parse_keyed_status(wifi_output, "GRIDRUNNER_WIFI ")
     service_health = parse_service_health(run_cmd(COMMANDS["service_health"]))
     scan_controls = describe_scan_controls(load_scan_controls())
+    adsb_summary = adsb_aircraft_summary()
     node_status = build_node_status(wifi_status, event_status, component_health)
     auth_enabled = bool(WEB_PASSWORD)
     self_tests = build_self_tests(
@@ -457,6 +551,8 @@ def index(request: Request, _user=Depends(require_auth)):
             "auth_enabled": auth_enabled,
             "operator_user": OPERATOR_USER,
             "adsb_map_url": adsb_map_url(request),
+            "adsb_summary": adsb_summary,
+            "form_action_token": FORM_ACTION_TOKEN,
             "power_action_token": POWER_ACTION_TOKEN,
             "install_items": INSTALL_ITEMS,
             "install_state": install_state,
@@ -478,8 +574,12 @@ def scan_action(
     network_device_mode: str = Form(""),
     network_mode: str = Form(""),
     interval_seconds: int = Form(SCAN_INTERVAL_DEFAULT),
+    confirm_token: str = Form(""),
     _user=Depends(require_auth),
 ):
+    if not valid_form_token(confirm_token):
+        return csrf_rejected_response(request, "GRIDRUNNER SCANS")
+
     controls = load_scan_controls()
 
     if action == "save":
@@ -520,8 +620,12 @@ def scan_action(
 def run_action(
     request: Request,
     action: str = Form(...),
+    confirm_token: str = Form(""),
     _user=Depends(require_auth),
 ):
+    if not valid_form_token(confirm_token):
+        return csrf_rejected_response(request, f"GRIDRUNNER: {action}")
+
     cmd = COMMANDS.get(action)
 
     if not cmd:
@@ -552,7 +656,7 @@ def power_action(
 ):
     if action not in {"shutdown", "restart"}:
         output = f"Unknown power action: {action}"
-    elif not secrets.compare_digest(confirm_token, POWER_ACTION_TOKEN):
+    elif not valid_form_token(confirm_token):
         output = "Power action rejected: invalid confirmation token."
     else:
         output = run_cmd(COMMANDS[action])
