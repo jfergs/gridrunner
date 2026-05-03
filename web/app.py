@@ -106,24 +106,33 @@ def short_aircraft_value(value, default="-"):
     return str(value).strip() or default
 
 
-def adsb_aircraft_summary(limit=5):
+def adsb_aircraft_summary(limit=5, now=None):
     aircraft_file = adsb_aircraft_file()
     summary = {
         "status": "missing",
         "message": "aircraft data missing",
+        "updated_message": "aircraft file missing",
+        "age_seconds": None,
         "count": 0,
         "aircraft": [],
         "path": str(aircraft_file),
     }
 
     try:
+        aircraft_stat = aircraft_file.stat()
         data = json.loads(aircraft_file.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return summary
     except (OSError, json.JSONDecodeError):
         summary["status"] = "degraded"
         summary["message"] = "aircraft data unreadable"
+        summary["updated_message"] = "aircraft file unreadable"
         return summary
+
+    current_time = time.time() if now is None else now
+    age_seconds = max(0, int(current_time - aircraft_stat.st_mtime))
+    summary["age_seconds"] = age_seconds
+    summary["updated_message"] = f"updated {age_seconds}s ago"
 
     aircraft = data.get("aircraft", [])
     if not isinstance(aircraft, list):
@@ -677,8 +686,12 @@ def power_action(
 async def run_install(
     request: Request,
     mode: str = Form("dry-run"),
+    confirm_token: str = Form(""),
     _user=Depends(require_auth),
 ):
+    if not valid_form_token(confirm_token):
+        return csrf_rejected_response(request, f"GRIDRUNNER INSTALL: {mode}")
+
     form = await request.form()
     selected = selected_install_items(form)
     if mode not in {"dry-run", "apply"}:
@@ -706,7 +719,14 @@ async def run_install(
 
 
 @app.post("/install/skip")
-async def skip_install(request: Request, _user=Depends(require_auth)):
+async def skip_install(
+    request: Request,
+    confirm_token: str = Form(""),
+    _user=Depends(require_auth),
+):
+    if not valid_form_token(confirm_token):
+        return csrf_rejected_response(request, "GRIDRUNNER INSTALL: skipped")
+
     form = await request.form()
     selected = selected_install_items(form)
     update_install_state("skipped", selected)

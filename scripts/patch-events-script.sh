@@ -33,6 +33,8 @@ if grep -Eq '(^|[[:space:]])(sudo[[:space:]]+)?(arp-scan|nmap)([[:space:]]|$)' "
   needs_network_gate_patch=1
 fi
 
+# The bad legacy text contains literal shell variables; keep this pattern quoted.
+# shellcheck disable=SC2016
 if grep -Eq 'cp[[:space:]]+"\$AIR_NOW"[[:space:]]+"\$AIR_LAST"0;177;25M0;177;25m' "$event_script"; then
   needs_air_copy_patch=1
 fi
