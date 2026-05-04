@@ -1,7 +1,10 @@
 # GRIDRUNNER Storage Model
 
-This document defines the storage layout for future external USB media support.
-It is a design contract only; current setup does not move data automatically.
+This document defines the storage layout for external USB media support. The
+current implementation lets an operator select an already-mounted writable USB
+volume, creates explicit GRIDRUNNER data directories on it, and writes
+`~/gridrunner/state/storage.env`. GRIDRUNNER does not format, partition, or
+erase drives.
 
 ## Goals
 
@@ -41,25 +44,25 @@ Rationale:
 
 The following data classes may move to external media:
 
-| Data class | Current/default path | Future external path |
+| Data class | Current/default path | External path |
 | --- | --- | --- |
 | Backups | `~/gridrunner/data/backups/` | `<volume>/gridrunner/backups/` |
 | Operator logs | `/home/<operator>/<operator>-events.log` | `<volume>/gridrunner/logs/<operator>-events.log` |
 | Rotated logs | `/home/<operator>/<operator>-events.log.*` | `<volume>/gridrunner/logs/` |
 | SDR captures | `~/gridrunner/sdr/` | `<volume>/gridrunner/sdr/` |
 | Radio artifacts | `~/gridrunner/radio/` | `<volume>/gridrunner/radio/` |
-| ADS-B history | future `~/gridrunner/data/adsb/` | `<volume>/gridrunner/adsb/` |
+| ADS-B history | `~/gridrunner/data/adsb/` | `<volume>/gridrunner/adsb/` |
 | Media server library | not installed by default | `<volume>/gridrunner/media/` |
 
 ## Required Configuration
 
-Future implementation should write a single environment file:
+Storage selection writes a single environment file:
 
 ```text
 ~/gridrunner/state/storage.env
 ```
 
-Proposed keys:
+Keys:
 
 ```bash
 GRIDRUNNER_STORAGE_MODE=internal|external
@@ -74,27 +77,31 @@ GRIDRUNNER_ADSB_HISTORY_DIR=<root>/adsb
 GRIDRUNNER_MEDIA_DIR=<root>/media
 ```
 
-Services should load this file with `EnvironmentFile=-...` only after the
-selected paths exist and are writable.
+Services load this file with `EnvironmentFile=-...`. Runtime scripts also parse
+the file explicitly and fall back to internal paths when the external root is
+missing or not writable.
 
 ## Web UI Flow
 
-The web UI should present external storage as a guided, reversible workflow:
+The web UI presents external storage as a guided, reversible workflow:
 
 1. Detect removable mounted volumes with device, label, filesystem, UUID, size,
    free space, mount point, and writable state.
-2. Let the operator choose a volume and storage classes to move.
+2. Let the operator choose a volume.
 3. Show a preflight checklist:
    - filesystem writable
    - minimum free space available
    - target directory can be created
    - existing target data will not be overwritten silently
    - internal rollback path exists
-4. Copy selected data with preserve mode and timestamps.
+4. Copy existing backup, event log, SDR, and radio data with preserve mode and
+   timestamps when present.
 5. Verify copied file counts and byte counts.
 6. Write `state/storage.env`.
-7. Restart only affected services.
+7. Prompt the operator to restart affected services when a fresh systemd
+   environment is needed.
 8. Show active storage mode and rollback action.
+9. Show used/free disk-space meters for mounted volumes.
 
 The UI must not auto-format drives or erase data.
 

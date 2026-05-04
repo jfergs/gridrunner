@@ -3,26 +3,19 @@ set -u
 
 OPERATOR_USER="${GRIDRUNNER_OPERATOR_USER:-$(id -un)}"
 OPERATOR_HOME="${GRIDRUNNER_OPERATOR_HOME:-$HOME}"
+export OPERATOR_USER OPERATOR_HOME
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="${GRIDRUNNER_HOME:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+GRIDRUNNER_HOME="$PROJECT_DIR"
 EVENTS_LOG="${GRIDRUNNER_EVENTS_LOG:-}"
 STALE_SECONDS="${GRIDRUNNER_EVENTS_STALE_SECONDS:-900}"
 
+# shellcheck source=scripts/storage-common.sh
+. "$PROJECT_DIR/scripts/storage-common.sh"
+gridrunner_read_storage_env
+
 resolve_events_log() {
-  if [ -n "$EVENTS_LOG" ]; then
-    printf '%s\n' "$EVENTS_LOG"
-    return
-  fi
-
-  if [ -e "$OPERATOR_HOME/$OPERATOR_USER-events.log" ]; then
-    printf '%s\n' "$OPERATOR_HOME/$OPERATOR_USER-events.log"
-    return
-  fi
-
-  if [ -e "$OPERATOR_HOME/operator-events.log" ]; then
-    printf '%s\n' "$OPERATOR_HOME/operator-events.log"
-    return
-  fi
-
-  printf '%s\n' "$OPERATOR_HOME/$OPERATOR_USER-events.log"
+  gridrunner_storage_events_log
 }
 
 EVENTS_LOG="$(resolve_events_log)"

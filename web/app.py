@@ -3,6 +3,7 @@ import os
 import re
 import secrets
 import time
+from pathlib import Path
 
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -16,8 +17,11 @@ from config import (
     DEVICE_HOSTNAME,
     EVENTS_LOG,
     EVENTS_STALE_SECONDS,
+    OPERATOR_HOME,
     OPERATOR_USER,
+    PROJECT_DIR,
     SCAN_STATE_FILE,
+    STORAGE_STATE_FILE,
     WEB_DIR,
     WEB_PASSWORD,
 )
@@ -39,6 +43,18 @@ SCAN_MODES = {"off", "continuous"}
 SCAN_INTERVAL_MIN = 60
 SCAN_INTERVAL_MAX = 1800
 SCAN_INTERVAL_DEFAULT = 300
+STORAGE_KEYS = {
+    "GRIDRUNNER_STORAGE_MODE",
+    "GRIDRUNNER_STORAGE_VOLUME_UUID",
+    "GRIDRUNNER_STORAGE_MOUNT",
+    "GRIDRUNNER_STORAGE_ROOT",
+    "GRIDRUNNER_BACKUP_DIR",
+    "GRIDRUNNER_EVENTS_LOG",
+    "GRIDRUNNER_SDR_DIR",
+    "GRIDRUNNER_RADIO_DIR",
+    "GRIDRUNNER_ADSB_HISTORY_DIR",
+    "GRIDRUNNER_MEDIA_DIR",
+}
 SCAN_PROFILES = {
     "low-impact": {
         "bluetooth_mode": "off",
@@ -98,6 +114,159 @@ def adsb_aircraft_file():
         if candidate.exists():
             return candidate
     return ADSB_AIRCRAFT_JSON
+
+
+def load_storage_config():
+    config = {
+        "GRIDRUNNER_STORAGE_MODE": "internal",
+        "GRIDRUNNER_STORAGE_ROOT": "",
+        "GRIDRUNNER_STORAGE_MOUNT": "",
+        "GRIDRUNNER_STORAGE_VOLUME_UUID": "",
+        "GRIDRUNNER_BACKUP_DIR": str(PROJECT_DIR / "data" / "backups"),
+        "GRIDRUNNER_EVENTS_LOG": str(EVENTS_LOG),
+        "GRIDRUNNER_SDR_DIR": str(PROJECT_DIR / "sdr"),
+        "GRIDRUNNER_RADIO_DIR": str(PROJECT_DIR / "radio"),
+        "GRIDRUNNER_ADSB_HISTORY_DIR": str(PROJECT_DIR / "data" / "adsb"),
+        "GRIDRUNNER_MEDIA_DIR": str(PROJECT_DIR / "data" / "media"),
+    }
+
+    try:
+        lines = STORAGE_STATE_FILE.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return config
+    except OSError:
+        config["GRIDRUNNER_STORAGE_MODE"] = "degraded"
+        return config
+
+    for line in lines:
+        key, _, value = line.partition("=")
+        if key in STORAGE_KEYS:
+            config[key] = value.strip()
+
+    return config
+
+
+def internal_events_log():
+    operator_log = OPERATOR_HOME / f"{OPERATOR_USER}-events.log"
+    if operator_log.exists():
+        return operator_log
+
+    generic_log = OPERATOR_HOME / "operator-events.log"
+    if generic_log.exists():
+        return generic_log
+
+    return operator_log
+
+
+def active_events_log():
+    config = load_storage_config()
+    if (
+        config.get("GRIDRUNNER_STORAGE_MODE") == "external"
+        and config.get("GRIDRUNNER_STORAGE_ROOT")
+        and Path(config["GRIDRUNNER_STORAGE_ROOT"]).is_dir()
+        and os.access(config["GRIDRUNNER_STORAGE_ROOT"], os.W_OK)
+        and config.get("GRIDRUNNER_EVENTS_LOG")
+    ):
+        return Path(config["GRIDRUNNER_EVENTS_LOG"])
+
+    if config.get("GRIDRUNNER_STORAGE_MODE") == "internal":
+        if EVENTS_LOG.exists():
+            return EVENTS_LOG
+        return internal_events_log()
+
+    return EVENTS_LOG
+
+
+def storage_summary(status_output=None):
+    config = load_storage_config()
+    mode = config.get("GRIDRUNNER_STORAGE_MODE", "internal") or "internal"
+    root = config.get("GRIDRUNNER_STORAGE_ROOT", "")
+    mount = config.get("GRIDRUNNER_STORAGE_MOUNT", "")
+    status_value = "internal"
+
+    if mode == "external":
+        if root and Path(root).is_dir() and os.access(root, os.W_OK):
+            status_value = "external"
+        else:
+            status_value = "degraded"
+
+    return {
+        "status": status_value,
+        "mode": mode,
+        "root": root or "internal",
+        "mount": mount or "-",
+        "backup_dir": config.get("GRIDRUNNER_BACKUP_DIR", str(PROJECT_DIR / "data" / "backups")),
+        "events_log": str(active_events_log()),
+        "sdr_dir": config.get("GRIDRUNNER_SDR_DIR", str(PROJECT_DIR / "sdr")),
+        "radio_dir": config.get("GRIDRUNNER_RADIO_DIR", str(PROJECT_DIR / "radio")),
+        "output": status_output if status_output is not None else run_cmd(COMMANDS["storage_status"]),
+    }
+
+
+def storage_volume_options(output):
+    volumes = []
+    for line in output.splitlines():
+        if not line.startswith("GRIDRUNNER_STORAGE_VOLUME "):
+            continue
+        fields = parse_keyed_status(line, "GRIDRUNNER_STORAGE_VOLUME ", replace_underscores=False)
+        mount = fields.get("mount", "")
+        if mount and mount != "none" and fields.get("writable") == "yes" and fields.get("selectable") == "yes":
+            volumes.append(fields)
+    return volumes
+
+
+def int_field(value, default=0):
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return default
+
+
+def bytes_label(value):
+    size = float(int_field(value))
+    units = ["B", "KB", "MB", "GB", "TB"]
+    for unit in units:
+        if size < 1024 or unit == units[-1]:
+            if unit == "B":
+                return f"{int(size)} {unit}"
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return "0 B"
+
+
+def storage_volume_meters(output):
+    meters = []
+    for line in output.splitlines():
+        if not line.startswith("GRIDRUNNER_STORAGE_VOLUME "):
+            continue
+        fields = parse_keyed_status(line, "GRIDRUNNER_STORAGE_VOLUME ", replace_underscores=False)
+        mount = fields.get("mount", "")
+        if not mount or mount == "none":
+            continue
+
+        used_percent = min(100, int_field(fields.get("used_percent")))
+        used_bytes = int_field(fields.get("used_bytes"))
+        avail_bytes = int_field(fields.get("avail_bytes"))
+        size_bytes = int_field(fields.get("size_bytes"), used_bytes + avail_bytes)
+        meters.append(
+            {
+                "mount": mount,
+                "source": fields.get("source", "unknown"),
+                "fstype": fields.get("fstype", "unknown"),
+                "used_percent": used_percent,
+                "free_percent": max(0, 100 - used_percent),
+                "used_label": bytes_label(used_bytes),
+                "free_label": bytes_label(avail_bytes),
+                "size_label": bytes_label(size_bytes),
+                "writable": fields.get("writable", "no"),
+                "selectable": fields.get("selectable", "no"),
+            }
+        )
+    return meters
+
+
+def storage_mount_allowed(mount_path, volumes):
+    return any(volume.get("mount") == mount_path and volume.get("writable") == "yes" for volume in volumes)
 
 
 def short_aircraft_value(value, default="-"):
@@ -171,8 +340,9 @@ def adsb_aircraft_summary(limit=5, now=None):
 
 
 def event_freshness():
+    events_log = active_events_log()
     try:
-        stat_result = EVENTS_LOG.stat()
+        stat_result = events_log.stat()
     except FileNotFoundError:
         return {
             "status": "missing",
@@ -202,11 +372,12 @@ def event_freshness():
 
 
 def recent_events():
-    if not EVENTS_LOG.exists():
-        return f"events log missing: {EVENTS_LOG}"
-    if not EVENTS_LOG.is_file():
-        return f"events log path is not a file: {EVENTS_LOG}"
-    return run_cmd(["tail", "-n", "40", str(EVENTS_LOG)])
+    events_log = active_events_log()
+    if not events_log.exists():
+        return f"events log missing: {events_log}"
+    if not events_log.is_file():
+        return f"events log path is not a file: {events_log}"
+    return run_cmd(["tail", "-n", "40", str(events_log)])
 
 
 def clamp_scan_interval(value):
@@ -357,7 +528,7 @@ def run_event_scan_once(target="all"):
     return run_cmd(COMMANDS["eventscan"], env=env)
 
 
-def parse_keyed_status(output, prefix):
+def parse_keyed_status(output, prefix, replace_underscores=True):
     for line in output.splitlines():
         if not line.startswith(prefix):
             continue
@@ -366,7 +537,7 @@ def parse_keyed_status(output, prefix):
         for field in line.split()[1:]:
             key, _, value = field.partition("=")
             if key:
-                fields[key] = value.replace("_", " ")
+                fields[key] = value.replace("_", " ") if replace_underscores else value
         return fields
 
     return {}
@@ -535,6 +706,11 @@ def index(request: Request, _user=Depends(require_auth)):
     service_health = parse_service_health(run_cmd(COMMANDS["service_health"]))
     scan_controls = describe_scan_controls(load_scan_controls())
     adsb_summary = adsb_aircraft_summary()
+    storage_status_output = run_cmd(COMMANDS["storage_status"])
+    storage_list_output = run_cmd(COMMANDS["storage_list"])
+    storage = storage_summary(storage_status_output)
+    storage_volumes = storage_volume_options(storage_list_output)
+    storage_meters = storage_volume_meters(storage_list_output)
     node_status = build_node_status(wifi_status, event_status, component_health)
     auth_enabled = bool(WEB_PASSWORD)
     self_tests = build_self_tests(
@@ -568,6 +744,9 @@ def index(request: Request, _user=Depends(require_auth)):
             "install_statuses": install_statuses(install_state),
             "component_health": component_health,
             "scan_controls": scan_controls,
+            "storage": storage,
+            "storage_volumes": storage_volumes,
+            "storage_meters": storage_meters,
         },
     )
     no_store(response)
@@ -618,6 +797,43 @@ def scan_action(
         "result.html",
         {
             "title": "GRIDRUNNER SCANS",
+            "output": output,
+        },
+    )
+    no_store(response)
+    return response
+
+
+@app.post("/storage", response_class=HTMLResponse)
+def storage_action(
+    request: Request,
+    action: str = Form(...),
+    mount_path: str = Form(""),
+    confirm_token: str = Form(""),
+    _user=Depends(require_auth),
+):
+    if not valid_form_token(confirm_token):
+        return csrf_rejected_response(request, "GRIDRUNNER STORAGE")
+
+    if action == "enable":
+        if not mount_path:
+            output = "No USB storage volume selected."
+        elif not storage_mount_allowed(mount_path, storage_volume_options(run_cmd(COMMANDS["storage_list"]))):
+            output = f"USB storage volume is not available or writable: {mount_path}"
+        else:
+            output = run_cmd(COMMANDS["storage_enable"] + [mount_path])
+    elif action == "disable":
+        output = run_cmd(COMMANDS["storage_disable"])
+    elif action == "status":
+        output = run_cmd(COMMANDS["storage_status"])
+    else:
+        output = f"Unknown storage action: {action}"
+
+    response = templates.TemplateResponse(
+        request,
+        "result.html",
+        {
+            "title": "GRIDRUNNER STORAGE",
             "output": output,
         },
     )

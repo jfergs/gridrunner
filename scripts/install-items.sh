@@ -125,6 +125,8 @@ install_operator_dirs() {
 
   run_step mkdir -p \
     "$project_dir/data" \
+    "$project_dir/data/adsb" \
+    "$project_dir/data/media" \
     "$project_dir/logs" \
     "$project_dir/state" \
     "$project_dir/radio" \

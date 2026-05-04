@@ -11,6 +11,7 @@ ROTATE_LOGS = REPO_DIR / "scripts" / "rotate-logs.sh"
 DISK_HEALTH = REPO_DIR / "scripts" / "disk-health.sh"
 SERVICE_HEALTH = REPO_DIR / "scripts" / "service-health.sh"
 SYSTEM_BACKUP = REPO_DIR / "scripts" / "system-backup.sh"
+STORAGE_CONTROL = REPO_DIR / "scripts" / "storage-control.sh"
 
 
 class MaintenanceTests(unittest.TestCase):
@@ -107,8 +108,87 @@ class MaintenanceTests(unittest.TestCase):
     def test_system_backup_prunes_old_backups(self):
         script = SYSTEM_BACKUP.read_text(encoding="utf-8")
 
+        self.assertIn("gridrunner_storage_backup_dir", script)
         self.assertIn("GRIDRUNNER_BACKUP_KEEP", script)
         self.assertIn("pruned old backup", script)
+
+    def test_storage_control_enables_external_paths(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            mount = temp_path / "usb"
+            mount.mkdir()
+            operator_home = temp_path / "home"
+            operator_home.mkdir()
+            (operator_home / "ghost-events.log").write_text("event\n", encoding="utf-8")
+            state_dir = temp_path / "state"
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GRIDRUNNER_HOME": str(REPO_DIR),
+                    "GRIDRUNNER_STATE_DIR": str(state_dir),
+                    "GRIDRUNNER_OPERATOR_USER": "ghost",
+                    "GRIDRUNNER_OPERATOR_HOME": str(operator_home),
+                    "HOME": str(operator_home),
+                }
+            )
+
+            result = subprocess.run(
+                ["bash", str(STORAGE_CONTROL), "enable", str(mount)],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            storage_env = state_dir / "storage.env"
+            self.assertTrue(storage_env.exists())
+            storage_text = storage_env.read_text(encoding="utf-8")
+            self.assertIn("GRIDRUNNER_STORAGE_MODE=external", storage_text)
+            self.assertIn(f"GRIDRUNNER_BACKUP_DIR={mount / 'gridrunner' / 'backups'}", storage_text)
+            self.assertTrue((mount / "gridrunner" / "logs" / "ghost-events.log").exists())
+
+    def test_storage_control_list_reports_disk_usage_fields(self):
+        result = subprocess.run(
+            ["bash", str(STORAGE_CONTROL), "list"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("GRIDRUNNER_STORAGE_VOLUME", result.stdout)
+        if "status=none" not in result.stdout:
+            self.assertIn("used_percent=", result.stdout)
+            self.assertIn("avail_bytes=", result.stdout)
+            self.assertIn("selectable=", result.stdout)
+
+    def test_storage_control_disables_without_erasing_external_data(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            state_dir = temp_path / "state"
+            external_file = temp_path / "usb" / "gridrunner" / "logs" / "ghost-events.log"
+            external_file.parent.mkdir(parents=True)
+            external_file.write_text("event\n", encoding="utf-8")
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GRIDRUNNER_HOME": str(REPO_DIR),
+                    "GRIDRUNNER_STATE_DIR": str(state_dir),
+                }
+            )
+
+            result = subprocess.run(
+                ["bash", str(STORAGE_CONTROL), "disable"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(external_file.exists())
+            self.assertIn("GRIDRUNNER_STORAGE_MODE=internal", (state_dir / "storage.env").read_text(encoding="utf-8"))
 
     def test_service_health_reports_units(self):
         with tempfile.TemporaryDirectory() as temp_dir:

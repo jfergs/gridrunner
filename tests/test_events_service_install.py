@@ -39,6 +39,7 @@ class EventsServiceInstallTests(unittest.TestCase):
 
         self.assertIn("SuccessExitStatus=124", service)
         self.assertIn("scripts/run-events.sh", service)
+        self.assertIn("EnvironmentFile=-{{GRIDRUNNER_HOME}}/state/storage.env", service)
 
     def test_events_service_dry_run_patches_legacy_event_script(self):
         result = subprocess.run(

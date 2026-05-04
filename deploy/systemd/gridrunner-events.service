@@ -12,6 +12,7 @@ Environment=GRIDRUNNER_OPERATOR_USER={{OPERATOR_USER}}
 Environment=GRIDRUNNER_OPERATOR_HOME={{OPERATOR_HOME}}
 Environment=GRIDRUNNER_EVENTS_LOG={{OPERATOR_HOME}}/{{OPERATOR_USER}}-events.log
 EnvironmentFile=-{{GRIDRUNNER_HOME}}/state/gridrunner.env
+EnvironmentFile=-{{GRIDRUNNER_HOME}}/state/storage.env
 TimeoutStartSec=90
 SuccessExitStatus=124
 ExecStart=/usr/bin/bash {{GRIDRUNNER_HOME}}/scripts/run-events.sh

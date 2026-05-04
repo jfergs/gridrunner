@@ -7,6 +7,12 @@ EVENT_TIMEOUT_SECONDS="${GRIDRUNNER_EVENTS_RUN_SECONDS:-75}"
 EVENTS_LOG="${GRIDRUNNER_EVENTS_LOG:-$OPERATOR_HOME/$OPERATOR_USER-events.log}"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 project_dir="$(cd "$script_dir/.." && pwd)"
+PROJECT_DIR="${GRIDRUNNER_HOME:-$project_dir}"
+GRIDRUNNER_HOME="$PROJECT_DIR"
+# shellcheck source=scripts/storage-common.sh
+. "$PROJECT_DIR/scripts/storage-common.sh"
+gridrunner_read_storage_env
+EVENTS_LOG="$(gridrunner_storage_events_log)"
 STATE_FILE="${GRIDRUNNER_SCAN_STATE_FILE:-$project_dir/state/scan-controls.env}"
 SCAN_INTERVAL_SECONDS="${GRIDRUNNER_SCAN_INTERVAL_SECONDS:-300}"
 SCAN_BLUETOOTH_MODE="${GRIDRUNNER_SCAN_BLUETOOTH_MODE:-off}"

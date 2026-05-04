@@ -116,6 +116,43 @@
       font-size: 15px;
       padding: 0 10px;
     }
+    .volume-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .volume-meter {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      border: 1px solid rgba(122, 139, 145, 0.35);
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.22);
+    }
+    .volume-meter header,
+    .volume-stats {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .volume-meter code {
+      color: var(--text);
+      word-break: break-all;
+    }
+    .bar-meter {
+      height: 14px;
+      overflow: hidden;
+      border: 1px solid var(--line-dim);
+      border-radius: 999px;
+      background: rgba(108, 255, 141, 0.2);
+    }
+    .bar-meter-used {
+      height: 100%;
+      min-width: 2px;
+      background: linear-gradient(90deg, var(--amber), var(--red));
+    }
     .scan-slider {
       display: grid;
       gap: 8px;
@@ -508,6 +545,69 @@
         <span class="status health-{{ event_status.status }}">{{ event_status.status }}</span>
         <span>{{ event_status.message }}</span>
         <pre>{{ events }}</pre>
+      </div>
+
+      <div class="panel">
+        {% set storage_state = storage|default({"status": "internal", "mode": "internal", "root": "internal", "mount": "-", "backup_dir": "", "events_log": "", "sdr_dir": "", "radio_dir": "", "output": ""}) %}
+        <h2>Storage</h2>
+        <span class="status health-{{ storage_state.status }}">{{ storage_state.status }}</span>
+        <span>mode {{ storage_state.mode }}</span>
+        <div class="telemetry-grid">
+          <div class="telemetry"><span>Root</span><strong>{{ storage_state.root }}</strong></div>
+          <div class="telemetry"><span>Mount</span><strong>{{ storage_state.mount }}</strong></div>
+          <div class="telemetry"><span>Backups</span><strong>{{ storage_state.backup_dir }}</strong></div>
+          <div class="telemetry"><span>Events</span><strong>{{ storage_state.events_log }}</strong></div>
+        </div>
+        <div class="volume-list">
+          {% for volume in storage_meters|default([]) %}
+          <div class="volume-meter">
+            <header>
+              <code>{{ volume.mount }}</code>
+              <span>{{ volume.used_percent }}% used</span>
+            </header>
+            <div class="bar-meter" aria-label="{{ volume.mount }} disk usage">
+              <div class="bar-meter-used" style="width: {{ volume.used_percent }}%"></div>
+            </div>
+            <div class="volume-stats">
+              <span>used {{ volume.used_label }}</span>
+              <span>free {{ volume.free_label }}</span>
+              <span>total {{ volume.size_label }}</span>
+            </div>
+          </div>
+          {% else %}
+          <pre>No mounted storage volumes detected.</pre>
+          {% endfor %}
+        </div>
+        <form method="post" action="/storage" class="scan-controls" onsubmit="return confirm('Enable selected USB storage for GRIDRUNNER logs, backups, SDR, radio, ADS-B history, and media paths?');">
+          <input type="hidden" name="action" value="enable">
+          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+          <div class="scan-row">
+            <label for="storage-mount">USB Volume</label>
+            <select id="storage-mount" name="mount_path">
+              {% if storage_volumes %}
+              {% for volume in storage_volumes %}
+              <option value="{{ volume.mount }}">{{ volume.mount }} · {{ volume.avail }} free · writable {{ volume.writable }}</option>
+              {% endfor %}
+              {% else %}
+              <option value="">No writable USB volume detected</option>
+              {% endif %}
+            </select>
+          </div>
+          <button {% if not storage_volumes %}disabled{% endif %}>Use USB Storage</button>
+        </form>
+        <div class="actions">
+          <form method="post" action="/storage">
+            <input type="hidden" name="action" value="status">
+            <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+            <button>Refresh Storage</button>
+          </form>
+          <form method="post" action="/storage" onsubmit="return confirm('Switch GRIDRUNNER storage back to internal paths? External data will be left in place.');">
+            <input type="hidden" name="action" value="disable">
+            <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+            <button class="danger">Use Internal Storage</button>
+          </form>
+        </div>
+        <pre>{{ storage_state.output }}</pre>
       </div>
 
       <div class="panel">

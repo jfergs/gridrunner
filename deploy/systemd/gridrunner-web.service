@@ -13,6 +13,7 @@ Environment=GRIDRUNNER_OPERATOR_HOME={{OPERATOR_HOME}}
 Environment=GRIDRUNNER_DEVICE_HOSTNAME={{DEVICE_HOSTNAME}}
 Environment=GRIDRUNNER_STATE_DIR={{GRIDRUNNER_HOME}}/state
 EnvironmentFile=-{{GRIDRUNNER_HOME}}/state/gridrunner.env
+EnvironmentFile=-{{GRIDRUNNER_HOME}}/state/storage.env
 ExecStart={{GRIDRUNNER_HOME}}/web/.venv/bin/uvicorn app:app --host 0.0.0.0 --port 8088
 Restart=on-failure
 RestartSec=5
