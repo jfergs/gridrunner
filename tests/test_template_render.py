@@ -126,6 +126,13 @@ class TemplateRenderTests(unittest.TestCase):
 
         self.assertIn(b"invalid form token", response.body)
 
+    def test_storage_action_rejects_invalid_form_token(self):
+        request = SimpleNamespace(scope={"type": "http", "method": "POST", "path": "/storage", "headers": []})
+
+        response = app.storage_action(request, action="status", confirm_token="bad-token")
+
+        self.assertIn(b"invalid form token", response.body)
+
     def test_index_template_renders_without_wifi_status_context(self):
         request = SimpleNamespace(scope={"type": "http", "method": "GET", "path": "/", "headers": []})
 
@@ -226,6 +233,50 @@ class TemplateRenderTests(unittest.TestCase):
                         "detail": "90",
                     },
                 ],
+                "storage": {
+                    "status": "external",
+                    "mode": "external",
+                    "root": "/media/ghost/USB/gridrunner",
+                    "mount": "/media/ghost/USB",
+                    "backup_dir": "/media/ghost/USB/gridrunner/backups",
+                    "events_log": "/media/ghost/USB/gridrunner/logs/ghost-events.log",
+                    "sdr_dir": "/media/ghost/USB/gridrunner/sdr",
+                    "radio_dir": "/media/ghost/USB/gridrunner/radio",
+                    "output": "GRIDRUNNER_STORAGE status=external",
+                },
+                "storage_volumes": [
+                    {
+                        "mount": "/media/ghost/USB",
+                        "avail_bytes": "12884901888",
+                        "writable": "yes",
+                    }
+                ],
+                "storage_meters": [
+                    {
+                        "mount": "/",
+                        "source": "/dev/root",
+                        "fstype": "ext4",
+                        "used_percent": 42,
+                        "free_percent": 58,
+                        "used_label": "4.2 GB",
+                        "free_label": "5.8 GB",
+                        "size_label": "10.0 GB",
+                        "writable": "yes",
+                        "selectable": "no",
+                    },
+                    {
+                        "mount": "/media/ghost/USB",
+                        "source": "/dev/sda1",
+                        "fstype": "exfat",
+                        "used_percent": 25,
+                        "free_percent": 75,
+                        "used_label": "4.0 GB",
+                        "free_label": "12.0 GB",
+                        "size_label": "16.0 GB",
+                        "writable": "yes",
+                        "selectable": "yes",
+                    },
+                ],
             },
         )
 
@@ -256,7 +307,55 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Bluetooth Scan", response.body)
         self.assertIn(b"Network Devices", response.body)
         self.assertIn(b"Network Device Scan", response.body)
+        self.assertIn(b"Storage", response.body)
+        self.assertIn(b"Use USB Storage", response.body)
+        self.assertIn(b"/media/ghost/USB/gridrunner/backups", response.body)
+        self.assertIn(b"42% used", response.body)
+        self.assertIn(b"free 12.0 GB", response.body)
+        self.assertIn(b"aria-label=\"/media/ghost/USB disk usage\"", response.body)
         self.assertIn(b'name="confirm_token" value="token"', response.body)
+
+    def test_storage_volume_meters_parse_disk_usage(self):
+        meters = app.storage_volume_meters(
+            "\n".join(
+                [
+                    "GRIDRUNNER_STORAGE_VOLUME mount=/ source=/dev/root fstype=ext4 size_bytes=10737418240 used_bytes=4294967296 avail_bytes=6442450944 used_percent=40 writable=yes selectable=no uuid=root",
+                    "GRIDRUNNER_STORAGE_VOLUME mount=/media/ghost/USB source=/dev/sda1 fstype=exfat size_bytes=17179869184 used_bytes=4294967296 avail_bytes=12884901888 used_percent=25 writable=yes selectable=yes uuid=usb",
+                    "",
+                ]
+            )
+        )
+
+        self.assertEqual(meters[0]["mount"], "/")
+        self.assertEqual(meters[0]["used_percent"], 40)
+        self.assertEqual(meters[0]["free_label"], "6.0 GB")
+        self.assertEqual(meters[1]["mount"], "/media/ghost/USB")
+        self.assertEqual(meters[1]["used_label"], "4.0 GB")
+
+    def test_storage_config_uses_external_events_log_when_ready(self):
+        original_storage_state_file = app.STORAGE_STATE_FILE
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir) / "usb" / "gridrunner"
+                logs = root / "logs"
+                logs.mkdir(parents=True)
+                app.STORAGE_STATE_FILE = Path(temp_dir) / "storage.env"
+                app.STORAGE_STATE_FILE.write_text(
+                    "\n".join(
+                        [
+                            "GRIDRUNNER_STORAGE_MODE=external",
+                            f"GRIDRUNNER_STORAGE_ROOT={root}",
+                            f"GRIDRUNNER_EVENTS_LOG={logs / 'operator-events.log'}",
+                            "",
+                        ]
+                    ),
+                    encoding="utf-8",
+                )
+
+                self.assertEqual(app.active_events_log(), logs / "operator-events.log")
+                self.assertEqual(app.storage_summary()["status"], "external")
+        finally:
+            app.STORAGE_STATE_FILE = original_storage_state_file
 
     def test_scan_control_state_round_trips_with_safe_defaults(self):
         original_scan_state_file = app.SCAN_STATE_FILE

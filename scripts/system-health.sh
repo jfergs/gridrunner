@@ -35,5 +35,8 @@ echo "--- Disk ---"
 "$(dirname "$0")/disk-health.sh"
 df -h
 echo
+echo "--- Storage ---"
+"$(dirname "$0")/storage-control.sh" status
+echo
 echo "--- Memory ---"
 free -h

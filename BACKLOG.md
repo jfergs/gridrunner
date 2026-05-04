@@ -113,8 +113,8 @@ work here; roll up only the current priorities to the global backlog tracker.
   - `ruff` is installed in `web/.venv`.
   - `web/.venv/bin/python -m ruff check web tests` passes.
   - `shellcheck` is installed for shell script linting.
-  - Current `shellcheck scripts/*.sh` baseline has one informational SC2016
-    finding for intentional literal shell text matching.
+  - `shellcheck scripts/*.sh` passes with the intentional literal shell text
+    match documented inline.
 
 - Wi-Fi manual controls.
   - Web UI includes `Enable Hotspot` and `Connect Known Wi-Fi`.
@@ -142,7 +142,18 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Defined movable data classes for backups, logs, SDR captures, radio
     artifacts, ADS-B history, and media libraries.
   - Defined rollback behavior when external media is missing or not writable.
-  - Captured the future web UI flow and storage environment contract.
+  - Captured the web UI flow and storage environment contract.
+
+- External USB storage controls.
+  - Web UI Storage panel detects mounted USB volumes and can enable/disable
+    external operator-data storage.
+  - `scripts/storage-control.sh` writes `state/storage.env` with explicit
+    backup, event log, SDR, radio, ADS-B history, and media paths.
+  - Storage panel shows mounted-volume used/free disk-space meters.
+  - Backups, event health, log rotation, event collection, and system health
+    honor `storage.env` and fall back to internal paths when external storage is
+    missing or not writable.
+  - Systemd templates load `state/storage.env` for web and events services.
 
 - GRIDRUNNER node status strip.
   - Web UI shows compact chips for node, Wi-Fi, events, event timer, ADS-B, and
@@ -370,11 +381,15 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 ## Storage / Data Retention
 
-- Add external USB storage support.
-  - Provide a modern web UI for selecting an external media volume.
-  - Move/offload data that does not need to live on the OS partition.
-  - Preserve fast OS storage for system/runtime files.
-  - Support log, backup, SDR capture, and ADS-B history storage locations.
+- Validate external USB storage on device.
+  - Confirm the web UI detects the mounted USB volume on Raspberry Pi OS.
+  - Confirm enabling USB storage writes `state/storage.env` and creates
+    `<volume>/gridrunner/{backups,logs,sdr,radio,adsb,media}`.
+  - Confirm event collection writes to the external event log after service
+    restart.
+  - Confirm removing or unmounting the USB volume degrades to internal backup
+    and event-log paths without breaking the web UI.
+  - Add storage warnings for low free space and missing selected UUID.
 
 ## Planned Enhancements
 

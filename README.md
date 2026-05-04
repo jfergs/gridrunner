@@ -307,12 +307,26 @@ export GRIDRUNNER_BACKUP_KEEP=5
 
 ## Storage Model
 
-GRIDRUNNER keeps service-critical files on internal storage. Future external USB
-media support will only move operator data such as backups, logs, SDR captures,
-radio artifacts, ADS-B history, and media libraries.
+GRIDRUNNER keeps service-critical files on internal storage. The web dashboard
+Storage panel can use an already-mounted writable USB volume for operator data:
+backups, event logs, SDR captures, radio artifacts, ADS-B history, and media
+libraries. It writes explicit paths to `state/storage.env`; it does not format
+drives, erase data, move `state/`, or make boot depend on removable media. The
+same panel shows horizontal used/free meters for mounted volumes.
 
-See [docs/storage-model.md](docs/storage-model.md) for the storage design,
-allowed movable paths, internal-only paths, and rollback behavior.
+CLI equivalents:
+
+```bash
+bash scripts/storage-control.sh list
+bash scripts/storage-control.sh enable /media/<operator>/<label>
+bash scripts/storage-control.sh status
+bash scripts/storage-control.sh disable
+```
+
+If the selected USB root is missing or not writable, runtime scripts fall back
+to internal backup and event-log paths. See
+[docs/storage-model.md](docs/storage-model.md) for the storage design, allowed
+movable paths, internal-only paths, and rollback behavior.
 
 ## Initial Install
 
