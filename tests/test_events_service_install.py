@@ -180,6 +180,37 @@ class EventsServiceInstallTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("ran-events", result.stdout)
 
+    def test_run_events_appends_stdout_to_configured_events_log(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            operator_home = Path(temp_dir) / "home"
+            operator_home.mkdir()
+            events_log = Path(temp_dir) / "usb" / "logs" / "ghost-events.log"
+            event_script = operator_home / "ghost-events.sh"
+            event_script.write_text("#!/bin/bash\necho usb-event-line\n", encoding="utf-8")
+            event_script.chmod(0o755)
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GRIDRUNNER_OPERATOR_USER": "ghost",
+                    "GRIDRUNNER_OPERATOR_HOME": str(operator_home),
+                    "GRIDRUNNER_EVENTS_LOG": str(events_log),
+                    "GRIDRUNNER_EVENTS_RUN_SECONDS": "5",
+                    "GRIDRUNNER_SCAN_RUN_ONCE": "1",
+                }
+            )
+
+            result = subprocess.run(
+                ["bash", str(REPO_DIR / "scripts" / "run-events.sh")],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("usb-event-line", result.stdout)
+            self.assertIn("usb-event-line", events_log.read_text(encoding="utf-8"))
+
     def test_run_events_tolerates_legacy_failure_when_log_updates(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             operator_home = Path(temp_dir)
