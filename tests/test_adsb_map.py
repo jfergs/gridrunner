@@ -10,6 +10,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "web"))
 
 import app
+import config
 
 
 class AdsbMapTests(unittest.TestCase):
@@ -47,6 +48,13 @@ class AdsbMapTests(unittest.TestCase):
         self.assertIn('href="{{ adsb_map_url }}"', template)
         self.assertIn("ADS-B Map", template)
         self.assertNotIn('name="action" value="adsbmap"', template)
+
+    def test_default_aircraft_json_prefers_readsb_runtime_path(self):
+        self.assertEqual(config.ADSB_AIRCRAFT_JSON, Path("/run/readsb/aircraft.json"))
+        self.assertLess(
+            app.ADSB_AIRCRAFT_CANDIDATES.index(Path("/run/readsb/aircraft.json")),
+            app.ADSB_AIRCRAFT_CANDIDATES.index(Path("/run/tar1090/aircraft.json")),
+        )
 
     def test_adsb_aircraft_summary_reads_recent_aircraft(self):
         original_candidates = app.ADSB_AIRCRAFT_CANDIDATES

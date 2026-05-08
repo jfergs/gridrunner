@@ -72,6 +72,8 @@ SCAN_PROFILES = {
 
 ADSB_AIRCRAFT_CANDIDATES = [
     ADSB_AIRCRAFT_JSON,
+    Path("/run/readsb/aircraft.json"),
+    Path("/run/tar1090/aircraft.json"),
     ADSB_AIRCRAFT_JSON.parent / "data" / ADSB_AIRCRAFT_JSON.name,
 ]
 
