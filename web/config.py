@@ -15,7 +15,7 @@ ADSB_MAP_URL = os.environ.get("GRIDRUNNER_ADSB_MAP_URL", "")
 ADSB_AIRCRAFT_JSON = Path(
     os.environ.get(
         "GRIDRUNNER_ADSB_AIRCRAFT_JSON",
-        "/run/tar1090/aircraft.json",
+        "/run/readsb/aircraft.json",
     )
 )
 
