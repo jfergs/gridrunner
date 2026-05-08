@@ -3,98 +3,78 @@
 Project-local backlog for Gridrunner. Keep detailed Gridrunner implementation
 work here; roll up only the current priorities to the global backlog tracker.
 
-## Top Priority
+## High Priority
 
-- Finish web/security hardening.
-  - Context: May 2026 review found no failing tests, but identified hardening
-    items that should be handled before broader remote access.
+- Redesign the web UX/UI around mobile-first field operation.
+  - Direction: rugged cassette-cyberdeck field terminal, not a neon poster.
+  - Primary target: iPhone Safari; secondary targets: iPad and laptop.
+  - Requirements:
+    - Single-column phone layout with no horizontal scrolling.
+    - Large stable touch targets for all controls.
+    - Top summary for node, Wi-Fi, storage, ADS-B, and event state.
+    - Warning/failure states must be visually dominant.
+    - Use restrained cyan/green/amber/red accents; avoid decorative clutter,
+      heavy animation, glassmorphism, and excessive magenta/purple.
+    - Add section labels/navigation: `STATUS`, `WIFI`, `STORAGE`, `ADS-B`,
+      `SCANS`, `LOGS`.
+
+- Finish storage UI and health polish.
   - Completed foundation:
-    - `/run` and `/scans` use shared form-token protection.
-    - `/power` uses the same shared token validation.
-    - `ruff check web tests` passes after targeted test import annotations.
-    - `shellcheck scripts/*.sh` has one reviewed informational finding in
-      `scripts/patch-events-script.sh` for literal shell text matching.
+    - USB external storage works on-device.
+    - Backups and event logs write to the external storage path.
+    - Storage panel shows mounted-volume used/free meters.
   - Remaining acceptance criteria:
-    - Add shared form-token protection to install routes:
-      - `/install`
-      - `/install/skip`
-    - Narrow `scripts/setup-sudoers.sh` NOPASSWD rules:
-      - Replace wildcard `apt-get install -y *` with fixed package command
-        shapes used by `install-items.sh`.
-      - Replace wildcard systemd install source paths with exact generated
-        project paths.
-      - Replace `bash */scripts/install-adsb-readsb.sh` with an exact script
-        path.
-      - Replace broad `nmcli connection *` rules with the narrowest practical
-        hotspot/known-network command shapes.
+    - Filter pseudo mounts from storage meter output.
+    - Warn when external storage UUID is unavailable.
+    - Warn when a selected external storage root is missing or not writable.
+    - Add low-free-space warning and danger states to storage meters.
+    - Confirm removing or unmounting the USB volume degrades to internal backup
+      and event-log paths without breaking the web UI.
+
+- Clarify event freshness and scan-off states.
+  - Problem: intentionally skipped event collection can make logs look stale
+    even when the timer is healthy and scans are deliberately off.
+  - Remaining acceptance criteria:
+    - Show when event collection is skipped because Bluetooth and Network Device
+      scans are off.
+    - Show the active event log write path.
+    - Show last successful one-shot or continuous event write.
+    - Add web status feedback after one-shot scan actions.
+
+- Finish security hardening.
+  - Completed foundation:
+    - `/run`, `/scans`, `/power`, `/install`, and `/install/skip` use shared
+      form-token protection.
+    - `ruff check web tests`, `shellcheck scripts/*.sh`, and the unit suite pass.
+  - Remaining acceptance criteria:
+    - Narrow `scripts/setup-sudoers.sh` NOPASSWD rules.
     - Replace shell-sourced Wi-Fi config parsing in `wifi-fallback.sh` and
       `wifi-status.sh` with explicit parsing of expected keys only.
-    - Harden ADS-B installer supply chain:
-      - Prefer pinned installer URL or commit.
-      - Download to a file before execution.
-      - Add checksum or documented manual verification path.
-  - Validation commands:
-    - `web/.venv/bin/python -m unittest discover -s tests`
-    - `bash -n scripts/*.sh`
-    - `python3 -m py_compile web/*.py tests/*.py`
-    - `web/.venv/bin/python -m ruff check web tests`
-    - `shellcheck scripts/*.sh`
+    - Harden ADS-B installer supply chain by downloading before execution and
+      pinning or documenting verification.
 
 - Validate Wi-Fi failover and fallback hotspot behavior on device.
-  - Goal: GRIDRUNNER joins known Wi-Fi networks when available and starts its
-    own fallback hotspot when no known networks are reachable.
   - Completed foundation:
-    - `wifi-fallback.sh` exits early when connected to known Wi-Fi and
-      NetworkManager reports full connectivity.
-    - Degraded stale-link checks respect `GRIDRUNNER_WIFI_RESCAN_MIN_SECONDS`.
-    - Web UI surfaces mode, IP, timer/service state, and last Wi-Fi action.
-    - Web UI includes manual `Enable Hotspot` and `Connect Known Wi-Fi`
-      controls with matching `wifi-fallback.sh hotspot|known` commands.
+    - Timer and oneshot service are healthy on-device.
+    - Manual web controls exist for `Enable Hotspot` and `Connect Known Wi-Fi`.
+    - Known-Wi-Fi healthy path is confirmed.
   - Remaining acceptance criteria:
-    - Confirm `gridrunner-wifi.timer` runs reliably at boot and on a regular
-      interval after `sudo scripts/setup-sudoers.sh` has been rerun on-device.
-    - Confirm automatic failover starts `GRIDRUNNER-HOTSPOT` when no known
-      Wi-Fi is reachable.
+    - Confirm automatic failover starts the fallback hotspot when no known Wi-Fi
+      is reachable.
     - Confirm automatic return to known Wi-Fi when a known network returns while
       hotspot mode is active.
-    - Confirm manual web controls work from iPhone/laptop against the running
-      device.
-  - Validation commands:
-    - `bash scripts/wifi-fallback.sh hotspot`
-    - `bash scripts/wifi-fallback.sh known`
-    - `bash scripts/wifi-status.sh`
-    - `systemctl status gridrunner-wifi.timer --no-pager`
-    - `systemctl status gridrunner-wifi.service --no-pager`
-    - `journalctl -u gridrunner-wifi.service -n 80 --no-pager`
-    - `nmcli -t -f DEVICE,STATE,CONNECTION dev`
 
 - Add scan contention diagnostics and pause controls.
-  - Symptom: when GRIDRUNNER is connected to the home Wi-Fi network, the whole
-    network appears to slow down for roughly 30 seconds every couple of minutes.
   - Completed foundation:
-    - Bluetooth and network device scans default to off.
-    - Web UI provides separate Bluetooth and Network Device one-shot controls.
-    - Continuous Bluetooth and Network Device modes are independently gated.
-    - Legacy `btmgmt`, `arp-scan`, and `nmap` calls are patched behind scan
-      phase controls.
-    - Web UI surfaces armed scanner state and last scan age.
-    - Recommended low-contention defaults are documented in README.
+    - Bluetooth and Network Device scans default to off.
+    - One-shot and continuous scan controls are independently gated.
   - Remaining acceptance criteria:
-    - Add diagnostics that show when Wi-Fi, BLE, and network scans start/stop.
-    - Web UI and/or `ghost-health` surfaces active scan timers and last scan
-      timestamps.
-    - Identify whether `gridrunner-wifi.timer`, event collection, tmux dashboard,
-      or manual scripts are triggering periodic slowdown.
+    - Add diagnostics showing when Wi-Fi, BLE, and network scans start/stop.
+    - Surface active scan timers and last scan timestamps.
     - Provide a temporary mitigation command or web control to pause background
       scanning.
     - Add optional `GRIDRUNNER_WIFI_CONNECTIVITY_CHECK_HOST` for degraded-link
       checks without changing the healthy known-Wi-Fi fast path.
-  - Validation commands:
-    - `systemctl list-timers --all`
-    - `ps aux | grep -E 'wifi|ble|scan|nmap|nmcli|arp-scan|btmgmt'`
-    - `journalctl -u gridrunner-wifi.service -f`
-    - `journalctl -u gridrunner-events.service -f`
-    - `nmcli general connectivity`
 
 ## Recently Completed
 
@@ -107,6 +87,9 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Dashboard shows a tar1090 link, aircraft count, and a short recent aircraft
     list from local tar1090/readsb aircraft JSON when available.
   - `GRIDRUNNER_ADSB_AIRCRAFT_JSON` can override the local aircraft JSON path.
+  - Default aircraft JSON discovery prefers `/run/readsb/aircraft.json` and
+    falls back to `/run/tar1090/aircraft.json`.
+  - Dashboard shows aircraft JSON data age.
   - Missing or unreadable aircraft data degrades gracefully in the panel.
 
 - Lint/tooling baseline.
@@ -150,6 +133,9 @@ work here; roll up only the current priorities to the global backlog tracker.
   - `scripts/storage-control.sh` writes `state/storage.env` with explicit
     backup, event log, SDR, radio, ADS-B history, and media paths.
   - Storage panel shows mounted-volume used/free disk-space meters.
+  - Storage meter output filters pseudo mounts and invalid disk stats.
+  - Storage panel warns when external storage UUID is unavailable.
+  - Storage meters carry low-space severity.
   - Backups, event health, log rotation, event collection, and system health
     honor `storage.env` and fall back to internal paths when external storage is
     missing or not writable.
@@ -185,6 +171,8 @@ work here; roll up only the current priorities to the global backlog tracker.
 - Event timer and legacy scanner cleanup.
   - `gridrunner-events.service` calls the repo-managed `scripts/run-events.sh`.
   - Legacy `btmgmt find` calls are bounded during `events-service` install.
+  - Event collection appends legacy event script output to the active
+    `GRIDRUNNER_EVENTS_LOG`, including external USB log paths.
   - Event collection reports success when the log updates despite known legacy
     script cleanup errors.
   - Recent Events correctly reports stale/fresh with a 15-minute default
