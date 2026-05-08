@@ -22,9 +22,19 @@ SCAN_RUN_ONCE="${GRIDRUNNER_SCAN_RUN_ONCE:-0}"
 SCAN_ONCE_TARGET="${GRIDRUNNER_SCAN_ONCE_TARGET:-all}"
 
 event_script=""
+event_output=""
 before_mtime="0"
 after_mtime="0"
 now_seconds="$(date +%s)"
+
+# shellcheck disable=SC2329
+cleanup_event_output() {
+  if [ -n "$event_output" ] && [ -f "$event_output" ]; then
+    rm -f "$event_output"
+  fi
+}
+
+trap cleanup_event_output EXIT
 
 if [ -f "$STATE_FILE" ]; then
   while IFS='=' read -r key value; do
@@ -134,17 +144,26 @@ fi
 
 "$script_dir/patch-events-script.sh" "$event_script" >/dev/null 2>&1 || true
 "$script_dir/rotate-logs.sh" >/dev/null 2>&1 || true
+mkdir -p "$(dirname "$EVENTS_LOG")" || exit 1
+: >> "$EVENTS_LOG" || exit 1
+chmod 0664 "$EVENTS_LOG" 2>/dev/null || true
 
 if [ -e "$EVENTS_LOG" ]; then
   before_mtime="$(stat -c %Y "$EVENTS_LOG" 2>/dev/null || stat -f %m "$EVENTS_LOG" 2>/dev/null || echo 0)"
 fi
 
+event_output="$(mktemp "${TMPDIR:-/tmp}/gridrunner-events.XXXXXX")" || exit 1
 if command -v timeout >/dev/null 2>&1; then
-  timeout "${EVENT_TIMEOUT_SECONDS}s" bash "$event_script"
+  timeout "${EVENT_TIMEOUT_SECONDS}s" bash "$event_script" > "$event_output" 2>&1
   status=$?
 else
-  bash "$event_script"
+  bash "$event_script" > "$event_output" 2>&1
   status=$?
+fi
+
+if [ -s "$event_output" ]; then
+  cat "$event_output"
+  cat "$event_output" >> "$EVENTS_LOG"
 fi
 
 if [ "$status" -eq 124 ]; then
