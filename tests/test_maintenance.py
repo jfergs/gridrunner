@@ -148,6 +148,51 @@ class MaintenanceTests(unittest.TestCase):
             self.assertIn(f"GRIDRUNNER_BACKUP_DIR={mount / 'gridrunner' / 'backups'}", storage_text)
             self.assertTrue((mount / "gridrunner" / "logs" / "ghost-events.log").exists())
 
+    def test_storage_events_log_prefers_ready_external_storage(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            storage_root = temp_path / "usb" / "gridrunner"
+            logs_dir = storage_root / "logs"
+            logs_dir.mkdir(parents=True)
+            state_dir = temp_path / "state"
+            state_dir.mkdir()
+            external_log = logs_dir / "ghost-events.log"
+            internal_log = temp_path / "home" / "ghost-events.log"
+            internal_log.parent.mkdir()
+            internal_log.write_text("internal\n", encoding="utf-8")
+            (state_dir / "storage.env").write_text(
+                "\n".join(
+                    [
+                        "GRIDRUNNER_STORAGE_MODE=external",
+                        f"GRIDRUNNER_STORAGE_ROOT={storage_root}",
+                        f"GRIDRUNNER_EVENTS_LOG={external_log}",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GRIDRUNNER_HOME": str(REPO_DIR),
+                    "GRIDRUNNER_STATE_DIR": str(state_dir),
+                    "GRIDRUNNER_OPERATOR_USER": "ghost",
+                    "GRIDRUNNER_OPERATOR_HOME": str(internal_log.parent),
+                    "EVENTS_LOG": str(internal_log),
+                }
+            )
+
+            result = subprocess.run(
+                ["bash", str(STORAGE_CONTROL), "status"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(f"events log: {external_log}", result.stdout)
+
     def test_storage_control_list_reports_disk_usage_fields(self):
         result = subprocess.run(
             ["bash", str(STORAGE_CONTROL), "list"],
