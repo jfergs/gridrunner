@@ -88,10 +88,10 @@ gridrunner_storage_events_log() {
 
   if [ -n "${GRIDRUNNER_EVENTS_LOG:-}" ]; then
     printf '%s\n' "$GRIDRUNNER_EVENTS_LOG"
-  elif [ -n "${EVENTS_LOG:-}" ]; then
-    printf '%s\n' "$EVENTS_LOG"
   elif gridrunner_storage_external_ready && [ -n "$GRIDRUNNER_EVENTS_LOG_CONFIG" ]; then
     printf '%s\n' "$GRIDRUNNER_EVENTS_LOG_CONFIG"
+  elif [ -n "${EVENTS_LOG:-}" ]; then
+    printf '%s\n' "$EVENTS_LOG"
   elif [ -e "$operator_home/$operator_user-events.log" ]; then
     printf '%s\n' "$operator_home/$operator_user-events.log"
   elif [ -e "$operator_home/operator-events.log" ]; then
