@@ -51,7 +51,12 @@ list_volumes() {
     while IFS='|' read -r mount_path source fstype size avail used used_percent; do
       [ -n "$mount_path" ] || continue
       case "$fstype" in
-        autofs|binfmt_misc|bpf|cgroup*|configfs|debugfs|devpts|devtmpfs|efivarfs|fusectl|hugetlbfs|mqueue|proc|pstore|securityfs|sysfs|tmpfs|tracefs)
+        autofs|binfmt_misc|bpf|cgroup*|configfs|debugfs|devpts|devtmpfs|efivarfs|fuse.gvfsd-fuse|fuse.portal|fusectl|hugetlbfs|mqueue|proc|pstore|rpc_pipefs|securityfs|sysfs|tmpfs|tracefs)
+          continue
+          ;;
+      esac
+      case "$size:$avail:$used:$used_percent" in
+        *:-*|*::*)
           continue
           ;;
       esac

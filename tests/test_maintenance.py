@@ -208,6 +208,14 @@ class MaintenanceTests(unittest.TestCase):
             self.assertIn("avail_bytes=", result.stdout)
             self.assertIn("selectable=", result.stdout)
 
+    def test_storage_control_list_filters_pseudo_mounts(self):
+        script = STORAGE_CONTROL.read_text(encoding="utf-8")
+
+        self.assertIn("rpc_pipefs", script)
+        self.assertIn("fuse.gvfsd-fuse", script)
+        self.assertIn("fuse.portal", script)
+        self.assertIn("*:-*|*::*)", script)
+
     def test_storage_control_disables_without_erasing_external_data(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)

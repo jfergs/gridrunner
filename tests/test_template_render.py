@@ -238,6 +238,8 @@ class TemplateRenderTests(unittest.TestCase):
                     "mode": "external",
                     "root": "/media/ghost/USB/gridrunner",
                     "mount": "/media/ghost/USB",
+                    "uuid": "-",
+                    "warnings": ["external storage UUID unavailable"],
                     "backup_dir": "/media/ghost/USB/gridrunner/backups",
                     "events_log": "/media/ghost/USB/gridrunner/logs/ghost-events.log",
                     "sdr_dir": "/media/ghost/USB/gridrunner/sdr",
@@ -256,6 +258,7 @@ class TemplateRenderTests(unittest.TestCase):
                         "mount": "/",
                         "source": "/dev/root",
                         "fstype": "ext4",
+                        "severity": "ok",
                         "used_percent": 42,
                         "free_percent": 58,
                         "used_label": "4.2 GB",
@@ -268,6 +271,7 @@ class TemplateRenderTests(unittest.TestCase):
                         "mount": "/media/ghost/USB",
                         "source": "/dev/sda1",
                         "fstype": "exfat",
+                        "severity": "ok",
                         "used_percent": 25,
                         "free_percent": 75,
                         "used_label": "4.0 GB",
@@ -310,7 +314,9 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Storage", response.body)
         self.assertIn(b"Use USB Storage", response.body)
         self.assertIn(b"/media/ghost/USB/gridrunner/backups", response.body)
+        self.assertIn(b"external storage UUID unavailable", response.body)
         self.assertIn(b"42% used", response.body)
+        self.assertIn(b"volume-meter-ok", response.body)
         self.assertIn(b"free 12.0 GB", response.body)
         self.assertIn(b"aria-label=\"/media/ghost/USB disk usage\"", response.body)
         self.assertIn(b'name="confirm_token" value="token"', response.body)
@@ -354,6 +360,7 @@ class TemplateRenderTests(unittest.TestCase):
 
                 self.assertEqual(app.active_events_log(), logs / "operator-events.log")
                 self.assertEqual(app.storage_summary()["status"], "external")
+                self.assertEqual(app.storage_summary()["warnings"], ["external storage UUID unavailable"])
         finally:
             app.STORAGE_STATE_FILE = original_storage_state_file
 

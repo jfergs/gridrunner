@@ -153,6 +153,12 @@
       min-width: 2px;
       background: linear-gradient(90deg, var(--amber), var(--red));
     }
+    .volume-meter-warn {
+      border-color: rgba(255, 209, 102, 0.75);
+    }
+    .volume-meter-danger {
+      border-color: rgba(255, 92, 122, 0.85);
+    }
     .scan-slider {
       display: grid;
       gap: 8px;
@@ -300,6 +306,12 @@
     .warning {
       border-color: var(--red);
       color: #ffd5de;
+    }
+    .inline-warning {
+      display: block;
+      margin-top: 8px;
+      color: var(--amber);
+      font-size: 12px;
     }
     pre {
       white-space: pre-wrap;
@@ -548,19 +560,23 @@
       </div>
 
       <div class="panel">
-        {% set storage_state = storage|default({"status": "internal", "mode": "internal", "root": "internal", "mount": "-", "backup_dir": "", "events_log": "", "sdr_dir": "", "radio_dir": "", "output": ""}) %}
+        {% set storage_state = storage|default({"status": "internal", "mode": "internal", "root": "internal", "mount": "-", "uuid": "-", "warnings": [], "backup_dir": "", "events_log": "", "sdr_dir": "", "radio_dir": "", "output": ""}) %}
         <h2>Storage</h2>
         <span class="status health-{{ storage_state.status }}">{{ storage_state.status }}</span>
         <span>mode {{ storage_state.mode }}</span>
         <div class="telemetry-grid">
           <div class="telemetry"><span>Root</span><strong>{{ storage_state.root }}</strong></div>
           <div class="telemetry"><span>Mount</span><strong>{{ storage_state.mount }}</strong></div>
+          <div class="telemetry"><span>UUID</span><strong>{{ storage_state.uuid }}</strong></div>
           <div class="telemetry"><span>Backups</span><strong>{{ storage_state.backup_dir }}</strong></div>
           <div class="telemetry"><span>Events</span><strong>{{ storage_state.events_log }}</strong></div>
         </div>
+        {% for warning in storage_state.warnings|default([]) %}
+        <span class="inline-warning">{{ warning }}</span>
+        {% endfor %}
         <div class="volume-list">
           {% for volume in storage_meters|default([]) %}
-          <div class="volume-meter">
+          <div class="volume-meter volume-meter-{{ volume.severity }}">
             <header>
               <code>{{ volume.mount }}</code>
               <span>{{ volume.used_percent }}% used</span>

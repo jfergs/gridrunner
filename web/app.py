@@ -184,19 +184,26 @@ def storage_summary(status_output=None):
     mode = config.get("GRIDRUNNER_STORAGE_MODE", "internal") or "internal"
     root = config.get("GRIDRUNNER_STORAGE_ROOT", "")
     mount = config.get("GRIDRUNNER_STORAGE_MOUNT", "")
+    uuid = config.get("GRIDRUNNER_STORAGE_VOLUME_UUID", "")
     status_value = "internal"
+    warnings = []
 
     if mode == "external":
         if root and Path(root).is_dir() and os.access(root, os.W_OK):
             status_value = "external"
+            if not uuid:
+                warnings.append("external storage UUID unavailable")
         else:
             status_value = "degraded"
+            warnings.append("external storage missing or not writable")
 
     return {
         "status": status_value,
         "mode": mode,
         "root": root or "internal",
         "mount": mount or "-",
+        "uuid": uuid or "-",
+        "warnings": warnings,
         "backup_dir": config.get("GRIDRUNNER_BACKUP_DIR", str(PROJECT_DIR / "data" / "backups")),
         "events_log": str(active_events_log()),
         "sdr_dir": config.get("GRIDRUNNER_SDR_DIR", str(PROJECT_DIR / "sdr")),
@@ -250,11 +257,20 @@ def storage_volume_meters(output):
         used_bytes = int_field(fields.get("used_bytes"))
         avail_bytes = int_field(fields.get("avail_bytes"))
         size_bytes = int_field(fields.get("size_bytes"), used_bytes + avail_bytes)
+        if size_bytes <= 0:
+            continue
+        if used_percent >= 95:
+            severity = "danger"
+        elif used_percent >= 85:
+            severity = "warn"
+        else:
+            severity = "ok"
         meters.append(
             {
                 "mount": mount,
                 "source": fields.get("source", "unknown"),
                 "fstype": fields.get("fstype", "unknown"),
+                "severity": severity,
                 "used_percent": used_percent,
                 "free_percent": max(0, 100 - used_percent),
                 "used_label": bytes_label(used_bytes),
