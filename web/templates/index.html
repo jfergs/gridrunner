@@ -5,9 +5,9 @@
   <title>GRIDRUNNER</title>
   <style>
     :root {
-      --bg: #070a0d;
-      --panel: #10161c;
-      --panel-strong: #151d24;
+      --bg: #06080a;
+      --panel: #10161b;
+      --panel-strong: #182028;
       --line: #2dfff3;
       --line-dim: rgba(45, 255, 243, 0.28);
       --text: #d7fff8;
@@ -18,32 +18,48 @@
       --cyan: #5be7ff;
       --chrome: #7a8b91;
     }
+    * {
+      box-sizing: border-box;
+    }
+    html {
+      scroll-behavior: smooth;
+    }
     body {
       background:
         linear-gradient(rgba(255, 255, 255, 0.025) 50%, rgba(0, 0, 0, 0.025) 50%),
-        radial-gradient(circle at top left, rgba(91, 231, 255, 0.13), transparent 34rem),
+        linear-gradient(90deg, rgba(45, 255, 243, 0.035), transparent 32%, rgba(255, 209, 102, 0.035)),
         var(--bg);
-      background-size: 100% 4px, auto, auto;
+      background-size: 100% 4px, 100% 100%, auto;
       color: var(--text);
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
       margin: 0;
-      padding: 16px 16px 120px;
+      padding: 14px 14px calc(96px + env(safe-area-inset-bottom));
       -webkit-text-size-adjust: 100%;
     }
     h1 {
       color: var(--green);
-      font-size: 32px;
-      margin-bottom: 6px;
+      font-size: 30px;
+      line-height: 1;
+      margin: 0 0 6px;
       text-shadow: 0 0 16px rgba(108, 255, 141, 0.35);
     }
     h2 {
-      font-size: 20px;
+      font-size: 18px;
       margin: 0 0 12px;
       color: var(--cyan);
       text-transform: uppercase;
     }
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
     a {
       color: var(--cyan);
+    }
+    .page-shell {
+      width: min(1220px, 100%);
+      margin: 0 auto;
     }
     .topbar {
       display: flex;
@@ -71,6 +87,7 @@
     }
     .panel {
       margin-top: 0;
+      scroll-margin-top: 82px;
     }
     .panel + .panel {
       margin-top: 16px;
@@ -139,7 +156,7 @@
     }
     .volume-meter code {
       color: var(--text);
-      word-break: break-all;
+      overflow-wrap: anywhere;
     }
     .bar-meter {
       height: 14px;
@@ -173,13 +190,13 @@
     }
     button {
       width: 100%;
-      min-height: 64px;
-      padding: 18px;
+      min-height: 56px;
+      padding: 14px 12px;
       border-radius: 6px;
       border: 1px solid var(--line-dim);
       background: linear-gradient(180deg, #17242b, #0c1115);
       color: var(--text);
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 700;
       text-transform: uppercase;
       touch-action: manipulation;
@@ -190,16 +207,16 @@
       background: linear-gradient(180deg, #1d3038, #0e171c);
     }
     .control-link {
-      min-height: 64px;
+      min-height: 56px;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 18px;
+      padding: 14px 12px;
       border-radius: 6px;
       border: 1px solid var(--line-dim);
       background: linear-gradient(180deg, #17242b, #0c1115);
       color: var(--text);
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 700;
       text-align: center;
       text-decoration: none;
@@ -291,7 +308,7 @@
     }
     .actions {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 10px;
       margin-top: 12px;
     }
@@ -302,6 +319,41 @@
       border-top-color: var(--line-dim);
       border-radius: 6px;
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025), 0 16px 40px rgba(0, 0, 0, 0.28);
+    }
+    .quick-nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+      margin: 14px 0 16px;
+      padding: 8px 0;
+      overflow-x: auto;
+      background: linear-gradient(180deg, rgba(6, 8, 10, 0.98), rgba(6, 8, 10, 0.9));
+      border-bottom: 1px solid rgba(122, 139, 145, 0.24);
+      -webkit-overflow-scrolling: touch;
+    }
+    .quick-nav a {
+      flex: 0 0 auto;
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      border: 1px solid rgba(122, 139, 145, 0.45);
+      border-radius: 6px;
+      background: rgba(12, 17, 21, 0.92);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+      text-decoration: none;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .quick-nav a:focus,
+    .quick-nav a:hover {
+      border-color: var(--line);
+      color: var(--cyan);
     }
     .warning {
       border-color: var(--red);
@@ -321,6 +373,7 @@
       background: rgba(0, 0, 0, 0.28);
       border-left: 2px solid var(--line-dim);
       padding: 10px;
+      line-height: 1.45;
     }
     .power-tray {
       width: min(320px, calc(100vw - 24px));
@@ -407,8 +460,8 @@
       display: block;
       margin-top: 8px;
       color: var(--text);
-      font-size: 18px;
-      word-break: break-word;
+      font-size: 16px;
+      overflow-wrap: anywhere;
     }
     .self-test-grid {
       display: grid;
@@ -450,10 +503,16 @@
     }
     @media (max-width: 640px) {
       body {
-        padding: 12px;
+        padding: 10px 10px calc(80px + env(safe-area-inset-bottom));
       }
       h1 {
-        font-size: 30px;
+        font-size: 28px;
+      }
+      h2 {
+        font-size: 17px;
+      }
+      .topbar {
+        align-items: stretch;
       }
       .grid,
       .actions,
@@ -462,12 +521,29 @@
         grid-template-columns: 1fr;
       }
       button {
-        min-height: 72px;
-        font-size: 19px;
+        min-height: 58px;
+        font-size: 15px;
       }
       .control-link {
-        min-height: 72px;
-        font-size: 19px;
+        min-height: 58px;
+        font-size: 15px;
+      }
+      .panel {
+        padding: 12px;
+      }
+      .power-tray {
+        width: 100%;
+      }
+      .telemetry-grid,
+      .self-test-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .telemetry strong,
+      .self-test strong {
+        font-size: 15px;
+      }
+      pre {
+        max-height: 280px;
       }
       .node-chip {
         flex: 1 1 calc(50% - 8px);
@@ -475,6 +551,15 @@
       }
       .scan-row {
         grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 390px) {
+      .telemetry-grid,
+      .self-test-grid {
+        grid-template-columns: 1fr;
+      }
+      .node-chip {
+        flex-basis: 100%;
       }
     }
     @media (max-width: 980px) {
@@ -485,6 +570,7 @@
   </style>
 </head>
 <body>
+  <div class="page-shell">
   <div class="topbar">
     <div>
       <h1>GRIDRUNNER</h1>
@@ -518,9 +604,19 @@
   </div>
   {% endif %}
 
+  <nav class="quick-nav" aria-label="GRIDRUNNER sections">
+    <a href="#wifi">Wi-Fi</a>
+    <a href="#storage">Storage</a>
+    <a href="#adsb">ADS-B</a>
+    <a href="#scans">Scans</a>
+    <a href="#events">Events</a>
+    <a href="#controls">Controls</a>
+    <a href="#install">Install</a>
+  </nav>
+
   <main class="dashboard">
     <section class="stack">
-      <div class="panel">
+      <div class="panel" id="wifi">
         {% set wifi_text = wifi_output|default('Wi-Fi status unavailable until the web service restarts.') %}
         <h2>Wi-Fi Telemetry</h2>
         <span class="status health-{{ wifi.get('status', 'unknown') }}">{{ wifi.get('status', 'unknown') }}</span>
@@ -552,14 +648,14 @@
         <pre>{{ wifi_text }}</pre>
       </div>
 
-      <div class="panel">
+      <div class="panel" id="events">
         <h2>Recent Events</h2>
         <span class="status health-{{ event_status.status }}">{{ event_status.status }}</span>
         <span>{{ event_status.message }}</span>
         <pre>{{ events }}</pre>
       </div>
 
-      <div class="panel">
+      <div class="panel" id="storage">
         {% set storage_state = storage|default({"status": "internal", "mode": "internal", "root": "internal", "mount": "-", "uuid": "-", "warnings": [], "backup_dir": "", "events_log": "", "sdr_dir": "", "radio_dir": "", "output": ""}) %}
         <h2>Storage</h2>
         <span class="status health-{{ storage_state.status }}">{{ storage_state.status }}</span>
@@ -626,7 +722,7 @@
         <pre>{{ storage_state.output }}</pre>
       </div>
 
-      <div class="panel">
+      <div class="panel" id="scans">
         {% set scans = scan_controls|default({"bluetooth_mode": "off", "network_device_mode": "off", "interval_seconds": 300, "last_run": 0}) %}
         {% set scan_profile = scans.profile|default({"label": "Custom"}) %}
         <h2>Scan Controls</h2>
@@ -691,7 +787,7 @@
         </div>
       </div>
 
-      <div class="panel">
+      <div class="panel" id="self-test">
         <h2>Self Test</h2>
         <div class="self-test-grid">
           {% for check in self_tests|default([]) %}
@@ -704,14 +800,14 @@
         </div>
       </div>
 
-      <div class="panel">
+      <div class="panel" id="health">
         <h2>System Health</h2>
         <pre>{{ status }}</pre>
       </div>
     </section>
 
     <aside class="stack">
-      <div class="panel">
+      <div class="panel" id="adsb">
         {% set adsb = adsb_summary|default({"status": "missing", "count": 0, "message": "aircraft data missing", "aircraft": []}) %}
         <h2>ADS-B</h2>
         <span class="status health-{{ adsb.status }}">{{ adsb.status }}</span>
@@ -729,7 +825,7 @@
         {% endif %}
       </div>
 
-      <div class="panel">
+      <div class="panel" id="controls">
         <h2>Controls</h2>
         <div class="control-section">
           <h3>Observe</h3>
@@ -752,7 +848,7 @@
         </div>
       </div>
 
-      <div class="panel">
+      <div class="panel" id="install">
         <h2>Initial Install</h2>
         {% set selected_items = install_state.get("selected", []) %}
         {% set has_install_state = install_state.get("last_run_at") %}
@@ -792,5 +888,6 @@
       </div>
     </aside>
   </main>
+  </div>
 </body>
 </html>
