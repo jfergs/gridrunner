@@ -1164,8 +1164,15 @@
           <summary>Aircraft rows</summary>
           <div class="drawer-body">
             {% if adsb.aircraft %}
-            <pre>{% for aircraft in adsb.aircraft %}{{ aircraft.ident }} alt={{ aircraft.altitude }} gs={{ aircraft.speed }} track={{ aircraft.track }} seen={{ aircraft.seen }}
+            <pre>{% for aircraft in adsb.aircraft %}{{ aircraft.ident }} route={{ aircraft.route|default('-') }} alt={{ aircraft.altitude }} gs={{ aircraft.speed }} track={{ aircraft.track }} seen={{ aircraft.seen }}{% if aircraft.airline %} airline={{ aircraft.airline }}{% endif %}
 {% endfor %}</pre>
+            <div class="actions">
+              {% for aircraft in adsb.aircraft %}
+              {% if aircraft.route_map_url %}
+              <a class="control-link" href="{{ aircraft.route_map_url }}" target="_blank" rel="noopener">{{ aircraft.ident }} Route</a>
+              {% endif %}
+              {% endfor %}
+            </div>
             {% else %}
             <pre>No recent aircraft.</pre>
             {% endif %}

@@ -5,6 +5,8 @@ import secrets
 import time
 from pathlib import Path
 from urllib.parse import quote
+from urllib.error import URLError
+from urllib.request import urlopen
 
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -15,6 +17,11 @@ from commands import COMMANDS, run_cmd
 from config import (
     ADSB_MAP_URL,
     ADSB_AIRCRAFT_JSON,
+    ADSB_ROUTE_API_URL,
+    ADSB_ROUTE_CACHE_SECONDS,
+    ADSB_ROUTE_LOOKUP_ENABLED,
+    ADSB_ROUTE_LOOKUP_LIMIT,
+    ADSB_ROUTE_LOOKUP_TIMEOUT,
     DEVICE_HOSTNAME,
     EVENTS_LOG,
     EVENTS_STALE_SECONDS,
@@ -77,6 +84,7 @@ ADSB_AIRCRAFT_CANDIDATES = [
     Path("/run/tar1090/aircraft.json"),
     ADSB_AIRCRAFT_JSON.parent / "data" / ADSB_AIRCRAFT_JSON.name,
 ]
+ADSB_ROUTE_CACHE = {}
 
 
 def no_store(response: Response):
@@ -294,6 +302,80 @@ def short_aircraft_value(value, default="-"):
     return str(value).strip() or default
 
 
+def adsb_route_map_url(callsign):
+    safe_callsign = re.sub(r"[^A-Za-z0-9]", "", callsign or "")
+    if not safe_callsign:
+        return ""
+    return f"https://flightaware.com/live/flight/{quote(safe_callsign)}"
+
+
+def parse_adsb_route_payload(payload):
+    if not isinstance(payload, dict):
+        return {}
+
+    response = payload.get("response")
+    if isinstance(response, dict):
+        route = response.get("flightroute") or response.get("route") or response
+    else:
+        route = payload.get("flightroute") or payload.get("route") or payload
+
+    if not isinstance(route, dict):
+        return {}
+
+    origin = route.get("origin") or route.get("from") or route.get("departure")
+    destination = route.get("destination") or route.get("to") or route.get("arrival")
+    airline = route.get("airline")
+
+    if isinstance(origin, dict):
+        origin = origin.get("icao_code") or origin.get("icao") or origin.get("iata_code") or origin.get("iata")
+    if isinstance(destination, dict):
+        destination = (
+            destination.get("icao_code")
+            or destination.get("icao")
+            or destination.get("iata_code")
+            or destination.get("iata")
+        )
+    if isinstance(airline, dict):
+        airline = airline.get("name") or airline.get("icao") or airline.get("iata")
+
+    origin = short_aircraft_value(origin, "")
+    destination = short_aircraft_value(destination, "")
+    if not origin and not destination:
+        return {}
+
+    route_label = f"{origin or '?'} -> {destination or '?'}"
+    return {
+        "origin": origin,
+        "destination": destination,
+        "airline": short_aircraft_value(airline, ""),
+        "route": route_label,
+    }
+
+
+def adsb_route_lookup(callsign):
+    clean_callsign = re.sub(r"[^A-Za-z0-9]", "", callsign or "")
+    if not clean_callsign:
+        return {}
+
+    now = time.time()
+    cached = ADSB_ROUTE_CACHE.get(clean_callsign)
+    if cached and now - cached["at"] < ADSB_ROUTE_CACHE_SECONDS:
+        return dict(cached["route"])
+
+    lookup_url = ADSB_ROUTE_API_URL.format(callsign=quote(clean_callsign))
+    try:
+        with urlopen(lookup_url, timeout=ADSB_ROUTE_LOOKUP_TIMEOUT) as response:
+            payload = json.loads(response.read(8192).decode("utf-8"))
+    except (OSError, URLError, TimeoutError, json.JSONDecodeError, ValueError):
+        return {}
+
+    route = parse_adsb_route_payload(payload)
+    if route:
+        route["map_url"] = adsb_route_map_url(clean_callsign)
+    ADSB_ROUTE_CACHE[clean_callsign] = {"at": now, "route": dict(route)}
+    return route
+
+
 def adsb_aircraft_summary(limit=5, now=None):
     aircraft_file = adsb_aircraft_file()
     summary = {
@@ -339,19 +421,26 @@ def adsb_aircraft_summary(limit=5, now=None):
         if isinstance(item.get("seen", 999999), (int, float))
         else 999999,
     )
-    for item in sortable[:limit]:
+    for index, item in enumerate(sortable[:limit]):
         seen = item.get("seen")
         if isinstance(seen, (int, float)):
             seen_text = f"{max(0, int(seen))}s"
         else:
             seen_text = "-"
+        ident = short_aircraft_value(item.get("flight"), short_aircraft_value(item.get("hex")))
+        route = {}
+        if ADSB_ROUTE_LOOKUP_ENABLED and index < ADSB_ROUTE_LOOKUP_LIMIT:
+            route = adsb_route_lookup(ident)
         summary["aircraft"].append(
             {
-                "ident": short_aircraft_value(item.get("flight"), short_aircraft_value(item.get("hex"))),
+                "ident": ident,
                 "altitude": short_aircraft_value(item.get("alt_baro", item.get("alt_geom"))),
                 "speed": short_aircraft_value(item.get("gs")),
                 "track": short_aircraft_value(item.get("track")),
                 "seen": seen_text,
+                "route": route.get("route", "-"),
+                "airline": route.get("airline", ""),
+                "route_map_url": route.get("map_url", adsb_route_map_url(ident)),
             }
         )
 

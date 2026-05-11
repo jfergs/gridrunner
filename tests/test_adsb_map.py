@@ -17,10 +17,12 @@ class AdsbMapTests(unittest.TestCase):
     def setUp(self):
         self.original_adsb_map_url = app.ADSB_MAP_URL
         self.original_device_hostname = app.DEVICE_HOSTNAME
+        self.original_route_lookup_enabled = app.ADSB_ROUTE_LOOKUP_ENABLED
 
     def tearDown(self):
         app.ADSB_MAP_URL = self.original_adsb_map_url
         app.DEVICE_HOSTNAME = self.original_device_hostname
+        app.ADSB_ROUTE_LOOKUP_ENABLED = self.original_route_lookup_enabled
 
     def test_adsb_map_url_uses_current_request_host(self):
         app.ADSB_MAP_URL = ""
@@ -97,6 +99,100 @@ class AdsbMapTests(unittest.TestCase):
                 self.assertEqual(summary["aircraft"][1]["ident"], "def456")
         finally:
             app.ADSB_AIRCRAFT_CANDIDATES = original_candidates
+
+    def test_adsb_aircraft_summary_enriches_route_when_enabled(self):
+        original_candidates = app.ADSB_AIRCRAFT_CANDIDATES
+        original_lookup = app.adsb_route_lookup
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                aircraft_file = Path(temp_dir) / "aircraft.json"
+                aircraft_file.write_text(
+                    json.dumps(
+                        {
+                            "aircraft": [
+                                {
+                                    "hex": "abc123",
+                                    "flight": "GRID01 ",
+                                    "alt_baro": 1200,
+                                    "seen": 1,
+                                }
+                            ]
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                os.utime(aircraft_file, (100, 100))
+                app.ADSB_AIRCRAFT_CANDIDATES = [aircraft_file]
+                app.ADSB_ROUTE_LOOKUP_ENABLED = True
+                app.adsb_route_lookup = lambda callsign: {
+                    "route": "KJFK -> KLAX",
+                    "airline": "Grid Air",
+                    "map_url": "https://flightaware.com/live/flight/GRID01",
+                }
+
+                summary = app.adsb_aircraft_summary(now=145)
+
+                self.assertEqual(summary["aircraft"][0]["route"], "KJFK -> KLAX")
+                self.assertEqual(summary["aircraft"][0]["airline"], "Grid Air")
+                self.assertEqual(
+                    summary["aircraft"][0]["route_map_url"],
+                    "https://flightaware.com/live/flight/GRID01",
+                )
+        finally:
+            app.ADSB_AIRCRAFT_CANDIDATES = original_candidates
+            app.adsb_route_lookup = original_lookup
+
+    def test_parse_adsb_route_payload_accepts_adsbdb_shape(self):
+        route = app.parse_adsb_route_payload(
+            {
+                "response": {
+                    "flightroute": {
+                        "origin": {"icao_code": "KJFK"},
+                        "destination": {"icao_code": "KLAX"},
+                        "airline": {"name": "Grid Air"},
+                    }
+                }
+            }
+        )
+
+        self.assertEqual(route["route"], "KJFK -> KLAX")
+        self.assertEqual(route["airline"], "Grid Air")
+
+    def test_adsb_route_lookup_uses_cache(self):
+        original_cache = app.ADSB_ROUTE_CACHE
+        original_api_url = app.ADSB_ROUTE_API_URL
+        original_urlopen = app.urlopen
+        calls = []
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return False
+
+            def read(self, _limit):
+                return json.dumps({"response": {"flightroute": {"origin": "KJFK", "destination": "KLAX"}}}).encode(
+                    "utf-8"
+                )
+
+        try:
+            app.ADSB_ROUTE_CACHE = {}
+            app.ADSB_ROUTE_API_URL = "https://example.test/{callsign}"
+
+            def fake_urlopen(url, timeout):
+                calls.append((url, timeout))
+                return FakeResponse()
+
+            app.urlopen = fake_urlopen
+
+            self.assertEqual(app.adsb_route_lookup("GRID01")["route"], "KJFK -> KLAX")
+            self.assertEqual(app.adsb_route_lookup("GRID01")["route"], "KJFK -> KLAX")
+            self.assertEqual(len(calls), 1)
+        finally:
+            app.ADSB_ROUTE_CACHE = original_cache
+            app.ADSB_ROUTE_API_URL = original_api_url
+            app.urlopen = original_urlopen
 
 
 if __name__ == "__main__":

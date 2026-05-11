@@ -196,6 +196,9 @@ class TemplateRenderTests(unittest.TestCase):
                             "speed": "145",
                             "track": "87",
                             "seen": "2s",
+                            "route": "KJFK -> KLAX",
+                            "airline": "Grid Air",
+                            "route_map_url": "https://flightaware.com/live/flight/GRID01",
                         }
                     ],
                 },
@@ -298,6 +301,8 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"1 aircraft tracked", response.body)
         self.assertIn(b"updated 2s ago", response.body)
         self.assertIn(b"GRID01", response.body)
+        self.assertIn(b"KJFK -&gt; KLAX", response.body)
+        self.assertIn(b"GRID01 Route", response.body)
         self.assertIn(b"Wi-Fi Telemetry", response.body)
         self.assertIn(b"Wi-Fi controls and raw status", response.body)
         self.assertIn(b"Enable Hotspot", response.body)
