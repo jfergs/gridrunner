@@ -46,7 +46,7 @@ class AdsbMapTests(unittest.TestCase):
         )
 
         self.assertIn('href="{{ adsb_map_url }}"', template)
-        self.assertIn("ADS-B Map", template)
+        self.assertIn(">Map</a>", template)
         self.assertNotIn('name="action" value="adsbmap"', template)
 
     def test_default_aircraft_json_prefers_readsb_runtime_path(self):
