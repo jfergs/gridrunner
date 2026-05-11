@@ -8,15 +8,22 @@ work here; roll up only the current priorities to the global backlog tracker.
 - Redesign the web UX/UI around mobile-first field operation.
   - Direction: rugged cassette-cyberdeck field terminal, not a neon poster.
   - Primary target: iPhone Safari; secondary targets: iPad and laptop.
+  - Completed foundation:
+    - Added sticky horizontal section navigation for phone use.
+    - Anchored major control panels for direct jumps.
+    - Tightened button, telemetry, and panel sizing for small screens.
+    - Added safer wrapping for long storage paths and telemetry values.
+    - Reduced decorative background treatment while preserving field-terminal
+      identity.
   - Requirements:
-    - Single-column phone layout with no horizontal scrolling.
-    - Large stable touch targets for all controls.
+    - Validate the layout on an actual iPhone viewport/device.
+    - Confirm all controls remain usable in Safari with no horizontal scrolling.
     - Top summary for node, Wi-Fi, storage, ADS-B, and event state.
     - Warning/failure states must be visually dominant.
     - Use restrained cyan/green/amber/red accents; avoid decorative clutter,
       heavy animation, glassmorphism, and excessive magenta/purple.
-    - Add section labels/navigation: `STATUS`, `WIFI`, `STORAGE`, `ADS-B`,
-      `SCANS`, `LOGS`.
+    - Decide whether logs/system health should collapse behind details on
+      mobile after device validation.
 
 - Finish storage UI and health polish.
   - Completed foundation:
