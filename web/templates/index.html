@@ -360,11 +360,36 @@
     }
     .panel {
       padding: 14px;
-      background: linear-gradient(180deg, rgba(21, 29, 36, 0.96), rgba(11, 16, 20, 0.96));
+      background:
+        linear-gradient(90deg, rgba(232, 224, 208, 0.055) 0 2px, transparent 2px 10px),
+        linear-gradient(180deg, rgba(21, 29, 36, 0.96), rgba(11, 16, 20, 0.96));
       border: 1px solid rgba(122, 139, 145, 0.4);
       border-top-color: var(--line-dim);
       border-radius: 6px;
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025), 0 16px 40px rgba(0, 0, 0, 0.28);
+    }
+    .deck-label {
+      display: inline-block;
+      margin: 0 0 10px;
+      padding: 2px 7px;
+      border: 1px solid rgba(232, 224, 208, 0.24);
+      border-radius: 3px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .transport-strip {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 4px;
+      margin-top: 12px;
+    }
+    .transport-strip span {
+      height: 8px;
+      border: 1px solid rgba(122, 139, 145, 0.42);
+      border-radius: 2px;
+      background: rgba(232, 224, 208, 0.05);
     }
     .quick-nav {
       position: sticky;
@@ -717,6 +742,7 @@
     <section class="stack">
       <div class="panel" id="wifi">
         {% set wifi_text = wifi_output|default('Wi-Fi status unavailable until the web service restarts.') %}
+        <span class="deck-label">Comms Deck</span>
         <h2>Wi-Fi Telemetry</h2>
         <span class="status health-{{ wifi.get('status', 'unknown') }}">{{ wifi.get('status', 'unknown') }}</span>
         <span>mode {{ wifi.get('mode', 'unknown') }}</span>
@@ -727,27 +753,34 @@
           <div class="telemetry"><span>Service</span><strong>{{ wifi.get('service', 'unknown') }}</strong></div>
           <div class="telemetry"><span>Last Action</span><strong>{{ wifi.get('last_action', 'unknown') }}</strong></div>
         </div>
-        <div class="actions">
-          <form method="post" action="/run" onsubmit="return confirm('Enable fallback hotspot mode now? This may disconnect the current Wi-Fi session.');">
-            <input type="hidden" name="action" value="wifi_hotspot">
-            <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-            <button>Enable Hotspot</button>
-          </form>
-          <form method="post" action="/run" onsubmit="return confirm('Leave hotspot mode and connect to a known Wi-Fi network if one is visible?');">
-            <input type="hidden" name="action" value="wifi_known">
-            <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-            <button>Connect Known Wi-Fi</button>
-          </form>
-          <form method="post" action="/run">
-            <input type="hidden" name="action" value="wifi_status">
-            <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-            <button>Refresh Wi-Fi Status</button>
-          </form>
-        </div>
-        <pre>{{ wifi_text }}</pre>
+        <details class="drawer">
+          <summary>Wi-Fi controls and raw status</summary>
+          <div class="drawer-body">
+            <div class="actions">
+              <form method="post" action="/run" onsubmit="return confirm('Enable fallback hotspot mode now? This may disconnect the current Wi-Fi session.');">
+                <input type="hidden" name="action" value="wifi_hotspot">
+                <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+                <button>Enable Hotspot</button>
+              </form>
+              <form method="post" action="/run" onsubmit="return confirm('Leave hotspot mode and connect to a known Wi-Fi network if one is visible?');">
+                <input type="hidden" name="action" value="wifi_known">
+                <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+                <button>Connect Known Wi-Fi</button>
+              </form>
+              <form method="post" action="/run">
+                <input type="hidden" name="action" value="wifi_status">
+                <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+                <button>Refresh Wi-Fi Status</button>
+              </form>
+            </div>
+            <pre>{{ wifi_text }}</pre>
+          </div>
+        </details>
+        <div class="transport-strip" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
       </div>
 
       <div class="panel" id="events">
+        <span class="deck-label">Event Counter</span>
         <h2>Recent Events</h2>
         <span class="status health-{{ event_status.status }}">{{ event_status.status }}</span>
         <span>{{ event_status.message }}</span>
@@ -761,6 +794,7 @@
 
       <div class="panel" id="storage">
         {% set storage_state = storage|default({"status": "internal", "mode": "internal", "root": "internal", "mount": "-", "uuid": "-", "warnings": [], "backup_dir": "", "events_log": "", "sdr_dir": "", "radio_dir": "", "output": ""}) %}
+        <span class="deck-label">Tape Bay</span>
         <h2>Storage</h2>
         <span class="status health-{{ storage_state.status }}">{{ storage_state.status }}</span>
         <span>mode {{ storage_state.mode }}</span>
@@ -834,6 +868,7 @@
       <div class="panel" id="scans">
         {% set scans = scan_controls|default({"bluetooth_mode": "off", "network_device_mode": "off", "interval_seconds": 300, "last_run": 0}) %}
         {% set scan_profile = scans.profile|default({"label": "Custom"}) %}
+        <span class="deck-label">Scanner Transport</span>
         <h2>Scan Controls</h2>
         <span id="scan-state" class="status {% if scans.bluetooth_mode == 'off' and scans.network_device_mode == 'off' %}status-skipped{% else %}health-present{% endif %}">
           {{ scans.state_label|default('off') }}
@@ -847,74 +882,87 @@
           <div class="telemetry"><span>Last Run</span><strong id="scan-last-run-value">{{ scans.last_run_message|default('last scan never') }}</strong></div>
           <div class="telemetry"><span>Modes</span><strong id="scan-modes-value">{{ scans.mode_summary|default('Bluetooth off; Network Devices off') }}</strong></div>
         </div>
-        <form method="post" action="/scans" class="profile-switch" data-scan-action="profile">
-          <span>Low Impact</span>
-          <input id="scan-profile-switch" name="profile_position" type="range" min="0" max="1" step="1" value="{% if scan_profile.id == 'field' %}1{% else %}0{% endif %}" aria-label="Scan profile">
-          <span>Field</span>
-          <input id="scan-profile-action" type="hidden" name="action" value="{% if scan_profile.id == 'field' %}profile:field{% else %}profile:low-impact{% endif %}">
-          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-        </form>
-        <div class="actions">
-        <form method="post" action="/scans" data-scan-action="toggle">
-          <input type="hidden" name="action" value="toggle">
-          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-          <button id="scan-toggle-button">{% if scans.state_label == 'armed' %}Disable Scanning{% else %}Enable Scanning{% endif %}</button>
-        </form>
-        </div>
-        <form method="post" action="/scans" class="scan-controls">
-          <input type="hidden" name="action" value="save">
-          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-          <div class="scan-row">
-            <label for="bluetooth-mode">Bluetooth</label>
-            <select id="bluetooth-mode" name="bluetooth_mode">
-              <option value="off" {% if scans.bluetooth_mode == 'off' %}selected{% endif %}>Off</option>
-              <option value="continuous" {% if scans.bluetooth_mode == 'continuous' %}selected{% endif %}>Continuous</option>
-            </select>
+        <details class="drawer">
+          <summary>Scan controls</summary>
+          <div class="drawer-body">
+            <form method="post" action="/scans" class="profile-switch" data-scan-action="profile">
+              <span>Low Impact</span>
+              <input id="scan-profile-switch" name="profile_position" type="range" min="0" max="1" step="1" value="{% if scan_profile.id == 'field' %}1{% else %}0{% endif %}" aria-label="Scan profile">
+              <span>Field</span>
+              <input id="scan-profile-action" type="hidden" name="action" value="{% if scan_profile.id == 'field' %}profile:field{% else %}profile:low-impact{% endif %}">
+              <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+            </form>
+            <div class="actions">
+            <form method="post" action="/scans" data-scan-action="toggle">
+              <input type="hidden" name="action" value="toggle">
+              <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+              <button id="scan-toggle-button">{% if scans.state_label == 'armed' %}Disable Scanning{% else %}Enable Scanning{% endif %}</button>
+            </form>
+            </div>
+            <form method="post" action="/scans" class="scan-controls">
+              <input type="hidden" name="action" value="save">
+              <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+              <div class="scan-row">
+                <label for="bluetooth-mode">Bluetooth</label>
+                <select id="bluetooth-mode" name="bluetooth_mode">
+                  <option value="off" {% if scans.bluetooth_mode == 'off' %}selected{% endif %}>Off</option>
+                  <option value="continuous" {% if scans.bluetooth_mode == 'continuous' %}selected{% endif %}>Continuous</option>
+                </select>
+              </div>
+              <div class="scan-row">
+                <label for="network-device-mode">Network Devices</label>
+                <select id="network-device-mode" name="network_device_mode">
+                  <option value="off" {% if scans.network_device_mode == 'off' %}selected{% endif %}>Off</option>
+                  <option value="continuous" {% if scans.network_device_mode == 'continuous' %}selected{% endif %}>Continuous</option>
+                </select>
+              </div>
+              <div class="scan-slider">
+                <label for="scan-interval">Continuous interval</label>
+                <input id="scan-interval" name="interval_seconds" type="range" min="60" max="1800" step="60" value="{{ scans.interval_seconds }}">
+              </div>
+              <button>Save Scan Controls</button>
+            </form>
+            <div class="actions">
+            <form method="post" action="/scans" data-scan-action="scan-now">
+              <input type="hidden" name="action" value="scan-now">
+              <input type="hidden" name="scan_target" value="bluetooth">
+              <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+              <button data-idle-label="Bluetooth Scan Now" data-busy-label="Bluetooth Scanning...">Bluetooth Scan Now</button>
+            </form>
+            <form method="post" action="/scans" data-scan-action="scan-now">
+              <input type="hidden" name="action" value="scan-now">
+              <input type="hidden" name="scan_target" value="network">
+              <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+              <button data-idle-label="Wi-Fi Scan Now" data-busy-label="Wi-Fi Scanning...">Wi-Fi Scan Now</button>
+            </form>
+            </div>
+            <pre id="scan-output" class="scan-output" hidden></pre>
           </div>
-          <div class="scan-row">
-            <label for="network-device-mode">Network Devices</label>
-            <select id="network-device-mode" name="network_device_mode">
-              <option value="off" {% if scans.network_device_mode == 'off' %}selected{% endif %}>Off</option>
-              <option value="continuous" {% if scans.network_device_mode == 'continuous' %}selected{% endif %}>Continuous</option>
-            </select>
-          </div>
-          <div class="scan-slider">
-            <label for="scan-interval">Continuous interval</label>
-            <input id="scan-interval" name="interval_seconds" type="range" min="60" max="1800" step="60" value="{{ scans.interval_seconds }}">
-          </div>
-          <button>Save Scan Controls</button>
-        </form>
-        <div class="actions">
-        <form method="post" action="/scans" data-scan-action="scan-now">
-          <input type="hidden" name="action" value="scan-now">
-          <input type="hidden" name="scan_target" value="bluetooth">
-          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-          <button data-idle-label="Bluetooth Scan Now" data-busy-label="Bluetooth Scanning...">Bluetooth Scan Now</button>
-        </form>
-        <form method="post" action="/scans" data-scan-action="scan-now">
-          <input type="hidden" name="action" value="scan-now">
-          <input type="hidden" name="scan_target" value="network">
-          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-          <button data-idle-label="Wi-Fi Scan Now" data-busy-label="Wi-Fi Scanning...">Wi-Fi Scan Now</button>
-        </form>
-        </div>
-        <pre id="scan-output" class="scan-output" hidden></pre>
+        </details>
+        <div class="transport-strip" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
       </div>
 
       <div class="panel" id="self-test">
+        <span class="deck-label">Service Lamps</span>
         <h2>Self Test</h2>
-        <div class="self-test-grid">
-          {% for check in self_tests|default([]) %}
-          <div class="self-test self-test-{{ check.severity }}">
-            <span>{{ check.name }}</span>
-            <strong>{{ check.label }}</strong>
-            <code>{{ check.detail or check.status }}</code>
+        <details class="drawer">
+          <summary>Self-test lamps</summary>
+          <div class="drawer-body">
+            <div class="self-test-grid">
+              {% for check in self_tests|default([]) %}
+              <div class="self-test self-test-{{ check.severity }}">
+                <span>{{ check.name }}</span>
+                <strong>{{ check.label }}</strong>
+                <code>{{ check.detail or check.status }}</code>
+              </div>
+              {% endfor %}
+            </div>
           </div>
-          {% endfor %}
-        </div>
+        </details>
       </div>
 
       <div class="panel" id="health">
+        <span class="deck-label">Diagnostics</span>
         <h2>System Health</h2>
         <details class="drawer">
           <summary>Health output</summary>
@@ -928,6 +976,7 @@
     <aside class="stack">
       <div class="panel" id="adsb">
         {% set adsb = adsb_summary|default({"status": "missing", "count": 0, "message": "aircraft data missing", "aircraft": []}) %}
+        <span class="deck-label">Air Band Deck</span>
         <h2>ADS-B</h2>
         <span class="status health-{{ adsb.status }}">{{ adsb.status }}</span>
         <span>{{ adsb.message }}</span>
@@ -950,29 +999,36 @@
       </div>
 
       <div class="panel" id="controls">
+        <span class="deck-label">Transport Controls</span>
         <h2>Controls</h2>
-        <div class="control-section">
-          <h3>Observe</h3>
-          <div class="grid">
-            <form method="post" action="/run"><input type="hidden" name="action" value="health"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Health</button></form>
-            <form method="post" action="/run"><input type="hidden" name="action" value="wifi_status"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Wi-Fi Status</button></form>
-            <form method="post" action="/run"><input type="hidden" name="action" value="logs"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Logs</button></form>
-            <form method="post" action="/run"><input type="hidden" name="action" value="inventory"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Radio Inventory</button></form>
-            <form method="post" action="/run"><input type="hidden" name="action" value="hamcheck"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Ham Check</button></form>
+        <details class="drawer">
+          <summary>Command bank</summary>
+          <div class="drawer-body">
+            <div class="control-section">
+              <h3>Observe</h3>
+              <div class="grid">
+                <form method="post" action="/run"><input type="hidden" name="action" value="health"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Health</button></form>
+                <form method="post" action="/run"><input type="hidden" name="action" value="wifi_status"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Wi-Fi Status</button></form>
+                <form method="post" action="/run"><input type="hidden" name="action" value="logs"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Logs</button></form>
+                <form method="post" action="/run"><input type="hidden" name="action" value="inventory"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Radio Inventory</button></form>
+                <form method="post" action="/run"><input type="hidden" name="action" value="hamcheck"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Ham Check</button></form>
+              </div>
+            </div>
+            <div class="control-section">
+              <h3>Operate</h3>
+              <div class="grid">
+                <form method="post" action="/run"><input type="hidden" name="action" value="backup"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Backup</button></form>
+                <form method="post" action="/run" onsubmit="return confirm('Switch to ADS-B mode and restart readsb if needed?');"><input type="hidden" name="action" value="adsbmode"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>ADS-B Mode</button></form>
+                <form method="post" action="/run" onsubmit="return confirm('Switch to SDR mode? This stops ADS-B while SDR exploration is active.');"><input type="hidden" name="action" value="sdrmode"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button class="danger">SDR Mode</button></form>
+                <a class="control-link" href="{{ adsb_map_url }}" target="_blank" rel="noopener">ADS-B Map</a>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="control-section">
-          <h3>Operate</h3>
-          <div class="grid">
-            <form method="post" action="/run"><input type="hidden" name="action" value="backup"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Backup</button></form>
-            <form method="post" action="/run" onsubmit="return confirm('Switch to ADS-B mode and restart readsb if needed?');"><input type="hidden" name="action" value="adsbmode"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>ADS-B Mode</button></form>
-            <form method="post" action="/run" onsubmit="return confirm('Switch to SDR mode? This stops ADS-B while SDR exploration is active.');"><input type="hidden" name="action" value="sdrmode"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button class="danger">SDR Mode</button></form>
-            <a class="control-link" href="{{ adsb_map_url }}" target="_blank" rel="noopener">ADS-B Map</a>
-          </div>
-        </div>
+        </details>
       </div>
 
       <div class="panel" id="install">
+        <span class="deck-label">Install Loader</span>
         <h2>Initial Install</h2>
         {% set selected_items = install_state.get("selected", []) %}
         {% set has_install_state = install_state.get("last_run_at") %}
@@ -982,33 +1038,38 @@
         {% if install_state.get("skipped") or install_state.get("pending") or install_state.get("failed") %}
         <p>Items marked skipped, pending, or failed remain available here and can be installed later.</p>
         {% endif %}
-        <form method="post" action="/install">
-          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-          <div class="install-list">
-            {% for item in install_items %}
-            {% set item_status = install_statuses[item.id].status %}
-            {% set health = component_health.get(item.id, {"status": "unknown", "detail": ""}) %}
-            {% set is_selected = item_status != "installed" if has_install_state else item.default %}
-            <label class="install-item">
-              <input type="checkbox" name="items" value="{{ item.id }}" {% if is_selected %}checked{% endif %}>
-              <span>
-                <strong>{{ item.label }}</strong>
-                <span>{{ item.description }}</span>
-                <span class="status status-{{ item_status }}">{{ item_status }}</span>
-                <span class="status health-{{ health.status }}">device {{ health.status }}</span>
-                {% if health.detail %}
-                <span>{{ health.detail }}</span>
-                {% endif %}
-              </span>
-            </label>
-            {% endfor %}
+        <details class="drawer">
+          <summary>Install manifest</summary>
+          <div class="drawer-body">
+            <form method="post" action="/install">
+              <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+              <div class="install-list">
+                {% for item in install_items %}
+                {% set item_status = install_statuses[item.id].status %}
+                {% set health = component_health.get(item.id, {"status": "unknown", "detail": ""}) %}
+                {% set is_selected = item_status != "installed" if has_install_state else item.default %}
+                <label class="install-item">
+                  <input type="checkbox" name="items" value="{{ item.id }}" {% if is_selected %}checked{% endif %}>
+                  <span>
+                    <strong>{{ item.label }}</strong>
+                    <span>{{ item.description }}</span>
+                    <span class="status status-{{ item_status }}">{{ item_status }}</span>
+                    <span class="status health-{{ health.status }}">device {{ health.status }}</span>
+                    {% if health.detail %}
+                    <span>{{ health.detail }}</span>
+                    {% endif %}
+                  </span>
+                </label>
+                {% endfor %}
+              </div>
+              <div class="actions">
+                <button class="secondary" type="submit" name="mode" value="dry-run">Preview</button>
+                <button type="submit" name="mode" value="apply">Install Selected</button>
+                <button class="danger" formaction="/install/skip" type="submit">Save Without Installing</button>
+              </div>
+            </form>
           </div>
-          <div class="actions">
-            <button class="secondary" type="submit" name="mode" value="dry-run">Preview</button>
-            <button type="submit" name="mode" value="apply">Install Selected</button>
-            <button class="danger" formaction="/install/skip" type="submit">Save Without Installing</button>
-          </div>
-        </form>
+        </details>
       </div>
     </aside>
   </main>
