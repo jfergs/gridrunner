@@ -307,7 +307,9 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Operate", response.body)
         self.assertIn(b"Scan Controls", response.body)
         self.assertIn(b"Low Impact", response.body)
-        self.assertIn(b"Field Scan", response.body)
+        self.assertIn(b"Field Profile", response.body)
+        self.assertIn(b"Run All Scans", response.body)
+        self.assertIn(b"Modes", response.body)
         self.assertIn(b"Bluetooth Scan", response.body)
         self.assertIn(b"Network Devices", response.body)
         self.assertIn(b"Network Device Scan", response.body)
@@ -474,6 +476,28 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertEqual(field["bluetooth_mode"], "continuous")
         self.assertEqual(field["network_device_mode"], "continuous")
         self.assertEqual(field["interval_seconds"], 300)
+
+    def test_scan_profile_redirects_back_with_visible_notice(self):
+        original_scan_state_file = app.SCAN_STATE_FILE
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                app.SCAN_STATE_FILE = Path(temp_dir) / "scan-controls.env"
+                request = SimpleNamespace(scope={"type": "http", "method": "POST", "path": "/scans", "headers": []})
+
+                response = app.scan_action(
+                    request,
+                    action="profile:field",
+                    confirm_token=app.FORM_ACTION_TOKEN,
+                )
+
+                self.assertEqual(response.status_code, 303)
+                self.assertIn("#scans", response.headers["location"])
+                self.assertIn("scan_notice=", response.headers["location"])
+                state_text = app.SCAN_STATE_FILE.read_text(encoding="utf-8")
+                self.assertIn("GRIDRUNNER_SCAN_BLUETOOTH_MODE=continuous", state_text)
+                self.assertIn("GRIDRUNNER_SCAN_NETWORK_DEVICE_MODE=continuous", state_text)
+        finally:
+            app.SCAN_STATE_FILE = original_scan_state_file
 
     def test_index_template_warns_for_missing_web_password(self):
         request = SimpleNamespace(scope={"type": "http", "method": "GET", "path": "/", "headers": []})
