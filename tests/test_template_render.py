@@ -1,6 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 import asyncio
+import json
 import tempfile
 import unittest
 
@@ -308,11 +309,11 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Scan Controls", response.body)
         self.assertIn(b"Low Impact", response.body)
         self.assertIn(b"Field Profile", response.body)
-        self.assertIn(b"Run All Scans", response.body)
         self.assertIn(b"Modes", response.body)
-        self.assertIn(b"Bluetooth Scan", response.body)
+        self.assertIn(b"Enable Scanning", response.body)
+        self.assertIn(b"Bluetooth Scan Now", response.body)
         self.assertIn(b"Network Devices", response.body)
-        self.assertIn(b"Network Device Scan", response.body)
+        self.assertIn(b"Wi-Fi Scan Now", response.body)
         self.assertIn(b"Storage", response.body)
         self.assertIn(b"Use USB Storage", response.body)
         self.assertIn(b"/media/ghost/USB/gridrunner/backups", response.body)
@@ -496,6 +497,34 @@ class TemplateRenderTests(unittest.TestCase):
                 state_text = app.SCAN_STATE_FILE.read_text(encoding="utf-8")
                 self.assertIn("GRIDRUNNER_SCAN_BLUETOOTH_MODE=continuous", state_text)
                 self.assertIn("GRIDRUNNER_SCAN_NETWORK_DEVICE_MODE=continuous", state_text)
+        finally:
+            app.SCAN_STATE_FILE = original_scan_state_file
+
+    def test_scan_api_toggle_updates_state_without_result_page(self):
+        original_scan_state_file = app.SCAN_STATE_FILE
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                app.SCAN_STATE_FILE = Path(temp_dir) / "scan-controls.env"
+
+                response = app.scan_api_action(
+                    action="toggle",
+                    confirm_token=app.FORM_ACTION_TOKEN,
+                )
+                payload = json.loads(response.body)
+
+                self.assertEqual(payload["controls"]["state_label"], "armed")
+                self.assertEqual(payload["controls"]["profile"]["label"], "Field")
+                self.assertIn("Scanning enabled", payload["notice"])
+
+                response = app.scan_api_action(
+                    action="toggle",
+                    confirm_token=app.FORM_ACTION_TOKEN,
+                )
+                payload = json.loads(response.body)
+
+                self.assertEqual(payload["controls"]["state_label"], "off")
+                self.assertEqual(payload["controls"]["active_scanners"], "none")
+                self.assertEqual(payload["notice"], "Scanning disabled.")
         finally:
             app.SCAN_STATE_FILE = original_scan_state_file
 
