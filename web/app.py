@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from auth import require_auth
@@ -542,6 +542,24 @@ def scan_controls_for_profile(profile_id, current_controls=None):
     return controls
 
 
+def toggle_scan_controls(current_controls=None):
+    controls = dict(current_controls or load_scan_controls())
+    described = describe_scan_controls(controls)
+
+    if described["state_label"] == "armed":
+        controls.update(
+            {
+                "bluetooth_mode": "off",
+                "network_device_mode": "off",
+                "interval_seconds": SCAN_INTERVAL_DEFAULT,
+            }
+        )
+    else:
+        controls = scan_controls_for_profile("field", controls)
+
+    return controls
+
+
 def run_event_scan_once(target="all"):
     if target not in {"all", "bluetooth", "network"}:
         target = "all"
@@ -551,6 +569,46 @@ def run_event_scan_once(target="all"):
     env["GRIDRUNNER_SCAN_ONCE_TARGET"] = target
     env["GRIDRUNNER_SCAN_STATE_FILE"] = str(SCAN_STATE_FILE)
     return run_cmd(COMMANDS["eventscan"], env=env)
+
+
+def scan_action_payload(action, scan_target="all", current_controls=None):
+    controls = dict(current_controls or load_scan_controls())
+    output = ""
+    notice = ""
+
+    if action.startswith("profile:"):
+        profile_id = action.partition(":")[2]
+        controls = scan_controls_for_profile(profile_id, controls)
+        save_scan_controls(controls)
+        described = describe_scan_controls(controls)
+        profile = described["profile"]
+        notice = (
+            f"Scan profile applied: {profile['label']}. "
+            f"Continuous scans armed: {described['active_scanners']}."
+        )
+    elif action == "toggle":
+        controls = toggle_scan_controls(controls)
+        save_scan_controls(controls)
+        described = describe_scan_controls(controls)
+        if described["state_label"] == "armed":
+            notice = f"Scanning enabled: {described['active_scanners']}."
+        else:
+            notice = "Scanning disabled."
+    elif action == "scan-now":
+        output = run_event_scan_once(scan_target)
+        controls["last_run"] = int(time.time())
+        save_scan_controls(controls)
+        label = "Bluetooth" if scan_target == "bluetooth" else "Wi-Fi Device"
+        notice = f"{label} scan finished."
+    else:
+        notice = f"Unknown scan action: {action}"
+
+    described = describe_scan_controls(controls)
+    return {
+        "notice": notice,
+        "output": output,
+        "controls": described,
+    }
 
 
 def parse_keyed_status(output, prefix, replace_underscores=True):
@@ -808,16 +866,14 @@ def scan_action(
         save_scan_controls(controls)
         output = "Scan controls saved."
     elif action.startswith("profile:"):
-        profile_id = action.partition(":")[2]
-        controls = scan_controls_for_profile(profile_id, controls)
-        save_scan_controls(controls)
-        profile = scan_profile_for(controls)
-        notice = (
-            f"Scan profile applied: {profile['label']}. "
-            f"Continuous scans armed: {describe_scan_controls(controls)['active_scanners']}. "
-            "Use Run All Scans for immediate output."
-        )
+        payload = scan_action_payload(action, current_controls=controls)
+        notice = f"{payload['notice']} Use scan-now buttons for immediate output."
         response = RedirectResponse(f"/?scan_notice={quote(notice)}#scans", status_code=status.HTTP_303_SEE_OTHER)
+        no_store(response)
+        return response
+    elif action == "toggle":
+        payload = scan_action_payload(action, current_controls=controls)
+        response = RedirectResponse(f"/?scan_notice={quote(payload['notice'])}#scans", status_code=status.HTTP_303_SEE_OTHER)
         no_store(response)
         return response
     elif action == "scan-now":
@@ -833,6 +889,22 @@ def scan_action(
             "output": output,
         },
     )
+    no_store(response)
+    return response
+
+
+@app.post("/scans/api")
+def scan_api_action(
+    action: str = Form(...),
+    scan_target: str = Form("all"),
+    confirm_token: str = Form(""),
+    _user=Depends(require_auth),
+):
+    if not valid_form_token(confirm_token):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="invalid form token")
+
+    payload = scan_action_payload(action, scan_target=scan_target)
+    response = JSONResponse(payload)
     no_store(response)
     return response
 
