@@ -317,6 +317,7 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Network Devices", response.body)
         self.assertIn(b"Wi-Fi Scan Now", response.body)
         self.assertIn(b"Storage", response.body)
+        self.assertIn(b"Storage routing and controls", response.body)
         self.assertIn(b"Use USB Storage", response.body)
         self.assertIn(b"/media/ghost/USB/gridrunner/backups", response.body)
         self.assertIn(b"external storage UUID unavailable", response.body)
@@ -324,6 +325,8 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"volume-meter-ok", response.body)
         self.assertIn(b"free 12.0 GB", response.body)
         self.assertIn(b"aria-label=\"/media/ghost/USB disk usage\"", response.body)
+        self.assertIn(b"Event log tail", response.body)
+        self.assertIn(b"Aircraft rows", response.body)
         self.assertIn(b'name="confirm_token" value="token"', response.body)
 
     def test_storage_volume_meters_parse_disk_usage(self):

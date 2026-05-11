@@ -89,6 +89,24 @@
       margin-top: 0;
       scroll-margin-top: 82px;
     }
+    #scans {
+      order: -5;
+    }
+    #wifi {
+      order: -4;
+    }
+    #storage {
+      order: -3;
+    }
+    #events {
+      order: 8;
+    }
+    #self-test {
+      order: 9;
+    }
+    #health {
+      order: 10;
+    }
     .panel + .panel {
       margin-top: 16px;
     }
@@ -141,10 +159,13 @@
     .volume-meter {
       display: grid;
       gap: 8px;
-      padding: 10px;
-      border: 1px solid rgba(122, 139, 145, 0.35);
+      padding: 12px;
+      border: 1px solid rgba(122, 139, 145, 0.45);
       border-radius: 6px;
-      background: rgba(0, 0, 0, 0.22);
+      background:
+        linear-gradient(180deg, rgba(232, 224, 208, 0.08), transparent 32%),
+        #080b0d;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
     }
     .volume-meter header,
     .volume-stats {
@@ -159,16 +180,19 @@
       overflow-wrap: anywhere;
     }
     .bar-meter {
-      height: 14px;
+      height: 20px;
       overflow: hidden;
-      border: 1px solid var(--line-dim);
-      border-radius: 999px;
-      background: rgba(108, 255, 141, 0.2);
+      border: 1px solid rgba(232, 224, 208, 0.28);
+      border-radius: 3px;
+      background:
+        repeating-linear-gradient(90deg, rgba(232, 224, 208, 0.16) 0 1px, transparent 1px 10%),
+        linear-gradient(90deg, rgba(108, 255, 141, 0.12), rgba(255, 209, 102, 0.12) 70%, rgba(255, 92, 122, 0.14));
     }
     .bar-meter-used {
       height: 100%;
       min-width: 2px;
-      background: linear-gradient(90deg, var(--amber), var(--red));
+      background: linear-gradient(90deg, var(--green) 0 62%, var(--amber) 76%, var(--red) 100%);
+      box-shadow: 0 0 12px rgba(255, 209, 102, 0.18);
     }
     .volume-meter-warn {
       border-color: rgba(255, 209, 102, 0.75);
@@ -405,6 +429,40 @@
     }
     .scan-output[hidden] {
       display: none;
+    }
+    .drawer {
+      margin-top: 12px;
+      border: 1px solid rgba(122, 139, 145, 0.35);
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.18);
+    }
+    .drawer summary {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 12px;
+      color: var(--cyan);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      list-style: none;
+      text-transform: uppercase;
+    }
+    .drawer summary::-webkit-details-marker {
+      display: none;
+    }
+    .drawer summary::after {
+      content: "OPEN";
+      color: var(--muted);
+      font-size: 10px;
+    }
+    .drawer[open] summary::after {
+      content: "CLOSE";
+    }
+    .drawer-body {
+      padding: 0 12px 12px;
     }
     pre {
       white-space: pre-wrap;
@@ -693,7 +751,12 @@
         <h2>Recent Events</h2>
         <span class="status health-{{ event_status.status }}">{{ event_status.status }}</span>
         <span>{{ event_status.message }}</span>
-        <pre>{{ events }}</pre>
+        <details class="drawer">
+          <summary>Event log tail</summary>
+          <div class="drawer-body">
+            <pre>{{ events }}</pre>
+          </div>
+        </details>
       </div>
 
       <div class="panel" id="storage">
@@ -701,13 +764,6 @@
         <h2>Storage</h2>
         <span class="status health-{{ storage_state.status }}">{{ storage_state.status }}</span>
         <span>mode {{ storage_state.mode }}</span>
-        <div class="telemetry-grid">
-          <div class="telemetry"><span>Root</span><strong>{{ storage_state.root }}</strong></div>
-          <div class="telemetry"><span>Mount</span><strong>{{ storage_state.mount }}</strong></div>
-          <div class="telemetry"><span>UUID</span><strong>{{ storage_state.uuid }}</strong></div>
-          <div class="telemetry"><span>Backups</span><strong>{{ storage_state.backup_dir }}</strong></div>
-          <div class="telemetry"><span>Events</span><strong>{{ storage_state.events_log }}</strong></div>
-        </div>
         {% for warning in storage_state.warnings|default([]) %}
         <span class="inline-warning">{{ warning }}</span>
         {% endfor %}
@@ -731,36 +787,48 @@
           <pre>No mounted storage volumes detected.</pre>
           {% endfor %}
         </div>
-        <form method="post" action="/storage" class="scan-controls" onsubmit="return confirm('Enable selected USB storage for GRIDRUNNER logs, backups, SDR, radio, ADS-B history, and media paths?');">
-          <input type="hidden" name="action" value="enable">
-          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-          <div class="scan-row">
-            <label for="storage-mount">USB Volume</label>
-            <select id="storage-mount" name="mount_path">
-              {% if storage_volumes %}
-              {% for volume in storage_volumes %}
-              <option value="{{ volume.mount }}">{{ volume.mount }} · {{ volume.avail }} free · writable {{ volume.writable }}</option>
-              {% endfor %}
-              {% else %}
-              <option value="">No writable USB volume detected</option>
-              {% endif %}
-            </select>
+        <details class="drawer">
+          <summary>Storage routing and controls</summary>
+          <div class="drawer-body">
+            <div class="telemetry-grid">
+              <div class="telemetry"><span>Root</span><strong>{{ storage_state.root }}</strong></div>
+              <div class="telemetry"><span>Mount</span><strong>{{ storage_state.mount }}</strong></div>
+              <div class="telemetry"><span>UUID</span><strong>{{ storage_state.uuid }}</strong></div>
+              <div class="telemetry"><span>Backups</span><strong>{{ storage_state.backup_dir }}</strong></div>
+              <div class="telemetry"><span>Events</span><strong>{{ storage_state.events_log }}</strong></div>
+            </div>
+            <form method="post" action="/storage" class="scan-controls" onsubmit="return confirm('Enable selected USB storage for GRIDRUNNER logs, backups, SDR, radio, ADS-B history, and media paths?');">
+              <input type="hidden" name="action" value="enable">
+              <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+              <div class="scan-row">
+                <label for="storage-mount">USB Volume</label>
+                <select id="storage-mount" name="mount_path">
+                  {% if storage_volumes %}
+                  {% for volume in storage_volumes %}
+                  <option value="{{ volume.mount }}">{{ volume.mount }} · {{ volume.avail }} free · writable {{ volume.writable }}</option>
+                  {% endfor %}
+                  {% else %}
+                  <option value="">No writable USB volume detected</option>
+                  {% endif %}
+                </select>
+              </div>
+              <button {% if not storage_volumes %}disabled{% endif %}>Use USB Storage</button>
+            </form>
+            <div class="actions">
+              <form method="post" action="/storage">
+                <input type="hidden" name="action" value="status">
+                <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+                <button>Refresh Storage</button>
+              </form>
+              <form method="post" action="/storage" onsubmit="return confirm('Switch GRIDRUNNER storage back to internal paths? External data will be left in place.');">
+                <input type="hidden" name="action" value="disable">
+                <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+                <button class="danger">Use Internal Storage</button>
+              </form>
+            </div>
+            <pre>{{ storage_state.output }}</pre>
           </div>
-          <button {% if not storage_volumes %}disabled{% endif %}>Use USB Storage</button>
-        </form>
-        <div class="actions">
-          <form method="post" action="/storage">
-            <input type="hidden" name="action" value="status">
-            <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-            <button>Refresh Storage</button>
-          </form>
-          <form method="post" action="/storage" onsubmit="return confirm('Switch GRIDRUNNER storage back to internal paths? External data will be left in place.');">
-            <input type="hidden" name="action" value="disable">
-            <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-            <button class="danger">Use Internal Storage</button>
-          </form>
-        </div>
-        <pre>{{ storage_state.output }}</pre>
+        </details>
       </div>
 
       <div class="panel" id="scans">
@@ -848,7 +916,12 @@
 
       <div class="panel" id="health">
         <h2>System Health</h2>
-        <pre>{{ status }}</pre>
+        <details class="drawer">
+          <summary>Health output</summary>
+          <div class="drawer-body">
+            <pre>{{ status }}</pre>
+          </div>
+        </details>
       </div>
     </section>
 
@@ -863,12 +936,17 @@
           <div class="telemetry"><span>Data Age</span><strong>{{ adsb.updated_message }}</strong></div>
           <div class="telemetry"><span>Map</span><strong><a href="{{ adsb_map_url }}" target="_blank" rel="noopener">tar1090</a></strong></div>
         </div>
-        {% if adsb.aircraft %}
-        <pre>{% for aircraft in adsb.aircraft %}{{ aircraft.ident }} alt={{ aircraft.altitude }} gs={{ aircraft.speed }} track={{ aircraft.track }} seen={{ aircraft.seen }}
+        <details class="drawer">
+          <summary>Aircraft rows</summary>
+          <div class="drawer-body">
+            {% if adsb.aircraft %}
+            <pre>{% for aircraft in adsb.aircraft %}{{ aircraft.ident }} alt={{ aircraft.altitude }} gs={{ aircraft.speed }} track={{ aircraft.track }} seen={{ aircraft.seen }}
 {% endfor %}</pre>
-        {% else %}
-        <pre>No recent aircraft.</pre>
-        {% endif %}
+            {% else %}
+            <pre>No recent aircraft.</pre>
+            {% endif %}
+          </div>
+        </details>
       </div>
 
       <div class="panel" id="controls">
