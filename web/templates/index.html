@@ -484,6 +484,69 @@
       border-color: var(--line);
       color: var(--cyan);
     }
+    .quick-deck {
+      margin-bottom: 16px;
+      padding: 14px;
+      border: 1px solid rgba(122, 139, 145, 0.48);
+      border-radius: 16px / 10px;
+      background:
+        radial-gradient(circle at 16px 18px, rgba(232, 224, 208, 0.32) 0 3px, transparent 4px),
+        radial-gradient(circle at calc(100% - 16px) 18px, rgba(232, 224, 208, 0.32) 0 3px, transparent 4px),
+        linear-gradient(90deg, rgba(232, 224, 208, 0.055) 0 2px, transparent 2px 10px),
+        linear-gradient(180deg, rgba(27, 35, 42, 0.98), rgba(8, 11, 13, 0.98));
+      box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+        inset 0 0 30px rgba(0, 0, 0, 0.26),
+        0 14px 34px rgba(0, 0, 0, 0.28);
+    }
+    .quick-deck header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .quick-deck h2 {
+      margin: 0;
+    }
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .quick-actions form,
+    .quick-actions a {
+      min-width: 0;
+    }
+    .quick-action {
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: 1px solid rgba(122, 139, 145, 0.58);
+      border-bottom-color: rgba(0, 0, 0, 0.86);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.075), transparent 34%),
+        linear-gradient(180deg, #18252b, #0b1013);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 800;
+      text-align: center;
+      text-decoration: none;
+      text-transform: uppercase;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 -3px 0 rgba(0, 0, 0, 0.38);
+    }
+    .quick-action:active {
+      transform: translateY(1px);
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.42);
+    }
+    .quick-action-map {
+      border-color: rgba(255, 209, 102, 0.72);
+      color: var(--amber);
+    }
     .warning {
       border-color: var(--red);
       color: #ffd5de;
@@ -723,6 +786,7 @@
       }
       .grid,
       .actions,
+      .quick-actions,
       .install-list,
       .dashboard {
         grid-template-columns: 1fr;
@@ -820,6 +884,34 @@
     <a href="#controls">Controls</a>
     <a href="#install">Install</a>
   </nav>
+
+  <section class="quick-deck" aria-label="Quick actions">
+    <header>
+      <span class="deck-label">Transport Deck</span>
+      <h2>Quick Actions</h2>
+    </header>
+    <div class="quick-actions">
+      <form method="post" action="/run">
+        <input type="hidden" name="action" value="wifi_status">
+        <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+        <button class="quick-action">Wi-Fi</button>
+      </form>
+      <form method="post" action="/scans" data-scan-action="scan-now">
+        <input type="hidden" name="action" value="scan-now">
+        <input type="hidden" name="scan_target" value="bluetooth">
+        <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+        <button class="quick-action" data-idle-label="Bluetooth" data-busy-label="Scanning...">Bluetooth</button>
+      </form>
+      <form method="post" action="/scans" data-scan-action="scan-now">
+        <input type="hidden" name="action" value="scan-now">
+        <input type="hidden" name="scan_target" value="network">
+        <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+        <button class="quick-action" data-idle-label="Network" data-busy-label="Scanning...">Network</button>
+      </form>
+      <a class="quick-action quick-action-map" href="{{ adsb_map_url }}" target="_blank" rel="noopener">Map</a>
+    </div>
+    <div class="transport-strip" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+  </section>
 
   <main class="dashboard">
     <section class="stack">
@@ -1066,7 +1158,7 @@
         <div class="telemetry-grid">
           <div class="telemetry"><span>Aircraft</span><strong>{{ adsb.count }}</strong></div>
           <div class="telemetry"><span>Data Age</span><strong>{{ adsb.updated_message }}</strong></div>
-          <div class="telemetry"><span>Map</span><strong><a href="{{ adsb_map_url }}" target="_blank" rel="noopener">tar1090</a></strong></div>
+          <div class="telemetry"><span>Map</span><strong><a href="{{ adsb_map_url }}" target="_blank" rel="noopener">Map</a></strong></div>
         </div>
         <details class="drawer">
           <summary>Aircraft rows</summary>
@@ -1103,7 +1195,7 @@
                 <form method="post" action="/run"><input type="hidden" name="action" value="backup"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>Backup</button></form>
                 <form method="post" action="/run" onsubmit="return confirm('Switch to ADS-B mode and restart readsb if needed?');"><input type="hidden" name="action" value="adsbmode"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button>ADS-B Mode</button></form>
                 <form method="post" action="/run" onsubmit="return confirm('Switch to SDR mode? This stops ADS-B while SDR exploration is active.');"><input type="hidden" name="action" value="sdrmode"><input type="hidden" name="confirm_token" value="{{ form_action_token }}"><button class="danger">SDR Mode</button></form>
-                <a class="control-link" href="{{ adsb_map_url }}" target="_blank" rel="noopener">ADS-B Map</a>
+                <a class="control-link" href="{{ adsb_map_url }}" target="_blank" rel="noopener">Map</a>
               </div>
             </div>
           </div>
@@ -1159,11 +1251,11 @@
   </div>
   <script>
     (function () {
-      const scanPanel = document.getElementById("scans");
-      if (!scanPanel || !window.fetch || !window.URLSearchParams) {
+      if (!window.fetch || !window.URLSearchParams) {
         return;
       }
 
+      const scanPanel = document.getElementById("scans");
       const notice = document.getElementById("scan-notice");
       const output = document.getElementById("scan-output");
       const stateBadge = document.getElementById("scan-state");
@@ -1261,7 +1353,7 @@
         }
       }
 
-      scanPanel.querySelectorAll("form[data-scan-action]").forEach(function (form) {
+      document.querySelectorAll("form[data-scan-action]").forEach(function (form) {
         form.addEventListener("submit", function (event) {
           event.preventDefault();
           submitScanForm(form);
