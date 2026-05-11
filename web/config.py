@@ -18,6 +18,11 @@ ADSB_AIRCRAFT_JSON = Path(
         "/run/readsb/aircraft.json",
     )
 )
+ADSB_ROUTE_LOOKUP_ENABLED = os.environ.get("GRIDRUNNER_ADSB_ROUTE_LOOKUP_ENABLED", "1") == "1"
+ADSB_ROUTE_API_URL = os.environ.get("GRIDRUNNER_ADSB_ROUTE_API_URL", "https://api.adsbdb.com/v0/callsign/{callsign}")
+ADSB_ROUTE_LOOKUP_LIMIT = int(os.environ.get("GRIDRUNNER_ADSB_ROUTE_LOOKUP_LIMIT", "3"))
+ADSB_ROUTE_LOOKUP_TIMEOUT = float(os.environ.get("GRIDRUNNER_ADSB_ROUTE_LOOKUP_TIMEOUT", "0.8"))
+ADSB_ROUTE_CACHE_SECONDS = int(os.environ.get("GRIDRUNNER_ADSB_ROUTE_CACHE_SECONDS", "900"))
 
 
 def resolve_events_log():
