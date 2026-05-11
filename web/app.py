@@ -4,6 +4,7 @@ import re
 import secrets
 import time
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -485,6 +486,12 @@ def describe_scan_controls(controls, now=None):
     else:
         described["last_run_message"] = "last scan never"
 
+    described["mode_summary"] = (
+        f"Bluetooth {described.get('bluetooth_mode', 'off')}; "
+        f"Network Devices {described.get('network_device_mode', 'off')}; "
+        f"interval {described.get('interval_seconds', SCAN_INTERVAL_DEFAULT)}s"
+    )
+
     return described
 
 
@@ -762,6 +769,7 @@ def index(request: Request, _user=Depends(require_auth)):
             "install_statuses": install_statuses(install_state),
             "component_health": component_health,
             "scan_controls": scan_controls,
+            "scan_notice": request.query_params.get("scan_notice", ""),
             "storage": storage,
             "storage_volumes": storage_volumes,
             "storage_meters": storage_meters,
@@ -804,7 +812,14 @@ def scan_action(
         controls = scan_controls_for_profile(profile_id, controls)
         save_scan_controls(controls)
         profile = scan_profile_for(controls)
-        output = f"Scan profile applied: {profile['label']}."
+        notice = (
+            f"Scan profile applied: {profile['label']}. "
+            f"Continuous scans armed: {describe_scan_controls(controls)['active_scanners']}. "
+            "Use Run All Scans for immediate output."
+        )
+        response = RedirectResponse(f"/?scan_notice={quote(notice)}#scans", status_code=status.HTTP_303_SEE_OTHER)
+        no_store(response)
+        return response
     elif action == "scan-now":
         output = run_event_scan_once(scan_target)
     else:

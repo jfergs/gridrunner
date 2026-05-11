@@ -365,6 +365,22 @@
       color: var(--amber);
       font-size: 12px;
     }
+    .inline-notice {
+      display: block;
+      margin: 10px 0 0;
+      padding: 10px;
+      border: 1px solid rgba(108, 255, 141, 0.6);
+      border-radius: 6px;
+      background: rgba(108, 255, 141, 0.08);
+      color: var(--green);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .button-active {
+      border-color: var(--green);
+      color: var(--green);
+      box-shadow: inset 0 0 0 1px rgba(108, 255, 141, 0.18), 0 0 16px rgba(108, 255, 141, 0.08);
+    }
     pre {
       white-space: pre-wrap;
       overflow-x: auto;
@@ -731,21 +747,25 @@
         </span>
         <span>profile {{ scan_profile.label }}</span>
         <span>interval {{ scans.interval_seconds }}s</span>
+        {% if scan_notice %}
+        <span class="inline-notice">{{ scan_notice }}</span>
+        {% endif %}
         <div class="telemetry-grid">
           <div class="telemetry"><span>Profile</span><strong>{{ scan_profile.label }}</strong></div>
           <div class="telemetry"><span>Armed</span><strong>{{ scans.active_scanners|default('none') }}</strong></div>
           <div class="telemetry"><span>Last Run</span><strong>{{ scans.last_run_message|default('last scan never') }}</strong></div>
+          <div class="telemetry"><span>Modes</span><strong>{{ scans.mode_summary|default('Bluetooth off; Network Devices off') }}</strong></div>
         </div>
         <div class="actions">
         <form method="post" action="/scans">
           <input type="hidden" name="action" value="profile:low-impact">
           <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-          <button>Low Impact</button>
+          <button class="{% if scan_profile.id == 'low-impact' %}button-active{% endif %}">Low Impact Profile</button>
         </form>
         <form method="post" action="/scans">
           <input type="hidden" name="action" value="profile:field">
           <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
-          <button>Field Scan</button>
+          <button class="{% if scan_profile.id == 'field' %}button-active{% endif %}">Field Profile</button>
         </form>
         </div>
         <form method="post" action="/scans" class="scan-controls">
@@ -772,6 +792,12 @@
           <button>Save Scan Controls</button>
         </form>
         <div class="actions">
+        <form method="post" action="/scans">
+          <input type="hidden" name="action" value="scan-now">
+          <input type="hidden" name="scan_target" value="all">
+          <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+          <button>Run All Scans</button>
+        </form>
         <form method="post" action="/scans">
           <input type="hidden" name="action" value="scan-now">
           <input type="hidden" name="scan_target" value="bluetooth">
