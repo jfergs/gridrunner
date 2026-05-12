@@ -15,26 +15,33 @@ work here; roll up only the current priorities to the global backlog tracker.
     - Added safer wrapping for long storage paths and telemetry values.
     - Reduced decorative background treatment while preserving field-terminal
       identity.
+    - Added cassette-futurist quick actions for Wi-Fi, Bluetooth, Network, and
+      ADS-B Map.
+    - Collapsed less-frequent controls and storage detail into drawers while
+      keeping status meters visible.
+    - Reworked scan controls with an enable/disable button, profile slider, and
+      inline one-shot scan status.
+    - Replaced the ADS-B aircraft rows with a newest-first Flight board and
+      Track controls.
   - Requirements:
     - Validate the layout on an actual iPhone viewport/device.
     - Confirm all controls remain usable in Safari with no horizontal scrolling.
-    - Top summary for node, Wi-Fi, storage, ADS-B, and event state.
     - Warning/failure states must be visually dominant.
     - Use restrained cyan/green/amber/red accents; avoid decorative clutter,
       heavy animation, glassmorphism, and excessive magenta/purple.
-    - Decide whether logs/system health should collapse behind details on
-      mobile after device validation.
+    - Confirm the drawer-heavy layout keeps common field actions faster than the
+      older full-dashboard layout.
 
 - Finish storage UI and health polish.
   - Completed foundation:
     - USB external storage works on-device.
     - Backups and event logs write to the external storage path.
     - Storage panel shows mounted-volume used/free meters.
+    - Storage meter output filters pseudo mounts and invalid disk stats.
+    - Storage panel warns when external storage UUID is unavailable.
+    - Storage meters carry low-space severity.
+    - Missing or unwritable external roots fall back to internal paths.
   - Remaining acceptance criteria:
-    - Filter pseudo mounts from storage meter output.
-    - Warn when external storage UUID is unavailable.
-    - Warn when a selected external storage root is missing or not writable.
-    - Add low-free-space warning and danger states to storage meters.
     - Confirm removing or unmounting the USB volume degrades to internal backup
       and event-log paths without breaking the web UI.
 
@@ -44,9 +51,9 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Remaining acceptance criteria:
     - Show when event collection is skipped because Bluetooth and Network Device
       scans are off.
-    - Show the active event log write path.
     - Show last successful one-shot or continuous event write.
-    - Add web status feedback after one-shot scan actions.
+    - Make the event panel distinguish "healthy but idle" from stale or failed
+      event collection.
 
 - Finish security hardening.
   - Completed foundation:
@@ -75,9 +82,11 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Completed foundation:
     - Bluetooth and Network Device scans default to off.
     - One-shot and continuous scan controls are independently gated.
+    - Web UI shows which scanners are armed and when the last scan ran.
+    - Web UI has an enable/disable scan control and Low Impact/Field profile
+      slider.
   - Remaining acceptance criteria:
     - Add diagnostics showing when Wi-Fi, BLE, and network scans start/stop.
-    - Surface active scan timers and last scan timestamps.
     - Provide a temporary mitigation command or web control to pause background
       scanning.
     - Add optional `GRIDRUNNER_WIFI_CONNECTIVITY_CHECK_HOST` for degraded-link
@@ -98,6 +107,17 @@ work here; roll up only the current priorities to the global backlog tracker.
     falls back to `/run/tar1090/aircraft.json`.
   - Dashboard shows aircraft JSON data age.
   - Missing or unreadable aircraft data degrades gracefully in the panel.
+
+- ADS-B route enrichment and Flight board.
+  - ADS-B panel now uses a newest-first Flight board instead of generic
+    aircraft rows.
+  - Flight entries show callsign/track identity, route when known, altitude,
+    speed, heading, seen age, airline, and Track controls.
+  - Optional online route lookup enriches local readsb aircraft with
+    origin/destination data when the device has internet access.
+  - Route lookup is bounded by request limit, timeout, and in-memory cache
+    settings so offline operation stays fast.
+  - ADS-B map controls are labeled `Map`.
 
 - Lint/tooling baseline.
   - `ruff` is installed in `web/.venv`.
@@ -201,12 +221,18 @@ work here; roll up only the current priorities to the global backlog tracker.
 - Dashboard scan controls.
   - Bluetooth and network discovery scans default to off.
   - Web UI supports separate Bluetooth and Network Device one-shot scan controls.
+  - Top Quick Actions expose single-tap Wi-Fi, Bluetooth, Network, and Map
+    actions.
+  - Scan drawer exposes Bluetooth Scan Now and Wi-Fi Scan Now with inline busy
+    and result messages.
   - Continuous Bluetooth and Network Device modes are independently gated.
+  - Continuous scanning can be enabled or disabled from a single stateful
+    control.
   - Scan interval state is stored in `state/scan-controls.env`.
   - Legacy `btmgmt`, `arp-scan`, and `nmap` calls are patched behind the
     dashboard scan controls.
   - Web UI shows which scanners are armed and when the last scan ran.
-  - Web UI includes Low Impact and Field scan profile presets.
+  - Web UI includes a Low Impact / Field scan profile slider.
   - Recommended low-contention scan defaults are documented in README.
 
 - Wi-Fi rescan throttling.
@@ -248,10 +274,11 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 - Deepen ADS-B integration in the web UI.
   - Current foundation:
-    - Dashboard shows tar1090 link, aircraft count, and a short recent aircraft
-      list from local tar1090/readsb aircraft JSON when available.
+    - Dashboard shows the tar1090 map link, aircraft count, aircraft JSON data
+      age, and a newest-first Flight board from local readsb JSON.
+    - Optional online route enrichment adds origin/destination route context
+      when internet is available.
   - Remaining acceptance criteria:
-    - Add aircraft freshness/age for the aircraft JSON file itself.
     - Display readsb/lighttpd service state alongside aircraft count.
     - Add richer aircraft fields when available, such as squawk, category,
       vertical rate, and emergency state.

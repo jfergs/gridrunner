@@ -146,6 +146,11 @@ export GRIDRUNNER_OPERATOR_USER='<operator-user>'
 export GRIDRUNNER_OPERATOR_HOME=/path/to/operator-home
 export GRIDRUNNER_DEVICE_HOSTNAME='<device-hostname>'
 export GRIDRUNNER_ADSB_MAP_URL='http://<device-hostname>.local/tar1090/'
+export GRIDRUNNER_ADSB_ROUTE_LOOKUP_ENABLED=1
+export GRIDRUNNER_ADSB_ROUTE_API_URL='https://api.adsbdb.com/v0/callsign/{callsign}'
+export GRIDRUNNER_ADSB_ROUTE_LOOKUP_LIMIT=3
+export GRIDRUNNER_ADSB_ROUTE_LOOKUP_TIMEOUT=0.8
+export GRIDRUNNER_ADSB_ROUTE_CACHE_SECONDS=900
 export GRIDRUNNER_EVENTS_LOG=/path/to/operator-events.log
 export GRIDRUNNER_WEB_USER='<operator-user>'
 export GRIDRUNNER_WEB_PASSWORD='choose-a-local-password'
@@ -154,6 +159,12 @@ export GRIDRUNNER_WEB_PASSWORD='choose-a-local-password'
 If `GRIDRUNNER_ADSB_MAP_URL` is unset, the panel builds the ADS-B map link from
 the current request host as `http://<current-host>/tar1090/`. Set the variable
 above when tar1090 lives somewhere else.
+
+The ADS-B Flight board always uses the local readsb aircraft JSON as its
+baseline. When internet access is available, the panel can optionally enrich a
+small number of visible flights with route information by callsign. Route lookup
+is enabled by default, bounded by the limit, timeout, and cache settings above,
+and fails quietly when the device is offline.
 
 Health and Wi-Fi scripts hide hostname and Wi-Fi connection names by default.
 Set this only on trusted consoles when full identifiers are needed:
@@ -202,10 +213,12 @@ This installs:
 
 The timer runs shortly after boot and every five minutes. Bluetooth and
 network device discovery scans default to off, so the timer skips legacy scan
-work until scan controls are enabled from the web panel. Use `Bluetooth Scan`
-or `Network Device Scan` for a single phase-specific run, or set Bluetooth
-and/or Network Devices to `Continuous` and choose the minimum interval from the
-dashboard. The runner
+work until scan controls are enabled from the web panel. The top Quick Actions
+deck provides one-tap Wi-Fi, Bluetooth, Network, and ADS-B Map actions. The
+scan drawer provides `Bluetooth Scan Now` and `Wi-Fi Scan Now`; each button
+stays on the page, shows a scanning state while active, and returns to its idle
+label when the run finishes. Use the drawer's `Enable Scanning` /
+`Disable Scanning` control to arm or park continuous scanning. The runner
 stores those controls in:
 
 ```text
@@ -218,11 +231,13 @@ The dashboard also provides scan profiles:
   saved as 15 minutes for future continuous use.
 - `Field`: continuous Bluetooth and network device scans on, interval 5 minutes.
 
+The profile control is a Low Impact / Field slider in the scan drawer.
+
 Recommended defaults for low-contention field use:
 
 - Keep continuous Bluetooth and Network Devices off unless actively surveying.
 - Use `Low Impact` as the parked/default profile.
-- Use `Field Scan` for short survey windows, then return to `Low Impact`.
+- Use `Field` for short survey windows, then return to `Low Impact`.
 - Keep Bluetooth bursts bounded to 8-12 seconds with
   `GRIDRUNNER_BTMGMT_FIND_SECONDS`.
 - Prefer ARP-only network device discovery; avoid heavier `nmap` sweeps unless
