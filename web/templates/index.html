@@ -623,6 +623,65 @@
     .drawer-body {
       padding: 0 12px 12px;
     }
+    .flight-board {
+      max-height: 360px;
+      margin-top: 12px;
+      overflow-y: auto;
+      display: grid;
+      gap: 8px;
+      padding-right: 2px;
+    }
+    .flight-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid rgba(122, 139, 145, 0.38);
+      border-radius: 7px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 38%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 7px),
+        rgba(0, 0, 0, 0.24);
+    }
+    .flight-ident {
+      display: inline-block;
+      min-width: 7ch;
+      margin-right: 8px;
+      color: #bfffd0;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-shadow: 0 0 10px rgba(108, 255, 141, 0.2);
+    }
+    .flight-route {
+      color: var(--amber);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .flight-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .track-link {
+      min-height: 42px;
+      min-width: 74px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 209, 102, 0.62);
+      border-radius: 6px;
+      color: var(--amber);
+      font-size: 12px;
+      font-weight: 800;
+      text-decoration: none;
+      text-transform: uppercase;
+    }
     pre {
       white-space: pre-wrap;
       overflow-x: auto;
@@ -822,6 +881,12 @@
       }
       .scan-row {
         grid-template-columns: 1fr;
+      }
+      .flight-row {
+        grid-template-columns: 1fr;
+      }
+      .track-link {
+        width: 100%;
       }
     }
     @media (max-width: 390px) {
@@ -1161,20 +1226,32 @@
           <div class="telemetry"><span>Map</span><strong><a href="{{ adsb_map_url }}" target="_blank" rel="noopener">Map</a></strong></div>
         </div>
         <details class="drawer">
-          <summary>Aircraft rows</summary>
+          <summary>Flight board</summary>
           <div class="drawer-body">
             {% if adsb.aircraft %}
-            <pre>{% for aircraft in adsb.aircraft %}{{ aircraft.ident }} route={{ aircraft.route|default('-') }} alt={{ aircraft.altitude }} gs={{ aircraft.speed }} track={{ aircraft.track }} seen={{ aircraft.seen }}{% if aircraft.airline %} airline={{ aircraft.airline }}{% endif %}
-{% endfor %}</pre>
-            <div class="actions">
+            <div class="flight-board">
               {% for aircraft in adsb.aircraft %}
-              {% if aircraft.route_map_url %}
-              <a class="control-link" href="{{ aircraft.route_map_url }}" target="_blank" rel="noopener">{{ aircraft.ident }} Route</a>
-              {% endif %}
+              <div class="flight-row">
+                <div>
+                  <div><span class="flight-ident">{{ aircraft.ident }}</span><span class="flight-route">{{ aircraft.route|default('route unknown') }}</span></div>
+                  <div class="flight-meta">
+                    <span>alt {{ aircraft.altitude }}</span>
+                    <span>gs {{ aircraft.speed }}</span>
+                    <span>hdg {{ aircraft.track }}</span>
+                    <span>seen {{ aircraft.seen }}</span>
+                    {% if aircraft.airline %}<span>{{ aircraft.airline }}</span>{% endif %}
+                  </div>
+                </div>
+                <div>
+                  {% if aircraft.route_map_url %}
+                  <a class="track-link" href="{{ aircraft.route_map_url }}" target="_blank" rel="noopener">Track</a>
+                  {% endif %}
+                </div>
+              </div>
               {% endfor %}
             </div>
             {% else %}
-            <pre>No recent aircraft.</pre>
+            <pre>No recent flights.</pre>
             {% endif %}
           </div>
         </details>
