@@ -196,15 +196,21 @@ def storage_summary(status_output=None):
     uuid = config.get("GRIDRUNNER_STORAGE_VOLUME_UUID", "")
     status_value = "internal"
     warnings = []
+    operator_message = "Internal storage paths are active."
 
     if mode == "external":
         if root and Path(root).is_dir() and os.access(root, os.W_OK):
             status_value = "external"
+            operator_message = "External USB storage is active for operator data."
             if not uuid:
                 warnings.append("external storage UUID unavailable")
         else:
             status_value = "degraded"
             warnings.append("external storage missing or not writable")
+            operator_message = (
+                "External storage is configured but unavailable; "
+                "GRIDRUNNER is using internal backup and event-log paths."
+            )
 
     return {
         "status": status_value,
@@ -213,6 +219,7 @@ def storage_summary(status_output=None):
         "mount": mount or "-",
         "uuid": uuid or "-",
         "warnings": warnings,
+        "operator_message": operator_message,
         "backup_dir": config.get("GRIDRUNNER_BACKUP_DIR", str(PROJECT_DIR / "data" / "backups")),
         "events_log": str(active_events_log()),
         "sdr_dir": config.get("GRIDRUNNER_SDR_DIR", str(PROJECT_DIR / "sdr")),
@@ -447,6 +454,29 @@ def adsb_aircraft_summary(limit=5, now=None):
     return summary
 
 
+def adsb_operator_guidance(summary, services=None):
+    services = services or {}
+    status_value = summary.get("status", "unknown")
+    guidance = []
+
+    if status_value in {"missing", "degraded"}:
+        aircraft_path = summary.get("path", str(ADSB_AIRCRAFT_JSON))
+        readsb = services.get("readsb", {}).get("status", "unknown")
+        lighttpd = services.get("lighttpd", {}).get("status", "unknown")
+        guidance.extend(
+            [
+                f"Aircraft file: {aircraft_path}",
+                f"readsb.service: {readsb}",
+                f"lighttpd.service: {lighttpd}",
+                "Run bash scripts/adsb-health.sh on the device.",
+            ]
+        )
+    elif summary.get("age_seconds") is not None and summary["age_seconds"] > 30:
+        guidance.append("Aircraft data is aging; check readsb if the count stops changing.")
+
+    return guidance
+
+
 def event_freshness():
     events_log = active_events_log()
     try:
@@ -477,6 +507,24 @@ def event_freshness():
         "message": f"events updated {age_seconds}s ago",
         "age_seconds": age_seconds,
     }
+
+
+def event_dashboard_status(event_status, scan_controls):
+    dashboard_status = dict(event_status)
+    dashboard_status["log_path"] = str(active_events_log())
+
+    if (
+        scan_controls.get("bluetooth_mode") == "off"
+        and scan_controls.get("network_device_mode") == "off"
+        and event_status.get("status") in {"missing", "stale"}
+    ):
+        dashboard_status["status"] = "idle"
+        dashboard_status["message"] = "idle: Bluetooth and Network scans are disabled"
+        dashboard_status["detail"] = "Enable scanning or run a one-shot scan to write new events."
+    else:
+        dashboard_status["detail"] = f"writing to {dashboard_status['log_path']}"
+
+    return dashboard_status
 
 
 def recent_events():
@@ -742,7 +790,7 @@ def parse_service_health(output):
 
 
 def severity_for_status(status_value):
-    if status_value in {"present", "fresh", "active", "ok"}:
+    if status_value in {"present", "fresh", "active", "ok", "idle"}:
         return "ok"
     if status_value in {"missing", "failed", "critical"}:
         return "danger"
@@ -872,11 +920,11 @@ def index(request: Request, _user=Depends(require_auth)):
     events_output = recent_events()
     install_state = load_install_state()
     component_health = parse_component_health(run_cmd(COMMANDS["component_health"]))
-    event_status = event_freshness()
     wifi_output = run_cmd(COMMANDS["wifi_status"])
     wifi_status = parse_keyed_status(wifi_output, "GRIDRUNNER_WIFI ")
     service_health = parse_service_health(run_cmd(COMMANDS["service_health"]))
     scan_controls = describe_scan_controls(load_scan_controls())
+    event_status = event_dashboard_status(event_freshness(), scan_controls)
     adsb_summary = adsb_aircraft_summary()
     storage_status_output = run_cmd(COMMANDS["storage_status"])
     storage_list_output = run_cmd(COMMANDS["storage_list"])
@@ -909,6 +957,7 @@ def index(request: Request, _user=Depends(require_auth)):
             "operator_user": OPERATOR_USER,
             "adsb_map_url": adsb_map_url(request),
             "adsb_summary": adsb_summary,
+            "adsb_guidance": adsb_operator_guidance(adsb_summary, service_health),
             "form_action_token": FORM_ACTION_TOKEN,
             "power_action_token": POWER_ACTION_TOKEN,
             "install_items": INSTALL_ITEMS,

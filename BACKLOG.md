@@ -45,16 +45,6 @@ work here; roll up only the current priorities to the global backlog tracker.
     - Confirm removing or unmounting the USB volume degrades to internal backup
       and event-log paths without breaking the web UI.
 
-- Clarify event freshness and scan-off states.
-  - Problem: intentionally skipped event collection can make logs look stale
-    even when the timer is healthy and scans are deliberately off.
-  - Remaining acceptance criteria:
-    - Show when event collection is skipped because Bluetooth and Network Device
-      scans are off.
-    - Show last successful one-shot or continuous event write.
-    - Make the event panel distinguish "healthy but idle" from stale or failed
-      event collection.
-
 - Finish security hardening.
   - Completed foundation:
     - `/run`, `/scans`, `/power`, `/install`, and `/install/skip` use shared
@@ -118,6 +108,17 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Route lookup is bounded by request limit, timeout, and in-memory cache
     settings so offline operation stays fast.
   - ADS-B map controls are labeled `Map`.
+
+- Web UI operator state polish.
+  - Recent Events distinguishes idle scan-off state from stale or failed event
+    collection.
+  - Recent Events shows the active event log path and explains how to write new
+    events when scanning is parked.
+  - Storage panel shows an operator-facing message for internal, external, and
+    degraded external storage states.
+  - ADS-B panel shows device-side checks when aircraft data is missing or
+    degraded, including aircraft file path, readsb state, lighttpd state, and
+    the ADS-B health command.
 
 - Lint/tooling baseline.
   - `ruff` is installed in `web/.venv`.
@@ -282,7 +283,6 @@ work here; roll up only the current priorities to the global backlog tracker.
     - Display readsb/lighttpd service state alongside aircraft count.
     - Add richer aircraft fields when available, such as squawk, category,
       vertical rate, and emergency state.
-    - Handle ADS-B unavailable/degraded state with explicit operator guidance.
 
 - Add safe script controls to the web UI.
   - Keep command execution restricted to a whitelist.

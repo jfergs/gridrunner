@@ -99,6 +99,23 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertEqual(services["readsb"]["status"], "active")
         self.assertEqual(services["readsb"]["unit"], "readsb.service")
 
+    def test_adsb_operator_guidance_shows_device_checks_when_missing(self):
+        guidance = app.adsb_operator_guidance(
+            {
+                "status": "missing",
+                "path": "/run/readsb/aircraft.json",
+            },
+            {
+                "readsb": {"status": "active"},
+                "lighttpd": {"status": "inactive"},
+            },
+        )
+
+        self.assertIn("Aircraft file: /run/readsb/aircraft.json", guidance)
+        self.assertIn("readsb.service: active", guidance)
+        self.assertIn("lighttpd.service: inactive", guidance)
+        self.assertIn("Run bash scripts/adsb-health.sh on the device.", guidance)
+
     def test_run_action_rejects_invalid_form_token(self):
         request = SimpleNamespace(scope={"type": "http", "method": "POST", "path": "/run", "headers": []})
 
@@ -244,6 +261,7 @@ class TemplateRenderTests(unittest.TestCase):
                     "mount": "/media/ghost/USB",
                     "uuid": "-",
                     "warnings": ["external storage UUID unavailable"],
+                    "operator_message": "External USB storage is active for operator data.",
                     "backup_dir": "/media/ghost/USB/gridrunner/backups",
                     "events_log": "/media/ghost/USB/gridrunner/logs/ghost-events.log",
                     "sdr_dir": "/media/ghost/USB/gridrunner/sdr",
@@ -285,6 +303,7 @@ class TemplateRenderTests(unittest.TestCase):
                         "selectable": "yes",
                     },
                 ],
+                "adsb_guidance": ["Aircraft data is aging; check readsb if the count stops changing."],
             },
         )
 
@@ -304,6 +323,7 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"KJFK -&gt; KLAX", response.body)
         self.assertIn(b"Flight board", response.body)
         self.assertIn(b"Track", response.body)
+        self.assertIn(b"Aircraft data is aging", response.body)
         self.assertIn(b"Wi-Fi Telemetry", response.body)
         self.assertIn(b"Wi-Fi controls and raw status", response.body)
         self.assertIn(b"Enable Hotspot", response.body)
@@ -334,6 +354,7 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Storage", response.body)
         self.assertIn(b"Storage routing and controls", response.body)
         self.assertIn(b"Use USB Storage", response.body)
+        self.assertIn(b"External USB storage is active", response.body)
         self.assertIn(b"/media/ghost/USB/gridrunner/backups", response.body)
         self.assertIn(b"external storage UUID unavailable", response.body)
         self.assertIn(b"42% used", response.body)
@@ -385,6 +406,32 @@ class TemplateRenderTests(unittest.TestCase):
                 self.assertEqual(app.active_events_log(), logs / "operator-events.log")
                 self.assertEqual(app.storage_summary()["status"], "external")
                 self.assertEqual(app.storage_summary()["warnings"], ["external storage UUID unavailable"])
+                self.assertIn("External USB storage is active", app.storage_summary()["operator_message"])
+        finally:
+            app.STORAGE_STATE_FILE = original_storage_state_file
+
+    def test_storage_summary_warns_when_external_root_missing(self):
+        original_storage_state_file = app.STORAGE_STATE_FILE
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                root = Path(temp_dir) / "missing" / "gridrunner"
+                app.STORAGE_STATE_FILE = Path(temp_dir) / "storage.env"
+                app.STORAGE_STATE_FILE.write_text(
+                    "\n".join(
+                        [
+                            "GRIDRUNNER_STORAGE_MODE=external",
+                            f"GRIDRUNNER_STORAGE_ROOT={root}",
+                            "",
+                        ]
+                    ),
+                    encoding="utf-8",
+                )
+
+                summary = app.storage_summary("")
+
+                self.assertEqual(summary["status"], "degraded")
+                self.assertIn("external storage missing or not writable", summary["warnings"])
+                self.assertIn("using internal backup and event-log paths", summary["operator_message"])
         finally:
             app.STORAGE_STATE_FILE = original_storage_state_file
 
@@ -479,6 +526,42 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertEqual(disabled["active_scanners"], "none")
         self.assertEqual(disabled["last_run_message"], "last scan never")
         self.assertEqual(disabled["profile"]["label"], "Low Impact")
+
+    def test_event_dashboard_status_shows_idle_when_scans_are_off(self):
+        original_storage_state_file = app.STORAGE_STATE_FILE
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                app.STORAGE_STATE_FILE = Path(temp_dir) / "storage.env"
+                status = app.event_dashboard_status(
+                    {"status": "stale", "message": "events stale for 900s", "age_seconds": 900},
+                    {
+                        "bluetooth_mode": "off",
+                        "network_device_mode": "off",
+                        "interval_seconds": 900,
+                        "last_run": 0,
+                    },
+                )
+
+                self.assertEqual(status["status"], "idle")
+                self.assertIn("scans are disabled", status["message"])
+                self.assertIn("one-shot scan", status["detail"])
+                self.assertIn("log_path", status)
+        finally:
+            app.STORAGE_STATE_FILE = original_storage_state_file
+
+    def test_event_dashboard_status_keeps_stale_when_scans_are_armed(self):
+        status = app.event_dashboard_status(
+            {"status": "stale", "message": "events stale for 900s", "age_seconds": 900},
+            {
+                "bluetooth_mode": "continuous",
+                "network_device_mode": "off",
+                "interval_seconds": 300,
+                "last_run": 100,
+            },
+        )
+
+        self.assertEqual(status["status"], "stale")
+        self.assertIn("writing to", status["detail"])
 
     def test_scan_profile_presets_apply_expected_controls(self):
         current = {
