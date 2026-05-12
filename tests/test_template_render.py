@@ -22,6 +22,7 @@ class TemplateRenderTests(unittest.TestCase):
                 "web-service": {"status": "present", "detail": "active"},
                 "events-service": {"status": "present", "detail": "timer-active"},
             },
+            {"status": "present", "count": 1},
         )
 
         self.assertEqual(
@@ -31,6 +32,7 @@ class TemplateRenderTests(unittest.TestCase):
                 {"label": "WIFI HOTSPOT", "severity": "ok"},
                 {"label": "EVENTS STALE", "severity": "warn"},
                 {"label": "EVENT TIMER PRESENT", "severity": "ok"},
+                {"label": "EDGE NODES PRESENT", "severity": "ok"},
                 {"label": "ADS-B DEGRADED", "severity": "warn"},
                 {"label": "WEB PRESENT", "severity": "ok"},
             ],
@@ -179,6 +181,7 @@ class TemplateRenderTests(unittest.TestCase):
                 "component_health": {},
                 "node_status": [{"label": "NODE ONLINE", "severity": "ok"}],
                 "self_tests": [],
+                "edge_nodes": {"status": "missing", "message": "no edge-node telemetry cached", "count": 0, "nodes": []},
             },
         )
 
@@ -228,6 +231,7 @@ class TemplateRenderTests(unittest.TestCase):
                     {"label": "WIFI KNOWN-WIFI", "severity": "ok"},
                     {"label": "EVENTS FRESH", "severity": "ok"},
                     {"label": "EVENT TIMER PRESENT", "severity": "ok"},
+                    {"label": "EDGE NODES PRESENT", "severity": "ok"},
                     {"label": "ADS-B PRESENT", "severity": "ok"},
                     {"label": "WEB PRESENT", "severity": "ok"},
                 ],
@@ -304,6 +308,26 @@ class TemplateRenderTests(unittest.TestCase):
                     },
                 ],
                 "adsb_guidance": ["Aircraft data is aging; check readsb if the count stops changing."],
+                "edge_nodes": {
+                    "status": "present",
+                    "message": "1 edge node; newest 12s ago",
+                    "count": 1,
+                    "state_dir": "/tmp/gridrunner/state/edge-nodes",
+                    "nodes": [
+                        {
+                            "node_id": "node-03",
+                            "profile": "ble-presence",
+                            "age_seconds": 12,
+                            "freshness": "present",
+                            "battery_percent": "82",
+                            "transport": "mqtt",
+                            "known_count": "5",
+                            "unknown_count": "13",
+                            "ignored_count": "2",
+                            "rssi_peak": "-48",
+                        }
+                    ],
+                },
             },
         )
 
@@ -352,6 +376,9 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Wi-Fi Scan Now", response.body)
         self.assertIn(b">Map</a>", response.body)
         self.assertIn(b"Storage", response.body)
+        self.assertIn(b"Edge Nodes", response.body)
+        self.assertIn(b"node-03", response.body)
+        self.assertIn(b"ble-presence", response.body)
         self.assertIn(b"Storage routing and controls", response.body)
         self.assertIn(b"Use USB Storage", response.body)
         self.assertIn(b"External USB storage is active", response.body)
@@ -382,6 +409,45 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertEqual(meters[0]["free_label"], "6.0 GB")
         self.assertEqual(meters[1]["mount"], "/media/ghost/USB")
         self.assertEqual(meters[1]["used_label"], "4.0 GB")
+
+    def test_load_edge_nodes_reads_cached_state(self):
+        original_edge_node_state_dir = app.EDGE_NODE_STATE_DIR
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                edge_dir = Path(temp_dir) / "edge-nodes"
+                edge_dir.mkdir()
+                state_file = edge_dir / "node-03.json"
+                state_file.write_text(
+                    json.dumps(
+                        {
+                            "schema": "gridrunner.edge_node.v1",
+                            "node_id": "node-03",
+                            "profile": "ble-presence",
+                            "timestamp": "2026-05-12T17:30:00Z",
+                            "received_at": "2026-05-12T17:30:01Z",
+                            "battery": {"percent": 82, "voltage": 3.98, "charging": False},
+                            "link": {"transport": "mqtt", "rssi": -61, "last_sync_seconds": 12},
+                            "ble": {
+                                "window_seconds": 60,
+                                "known_count": 5,
+                                "unknown_count": 13,
+                                "ignored_count": 2,
+                                "rssi_peak": -48,
+                            },
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                app.EDGE_NODE_STATE_DIR = edge_dir
+                summary = app.load_edge_nodes(now=int(state_file.stat().st_mtime) + 30)
+
+                self.assertEqual(summary["status"], "present")
+                self.assertEqual(summary["count"], 1)
+                self.assertEqual(summary["nodes"][0]["node_id"], "node-03")
+                self.assertEqual(summary["nodes"][0]["battery_percent"], "82")
+                self.assertEqual(summary["nodes"][0]["unknown_count"], "13")
+        finally:
+            app.EDGE_NODE_STATE_DIR = original_edge_node_state_dir
 
     def test_storage_config_uses_external_events_log_when_ready(self):
         original_storage_state_file = app.STORAGE_STATE_FILE

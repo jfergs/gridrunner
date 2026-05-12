@@ -51,6 +51,8 @@ INSTALL_STATE_FILE = STATE_DIR / "install.json"
 INSTALL_MANIFEST_FILE = PROJECT_DIR / "install-items.json"
 SCAN_STATE_FILE = STATE_DIR / "scan-controls.env"
 STORAGE_STATE_FILE = STATE_DIR / "storage.env"
+EDGE_NODE_STATE_DIR = Path(os.environ.get("GRIDRUNNER_EDGE_NODE_STATE_DIR", STATE_DIR / "edge-nodes"))
+EDGE_NODE_STALE_SECONDS = int(os.environ.get("GRIDRUNNER_EDGE_NODE_STALE_SECONDS", "900"))
 
 
 def project_script(name):

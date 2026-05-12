@@ -36,6 +36,18 @@
     "default": true
   },
   {
+    "id": "edge-node-mqtt",
+    "label": "Edge Node MQTT",
+    "description": "Local MQTT broker and clients for ESP32-C6 edge-node telemetry.",
+    "default": false
+  },
+  {
+    "id": "plane-tracker",
+    "label": "ESP32 Plane Tracker",
+    "description": "Publish compact ADS-B aircraft summaries over MQTT for an ESP32-C6 display.",
+    "default": false
+  },
+  {
     "id": "wifi-tools",
     "label": "Wi-Fi Fallback",
     "description": "NetworkManager tooling for known-network and hotspot fallback.",

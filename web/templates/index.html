@@ -101,6 +101,9 @@
     #storage {
       order: -3;
     }
+    #edge-nodes {
+      order: -2;
+    }
     #events {
       order: 8;
     }
@@ -947,6 +950,7 @@
   <nav class="quick-nav" aria-label="GRIDRUNNER sections">
     <a href="#wifi">Wi-Fi</a>
     <a href="#storage">Storage</a>
+    <a href="#edge-nodes">Edge</a>
     <a href="#adsb">ADS-B</a>
     <a href="#scans">Scans</a>
     <a href="#events">Events</a>
@@ -1114,6 +1118,45 @@
               </form>
             </div>
             <pre>{{ storage_state.output }}</pre>
+          </div>
+        </details>
+      </div>
+
+      <div class="panel" id="edge-nodes">
+        {% set edge = edge_nodes|default({"status": "missing", "message": "no edge-node telemetry cached", "count": 0, "nodes": [], "state_dir": ""}) %}
+        <span class="deck-label">Edge Mesh</span>
+        <h2>Edge Nodes</h2>
+        <span class="status health-{{ edge.status }}">{{ edge.status }}</span>
+        <span>{{ edge.message }}</span>
+        <div class="telemetry-grid">
+          <div class="telemetry"><span>Nodes</span><strong>{{ edge.count }}</strong></div>
+          <div class="telemetry"><span>State</span><strong>{{ edge.state_dir }}</strong></div>
+        </div>
+        <details class="drawer">
+          <summary>Edge-node telemetry</summary>
+          <div class="drawer-body">
+            {% if edge.nodes %}
+            <div class="flight-board">
+              {% for node in edge.nodes %}
+              <div class="flight-row">
+                <div>
+                  <div><span class="flight-ident">{{ node.node_id }}</span><span class="flight-route">{{ node.profile }}</span></div>
+                  <div class="flight-meta">
+                    <span>age {{ node.age_seconds }}s</span>
+                    <span>batt {{ node.battery_percent }}%</span>
+                    <span>link {{ node.transport }}</span>
+                    <span>known {{ node.known_count }}</span>
+                    <span>unk {{ node.unknown_count }}</span>
+                    <span>peak {{ node.rssi_peak }}</span>
+                  </div>
+                </div>
+                <div><span class="status health-{{ node.freshness }}">{{ node.freshness }}</span></div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <pre>No edge-node telemetry cached.</pre>
+            {% endif %}
           </div>
         </details>
       </div>

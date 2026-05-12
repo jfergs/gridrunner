@@ -131,6 +131,19 @@ BATT 77%
 5. Add retention and redaction rules before storing any identifier-bearing
    debug payloads.
 
+Initial Pi-side support now exists:
+
+- `edge-node-mqtt` is an optional install item for Mosquitto, MQTT clients, and
+  `jq`.
+- `scripts/edge-node-ingest.sh` accepts telemetry JSON from stdin or a file,
+  validates the `gridrunner.edge_node.v1` summary payload, caches latest state
+  under `state/edge-nodes/`, and appends a redacted event summary.
+- The web UI reads cached node state and shows freshness, battery, link, and
+  BLE summary counts.
+
+The remaining integration gap is the always-on MQTT subscription service that
+connects `gridrunner/nodes/+/telemetry` to the ingest script.
+
 ## Firmware Profiles
 
 Start with one profile and leave room for later mode switching:

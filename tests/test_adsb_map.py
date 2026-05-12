@@ -2,6 +2,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import json
 import os
+import subprocess
 import tempfile
 import unittest
 
@@ -141,6 +142,62 @@ class AdsbMapTests(unittest.TestCase):
         finally:
             app.ADSB_AIRCRAFT_CANDIDATES = original_candidates
             app.adsb_route_lookup = original_lookup
+
+    def test_plane_tracker_script_emits_compact_mqtt_payload(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            aircraft_file = Path(temp_dir) / "aircraft.json"
+            aircraft_file.write_text(
+                json.dumps(
+                    {
+                        "aircraft": [
+                            {
+                                "hex": "abc123",
+                                "flight": " GRID01 ",
+                                "alt_baro": 1200,
+                                "gs": 145.5,
+                                "track": 87,
+                                "seen": 2.4,
+                                "squawk": "1200",
+                                "category": "A1",
+                                "lat": 40.0,
+                                "lon": -74.0,
+                            },
+                            {
+                                "hex": "def456",
+                                "alt_geom": 2200,
+                                "seen": 14,
+                            },
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GRIDRUNNER_ADSB_AIRCRAFT_JSON": str(aircraft_file),
+                    "GRIDRUNNER_PLANE_TRACKER_TOPIC": "gridrunner/test/planes",
+                    "GRIDRUNNER_PLANE_TRACKER_LIMIT": "1",
+                }
+            )
+
+            result = subprocess.run(
+                ["bash", str(Path(__file__).resolve().parents[1] / "scripts" / "adsb-plane-tracker.sh"), "--json"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertEqual(payload["schema"], "gridrunner.adsb.plane_tracker.v1")
+            self.assertEqual(payload["status"], "present")
+            self.assertEqual(payload["topic"], "gridrunner/test/planes")
+            self.assertEqual(payload["count"], 2)
+            self.assertEqual(len(payload["aircraft"]), 1)
+            self.assertEqual(payload["aircraft"][0]["ident"], "GRID01")
+            self.assertEqual(payload["aircraft"][0]["seen_seconds"], 2)
 
     def test_parse_adsb_route_payload_accepts_adsbdb_shape(self):
         route = app.parse_adsb_route_payload(

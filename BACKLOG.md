@@ -47,9 +47,15 @@ work here; roll up only the current priorities to the global backlog tracker.
       constrain the firmware profile.
   - Remaining acceptance criteria:
     - Decide MQTT broker/install item scope.
-    - Add Pi-side ingest script and state cache.
+    - Wire MQTT subscription service into `scripts/edge-node-ingest.sh`.
     - Add a compact edge-node web panel.
     - Prototype the first Waveshare ESP32-C6 display firmware.
+  - Seed implementation:
+    - Optional `edge-node-mqtt` install item installs Mosquitto clients/broker
+      and creates `state/edge-nodes/`.
+    - `scripts/edge-node-ingest.sh` validates v1 telemetry, writes latest node
+      state, and appends a redacted event summary.
+    - Web UI shows cached edge-node freshness, battery, link, and BLE counts.
 
 - Validate mobile-first Web UI on the device.
   - Direction: rugged cassette-cyberdeck field terminal, not a neon poster.
@@ -161,6 +167,15 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Route lookup is bounded by request limit, timeout, and in-memory cache
     settings so offline operation stays fast.
   - ADS-B map controls are labeled `Map`.
+
+- ESP32-C6 plane tracker.
+  - `scripts/adsb-plane-tracker.sh` publishes a retained compact ADS-B summary
+    for display nodes.
+  - Optional `plane-tracker` install item renders and enables
+    `gridrunner-plane-tracker.timer`.
+  - MQTT payload contract is documented in `docs/esp32-c6-plane-tracker.md`.
+  - Remaining work: flash the ESP32-C6 firmware and validate display behavior
+    against the retained `gridrunner/adsb/plane-tracker` topic.
 
 - Web UI operator state polish.
   - Recent Events distinguishes idle scan-off state from stale or failed event

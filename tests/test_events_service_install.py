@@ -18,6 +18,14 @@ class EventsServiceInstallTests(unittest.TestCase):
         self.assertEqual(events_item["label"], "Events Service")
         self.assertTrue(events_item["default"])
 
+    def test_manifest_includes_plane_tracker_service(self):
+        manifest = json.loads((REPO_DIR / "install-items.json").read_text(encoding="utf-8"))
+
+        item = next(item for item in manifest if item["id"] == "plane-tracker")
+
+        self.assertEqual(item["label"], "ESP32 Plane Tracker")
+        self.assertFalse(item["default"])
+
     def test_events_service_dry_run_renders_units_and_enables_timer(self):
         result = subprocess.run(
             ["bash", str(REPO_DIR / "scripts" / "install-items.sh"), "--dry-run", "events-service"],
@@ -31,6 +39,28 @@ class EventsServiceInstallTests(unittest.TestCase):
         self.assertIn("gridrunner-events.timer", result.stdout)
         self.assertIn("systemctl enable --now gridrunner-events.timer", result.stdout)
         self.assertIn("GRIDRUNNER_INSTALL_RESULT item=events-service status=planned", result.stdout)
+
+    def test_plane_tracker_dry_run_renders_units_and_enables_timer(self):
+        result = subprocess.run(
+            ["bash", str(REPO_DIR / "scripts" / "install-items.sh"), "--dry-run", "plane-tracker"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("gridrunner-plane-tracker.service", result.stdout)
+        self.assertIn("gridrunner-plane-tracker.timer", result.stdout)
+        self.assertIn("systemctl enable --now gridrunner-plane-tracker.timer", result.stdout)
+        self.assertIn("GRIDRUNNER_INSTALL_RESULT item=plane-tracker status=planned", result.stdout)
+
+    def test_plane_tracker_service_publishes_adsb_summary(self):
+        service = (REPO_DIR / "deploy" / "systemd" / "gridrunner-plane-tracker.service").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("adsb-plane-tracker.sh --publish", service)
+        self.assertIn("After=network-online.target mosquitto.service readsb.service", service)
 
     def test_events_service_accepts_timeout_exit_as_success(self):
         service = (REPO_DIR / "deploy" / "systemd" / "gridrunner-events.service").read_text(

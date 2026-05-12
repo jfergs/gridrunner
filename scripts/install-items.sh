@@ -116,6 +116,66 @@ install_wifi_tools() {
   install_apt network-manager
 }
 
+install_edge_node_mqtt() {
+  local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
+  local state_dir="${GRIDRUNNER_STATE_DIR:-$project_dir/state}"
+
+  install_apt mosquitto mosquitto-clients jq || return 1
+  run_step mkdir -p "$state_dir/edge-nodes" "$project_dir/data/edge-nodes" || return 1
+
+  if command -v systemctl >/dev/null 2>&1; then
+    sudo_step systemctl enable --now mosquitto.service || return 1
+  fi
+
+  echo "edge-node MQTT support installed; subscribe ingest to gridrunner/nodes/+/telemetry when firmware is ready."
+}
+
+install_plane_tracker() {
+  local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
+  local operator_user="${GRIDRUNNER_OPERATOR_USER:-$(id -un)}"
+  local operator_home="${GRIDRUNNER_OPERATOR_HOME:-$HOME}"
+  local device_hostname="${GRIDRUNNER_DEVICE_HOSTNAME:-$(hostname -s)}"
+  local service_template="$project_dir/deploy/systemd/gridrunner-plane-tracker.service"
+  local timer_template="$project_dir/deploy/systemd/gridrunner-plane-tracker.timer"
+  local service_rendered="$project_dir/state/gridrunner-plane-tracker.service"
+  local timer_rendered="$project_dir/state/gridrunner-plane-tracker.timer"
+
+  if [ "$MODE" = "apply" ]; then
+    install_apt mosquitto-clients jq || return 1
+  else
+    echo "[skip] install packages: mosquitto-clients jq"
+  fi
+
+  if [ ! -f "$service_template" ]; then
+    echo "plane tracker service template not found: $service_template"
+    return 1
+  fi
+  if [ ! -f "$timer_template" ]; then
+    echo "plane tracker timer template not found: $timer_template"
+    return 1
+  fi
+
+  run_step mkdir -p "$project_dir/state" "$project_dir/data/adsb" || return 1
+
+  if [ "$MODE" = "apply" ]; then
+    render_template "$service_template" "$service_rendered" "$project_dir" "$operator_user" "$operator_home" "$device_hostname" || return 1
+    render_template "$timer_template" "$timer_rendered" "$project_dir" "$operator_user" "$operator_home" "$device_hostname" || return 1
+    require_sudo || return 1
+    sudo_step install -m 0644 "$service_rendered" /etc/systemd/system/gridrunner-plane-tracker.service || return 1
+    sudo_step install -m 0644 "$timer_rendered" /etc/systemd/system/gridrunner-plane-tracker.timer || return 1
+  else
+    echo "[skip] render $service_template -> $service_rendered"
+    echo "[skip] render $timer_template -> $timer_rendered"
+    echo "[skip] sudo -n install -m 0644 $service_rendered /etc/systemd/system/gridrunner-plane-tracker.service"
+    echo "[skip] sudo -n install -m 0644 $timer_rendered /etc/systemd/system/gridrunner-plane-tracker.timer"
+  fi
+
+  sudo_step systemctl daemon-reload &&
+    sudo_step systemctl enable --now gridrunner-plane-tracker.timer
+
+  echo "gridrunner-plane-tracker.timer installed and enabled."
+}
+
 install_ham_tools() {
   install_apt flrig pat
 }
@@ -126,9 +186,11 @@ install_operator_dirs() {
   run_step mkdir -p \
     "$project_dir/data" \
     "$project_dir/data/adsb" \
+    "$project_dir/data/edge-nodes" \
     "$project_dir/data/media" \
     "$project_dir/logs" \
     "$project_dir/state" \
+    "$project_dir/state/edge-nodes" \
     "$project_dir/radio" \
     "$project_dir/sdr"
 }
@@ -269,6 +331,12 @@ for item in "$@"; do
       ;;
     wifi-tools)
       install_wifi_tools
+      ;;
+    edge-node-mqtt)
+      install_edge_node_mqtt
+      ;;
+    plane-tracker)
+      install_plane_tracker
       ;;
     ham-tools)
       install_ham_tools

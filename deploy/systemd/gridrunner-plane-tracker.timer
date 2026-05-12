@@ -1,0 +1,11 @@
+[Unit]
+Description=Publish GRIDRUNNER ADS-B plane tracker summary periodically
+
+[Timer]
+OnBootSec=60s
+OnUnitActiveSec=10s
+Unit=gridrunner-plane-tracker.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target

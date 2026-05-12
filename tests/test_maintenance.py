@@ -12,6 +12,7 @@ DISK_HEALTH = REPO_DIR / "scripts" / "disk-health.sh"
 SERVICE_HEALTH = REPO_DIR / "scripts" / "service-health.sh"
 SYSTEM_BACKUP = REPO_DIR / "scripts" / "system-backup.sh"
 STORAGE_CONTROL = REPO_DIR / "scripts" / "storage-control.sh"
+EDGE_NODE_INGEST = REPO_DIR / "scripts" / "edge-node-ingest.sh"
 
 
 class MaintenanceTests(unittest.TestCase):
@@ -282,6 +283,68 @@ class MaintenanceTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("name=readsb unit=readsb.service status=active", result.stdout)
             self.assertIn("name=gridrunner-web unit=gridrunner-web.service status=inactive", result.stdout)
+            self.assertIn("name=gridrunner-plane-tracker-timer unit=gridrunner-plane-tracker.timer", result.stdout)
+
+    def test_edge_node_ingest_writes_state_and_redacted_event(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            state_dir = temp_path / "state"
+            events_log = temp_path / "events.log"
+            payload = temp_path / "payload.json"
+            payload.write_text(
+                """
+{
+  "schema": "gridrunner.edge_node.v1",
+  "node_id": "node-03",
+  "profile": "ble-presence",
+  "timestamp": "2026-05-12T17:30:00Z",
+  "uptime_seconds": 18422,
+  "battery": {
+    "percent": 82,
+    "voltage": 3.98,
+    "charging": false
+  },
+  "link": {
+    "transport": "mqtt",
+    "rssi": -61,
+    "last_sync_seconds": 12
+  },
+  "ble": {
+    "window_seconds": 60,
+    "known_count": 5,
+    "unknown_count": 13,
+    "ignored_count": 2,
+    "rssi_peak": -48
+  }
+}
+""",
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.update(
+                {
+                    "GRIDRUNNER_HOME": str(REPO_DIR),
+                    "GRIDRUNNER_STATE_DIR": str(state_dir),
+                    "GRIDRUNNER_EVENTS_LOG": str(events_log),
+                }
+            )
+
+            result = subprocess.run(
+                ["bash", str(EDGE_NODE_INGEST), str(payload)],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("GRIDRUNNER_EDGE_NODE_INGEST status=ok node=node-03", result.stdout)
+            state_file = state_dir / "edge-nodes" / "node-03.json"
+            self.assertTrue(state_file.exists())
+            self.assertIn('"received_at"', state_file.read_text(encoding="utf-8"))
+            event_text = events_log.read_text(encoding="utf-8")
+            self.assertIn("edge-node node=node-03", event_text)
+            self.assertIn("ble_unknown=13", event_text)
 
 
 if __name__ == "__main__":

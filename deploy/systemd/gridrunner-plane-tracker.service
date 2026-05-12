@@ -1,0 +1,16 @@
+[Unit]
+Description=GRIDRUNNER ESP32 plane tracker MQTT publish
+After=network-online.target mosquitto.service readsb.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User={{OPERATOR_USER}}
+WorkingDirectory={{GRIDRUNNER_HOME}}
+Environment=GRIDRUNNER_HOME={{GRIDRUNNER_HOME}}
+Environment=GRIDRUNNER_OPERATOR_USER={{OPERATOR_USER}}
+Environment=GRIDRUNNER_OPERATOR_HOME={{OPERATOR_HOME}}
+Environment=GRIDRUNNER_DEVICE_HOSTNAME={{DEVICE_HOSTNAME}}
+EnvironmentFile=-{{GRIDRUNNER_HOME}}/state/gridrunner.env
+TimeoutStartSec=20
+ExecStart=/usr/bin/bash {{GRIDRUNNER_HOME}}/scripts/adsb-plane-tracker.sh --publish

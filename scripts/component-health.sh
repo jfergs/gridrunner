@@ -112,6 +112,71 @@ check_wifi_tools() {
   emit_command_health wifi-tools nmcli
 }
 
+check_edge_node_mqtt() {
+  local missing=""
+  local detail=""
+
+  for tool in mosquitto_sub mosquitto_pub jq; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      missing="$missing $tool"
+    fi
+  done
+
+  if [ -n "$missing" ]; then
+    emit edge-node-mqtt missing "${missing# }"
+    return
+  fi
+
+  if command -v systemctl >/dev/null 2>&1; then
+    if systemctl is-active --quiet mosquitto.service; then
+      detail="broker-active"
+    elif systemctl is-enabled --quiet mosquitto.service 2>/dev/null; then
+      emit edge-node-mqtt degraded "broker-enabled-not-active"
+      return
+    else
+      emit edge-node-mqtt degraded "broker-not-enabled"
+      return
+    fi
+  else
+    detail="broker-unchecked"
+  fi
+
+  emit edge-node-mqtt present "$detail"
+}
+
+check_plane_tracker() {
+  local project_dir="${GRIDRUNNER_HOME:-$HOME/gridrunner}"
+  local script="$project_dir/scripts/adsb-plane-tracker.sh"
+
+  if [ ! -x "$script" ]; then
+    emit plane-tracker missing "adsb-plane-tracker.sh"
+    return
+  fi
+
+  if ! command -v jq >/dev/null 2>&1; then
+    emit plane-tracker missing "jq"
+    return
+  fi
+
+  if ! command -v mosquitto_pub >/dev/null 2>&1; then
+    emit plane-tracker missing "mosquitto_pub"
+    return
+  fi
+
+  if command -v systemctl >/dev/null 2>&1; then
+    if systemctl is-active --quiet gridrunner-plane-tracker.timer; then
+      emit plane-tracker present "timer-active"
+    elif systemctl is-enabled --quiet gridrunner-plane-tracker.timer 2>/dev/null; then
+      emit plane-tracker degraded "timer-enabled-not-active"
+    else
+      emit plane-tracker degraded "timer-not-enabled"
+    fi
+    return
+  fi
+
+  emit plane-tracker present "timer-unchecked"
+}
+
 check_radio_tools() {
   emit_command_health radio-tools rtl_test SoapySDRUtil
 }
@@ -142,6 +207,8 @@ check_operator_dirs
 check_web_service
 check_events_service
 check_wifi_tools
+check_edge_node_mqtt
+check_plane_tracker
 check_radio_tools
 check_adsb_tools
 check_ham_tools

@@ -23,6 +23,8 @@ from config import (
     ADSB_ROUTE_LOOKUP_LIMIT,
     ADSB_ROUTE_LOOKUP_TIMEOUT,
     DEVICE_HOSTNAME,
+    EDGE_NODE_STALE_SECONDS,
+    EDGE_NODE_STATE_DIR,
     EVENTS_LOG,
     EVENTS_STALE_SECONDS,
     OPERATOR_HOME,
@@ -297,6 +299,74 @@ def storage_volume_meters(output):
             }
         )
     return meters
+
+
+def load_edge_nodes(now=None):
+    now = int(time.time() if now is None else now)
+    nodes = []
+
+    try:
+        state_files = sorted(EDGE_NODE_STATE_DIR.glob("*.json"))
+    except OSError:
+        return {
+            "status": "degraded",
+            "message": "edge-node state unreadable",
+            "count": 0,
+            "nodes": [],
+            "state_dir": str(EDGE_NODE_STATE_DIR),
+        }
+
+    for state_file in state_files:
+        try:
+            payload = json.loads(state_file.read_text(encoding="utf-8"))
+            mtime = int(state_file.stat().st_mtime)
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        battery = payload.get("battery", {}) if isinstance(payload.get("battery"), dict) else {}
+        link = payload.get("link", {}) if isinstance(payload.get("link"), dict) else {}
+        ble = payload.get("ble", {}) if isinstance(payload.get("ble"), dict) else {}
+        age_seconds = max(0, now - mtime)
+        nodes.append(
+            {
+                "node_id": short_aircraft_value(payload.get("node_id"), state_file.stem),
+                "profile": short_aircraft_value(payload.get("profile")),
+                "timestamp": short_aircraft_value(payload.get("timestamp")),
+                "received_at": short_aircraft_value(payload.get("received_at")),
+                "age_seconds": age_seconds,
+                "freshness": "stale" if age_seconds > EDGE_NODE_STALE_SECONDS else "present",
+                "battery_percent": short_aircraft_value(battery.get("percent")),
+                "charging": battery.get("charging"),
+                "transport": short_aircraft_value(link.get("transport")),
+                "rssi": short_aircraft_value(link.get("rssi")),
+                "last_sync_seconds": short_aircraft_value(link.get("last_sync_seconds")),
+                "window_seconds": short_aircraft_value(ble.get("window_seconds")),
+                "known_count": short_aircraft_value(ble.get("known_count"), "0"),
+                "unknown_count": short_aircraft_value(ble.get("unknown_count"), "0"),
+                "ignored_count": short_aircraft_value(ble.get("ignored_count"), "0"),
+                "rssi_peak": short_aircraft_value(ble.get("rssi_peak")),
+            }
+        )
+
+    nodes.sort(key=lambda node: node["age_seconds"])
+    if not nodes:
+        return {
+            "status": "missing",
+            "message": "no edge-node telemetry cached",
+            "count": 0,
+            "nodes": [],
+            "state_dir": str(EDGE_NODE_STATE_DIR),
+        }
+
+    status_value = "stale" if all(node["freshness"] == "stale" for node in nodes) else "present"
+    newest_age = nodes[0]["age_seconds"]
+    return {
+        "status": status_value,
+        "message": f"{len(nodes)} edge node{'s' if len(nodes) != 1 else ''}; newest {newest_age}s ago",
+        "count": len(nodes),
+        "nodes": nodes,
+        "state_dir": str(EDGE_NODE_STATE_DIR),
+    }
 
 
 def storage_mount_allowed(mount_path, volumes):
@@ -805,10 +875,11 @@ def status_label(status_value):
     return "WARN"
 
 
-def build_node_status(wifi_status, event_status, component_health):
+def build_node_status(wifi_status, event_status, component_health, edge_nodes=None):
     wifi_mode = wifi_status.get("mode", "unknown")
     wifi_health = wifi_status.get("status", "unknown")
     event_health = event_status.get("status", "unknown")
+    edge_health = (edge_nodes or {}).get("status", "unknown")
     adsb_health = component_health.get("adsb-tools", {}).get("status", "unknown")
     web_health = component_health.get("web-service", {}).get("status", "unknown")
     events_service_health = component_health.get("events-service", {}).get("status", "unknown")
@@ -826,6 +897,10 @@ def build_node_status(wifi_status, event_status, component_health):
         {
             "label": f"EVENT TIMER {events_service_health}".upper(),
             "severity": severity_for_status(events_service_health),
+        },
+        {
+            "label": f"EDGE NODES {edge_health}".upper(),
+            "severity": severity_for_status(edge_health),
         },
         {
             "label": f"ADS-B {adsb_health}".upper(),
@@ -888,6 +963,7 @@ def build_self_tests(wifi_status, event_status, component_health, health_output,
         service_check("WI-FI TIMER", "gridrunner-wifi-timer", services),
         service_check("WI-FI SERVICE", "gridrunner-wifi", services),
         service_check("EVENT TIMER", "gridrunner-events-timer", services),
+        service_check("MOSQUITTO", "mosquitto", services),
         service_check("READSB", "readsb", services),
         service_check("LIGHTTPD", "lighttpd", services),
         {
@@ -931,7 +1007,8 @@ def index(request: Request, _user=Depends(require_auth)):
     storage = storage_summary(storage_status_output)
     storage_volumes = storage_volume_options(storage_list_output)
     storage_meters = storage_volume_meters(storage_list_output)
-    node_status = build_node_status(wifi_status, event_status, component_health)
+    edge_nodes = load_edge_nodes()
+    node_status = build_node_status(wifi_status, event_status, component_health, edge_nodes)
     auth_enabled = bool(WEB_PASSWORD)
     self_tests = build_self_tests(
         wifi_status,
@@ -969,6 +1046,7 @@ def index(request: Request, _user=Depends(require_auth)):
             "storage": storage,
             "storage_volumes": storage_volumes,
             "storage_meters": storage_meters,
+            "edge_nodes": edge_nodes,
         },
     )
     no_store(response)
