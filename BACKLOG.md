@@ -35,6 +35,22 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 ## High Priority
 
+- Design ESP32-C6 edge-node layer.
+  - GitHub issue: `#12`.
+  - Architecture note: `docs/edge-node-architecture.md`.
+  - Initial direction:
+    - ESP32-C6 nodes publish low-power BLE presence summaries, battery, link,
+      sync, and local display state.
+    - Raspberry Pi 5 remains the aggregation, storage, analysis, and web UI
+      node.
+    - MQTT is the first transport target, with ESPHome left open if it does not
+      constrain the firmware profile.
+  - Remaining acceptance criteria:
+    - Decide MQTT broker/install item scope.
+    - Add Pi-side ingest script and state cache.
+    - Add a compact edge-node web panel.
+    - Prototype the first Waveshare ESP32-C6 display firmware.
+
 - Validate mobile-first Web UI on the device.
   - Direction: rugged cassette-cyberdeck field terminal, not a neon poster.
   - Primary target: iPhone Safari; secondary targets: iPad and laptop.

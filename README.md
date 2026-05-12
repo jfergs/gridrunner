@@ -9,6 +9,11 @@ GRIDRUNNER provides a local web UI for health checks, backup, radio inventory, A
 - Web UI: `http://<device-hostname>.local:8088`
 - ADS-B map: `http://<device-hostname>.local/tar1090/`
 
+## Architecture Notes
+
+- [External storage model](docs/storage-model.md)
+- [ESP32-C6 edge-node architecture](docs/edge-node-architecture.md)
+
 ## Quick Start
 
 Run this on the Linux device you want to turn into a GRIDRUNNER node:
