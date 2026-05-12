@@ -302,7 +302,8 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"updated 2s ago", response.body)
         self.assertIn(b"GRID01", response.body)
         self.assertIn(b"KJFK -&gt; KLAX", response.body)
-        self.assertIn(b"GRID01 Route", response.body)
+        self.assertIn(b"Flight board", response.body)
+        self.assertIn(b"Track", response.body)
         self.assertIn(b"Wi-Fi Telemetry", response.body)
         self.assertIn(b"Wi-Fi controls and raw status", response.body)
         self.assertIn(b"Enable Hotspot", response.body)
@@ -340,7 +341,7 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"free 12.0 GB", response.body)
         self.assertIn(b"aria-label=\"/media/ghost/USB disk usage\"", response.body)
         self.assertIn(b"Event log tail", response.body)
-        self.assertIn(b"Aircraft rows", response.body)
+        self.assertIn(b"Flight board", response.body)
         self.assertIn(b"Install manifest", response.body)
         self.assertIn(b'name="confirm_token" value="token"', response.body)
 
