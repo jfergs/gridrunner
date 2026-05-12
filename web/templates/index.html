@@ -376,6 +376,10 @@
       border-color: var(--green);
       color: var(--green);
     }
+    .health-idle {
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
     .health-stale {
       border-color: var(--amber);
       color: var(--amber);
@@ -1024,6 +1028,12 @@
         <h2>Recent Events</h2>
         <span class="status health-{{ event_status.status }}">{{ event_status.status }}</span>
         <span>{{ event_status.message }}</span>
+        {% if event_status.detail %}
+        <span class="inline-notice">{{ event_status.detail }}</span>
+        {% endif %}
+        {% if event_status.log_path %}
+        <span class="inline-warning">event log: {{ event_status.log_path }}</span>
+        {% endif %}
         <details class="drawer">
           <summary>Event log tail</summary>
           <div class="drawer-body">
@@ -1038,6 +1048,9 @@
         <h2>Storage</h2>
         <span class="status health-{{ storage_state.status }}">{{ storage_state.status }}</span>
         <span>mode {{ storage_state.mode }}</span>
+        {% if storage_state.operator_message %}
+        <span class="{% if storage_state.status == 'degraded' %}inline-warning{% else %}inline-notice{% endif %}">{{ storage_state.operator_message }}</span>
+        {% endif %}
         {% for warning in storage_state.warnings|default([]) %}
         <span class="inline-warning">{{ warning }}</span>
         {% endfor %}
@@ -1220,6 +1233,9 @@
         <h2>ADS-B</h2>
         <span class="status health-{{ adsb.status }}">{{ adsb.status }}</span>
         <span>{{ adsb.message }}</span>
+        {% for guidance in adsb_guidance|default([]) %}
+        <span class="{% if adsb.status in ['missing', 'degraded'] %}inline-warning{% else %}inline-notice{% endif %}">{{ guidance }}</span>
+        {% endfor %}
         <div class="telemetry-grid">
           <div class="telemetry"><span>Aircraft</span><strong>{{ adsb.count }}</strong></div>
           <div class="telemetry"><span>Data Age</span><strong>{{ adsb.updated_message }}</strong></div>
