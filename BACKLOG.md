@@ -3,9 +3,39 @@
 Project-local backlog for Gridrunner. Keep detailed Gridrunner implementation
 work here; roll up only the current priorities to the global backlog tracker.
 
+## Current State
+
+- Web control panel is the primary operator surface.
+  - Top Quick Actions expose Wi-Fi status, Bluetooth scan, Network scan, and
+    ADS-B Map.
+  - Main dashboard uses cassette-cyberdeck styling with drawers for less common
+    controls and details.
+  - Node strip, self-test lamps, storage meters, scan controls, Recent Events,
+    Wi-Fi telemetry, and ADS-B Flight board are live.
+
+- Events and scanning are parked by default.
+  - Continuous Bluetooth and Network Device scans default to off.
+  - One-shot Bluetooth and Network scans run inline from the web UI.
+  - Recent Events reports `idle` when logs look stale only because scans are
+    intentionally disabled.
+
+- ADS-B is local-first with optional online enrichment.
+  - Local readsb JSON defaults to `/run/readsb/aircraft.json`.
+  - The dashboard shows aircraft count, JSON age, Flight board rows, route data
+    when available, and direct Track links.
+  - Missing/degraded ADS-B data shows aircraft file path, readsb/lighttpd
+    status, and the ADS-B health command.
+
+- Storage supports internal or external operator-data paths.
+  - USB storage selection writes `state/storage.env`.
+  - Backups, event logs, SDR, radio, ADS-B history, and media paths can move to
+    `<volume>/gridrunner/`.
+  - Web UI shows mounted-volume used/free meters and operator messages for
+    internal, external, or degraded external storage.
+
 ## High Priority
 
-- Redesign the web UX/UI around mobile-first field operation.
+- Validate mobile-first Web UI on the device.
   - Direction: rugged cassette-cyberdeck field terminal, not a neon poster.
   - Primary target: iPhone Safari; secondary targets: iPad and laptop.
   - Completed foundation:
@@ -81,6 +111,13 @@ work here; roll up only the current priorities to the global backlog tracker.
       scanning.
     - Add optional `GRIDRUNNER_WIFI_CONNECTIVITY_CHECK_HOST` for degraded-link
       checks without changing the healthy known-Wi-Fi fast path.
+
+- Run device validation checklist on the Pi.
+  - Current checklist lives in `docs/device-validation.md`.
+  - Remaining acceptance criteria:
+    - Capture pass/fail notes for iPhone Web UI, ADS-B, storage fallback,
+      Wi-Fi failover, scans, and service health.
+    - Promote any failed validation item into a specific backlog card.
 
 ## Recently Completed
 
@@ -411,7 +448,6 @@ work here; roll up only the current priorities to the global backlog tracker.
     restart.
   - Confirm removing or unmounting the USB volume degrades to internal backup
     and event-log paths without breaking the web UI.
-  - Add storage warnings for low free space and missing selected UUID.
 
 ## Planned Enhancements
 
