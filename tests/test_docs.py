@@ -16,6 +16,15 @@ class DocsTests(unittest.TestCase):
         self.assertIn("Rollback Behavior", doc)
         self.assertIn("The UI must not auto-format drives or erase data.", doc)
 
+    def test_plane_tracker_firmware_documents_setup(self):
+        readme = (REPO_DIR / "firmware" / "plane-tracker" / "README.md").read_text(encoding="utf-8")
+        source = (REPO_DIR / "firmware" / "plane-tracker" / "src" / "main.cpp").read_text(encoding="utf-8")
+
+        self.assertIn("gridrunner/adsb/plane-tracker", readme)
+        self.assertIn("GPIO14", readme)
+        self.assertIn("GRIDRUNNER_MQTT_TOPIC", source)
+        self.assertIn("drawRadarGrid", source)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -83,6 +83,11 @@ GRID01 1200 145 087
 DEF456 2200 --- ---
 ```
 
+A PlatformIO firmware scaffold is available at
+`firmware/plane-tracker/`. It targets the Waveshare non-touch
+`ESP32-C6-LCD-1.47` ST7789 board and renders a small radar screen plus the
+first five aircraft rows.
+
 Configure these on the Pi if needed:
 
 ```bash
