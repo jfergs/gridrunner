@@ -40,6 +40,10 @@ pio run --target upload
 pio device monitor
 ```
 
+The project uses the community `pioarduino` Espressif platform because
+PlatformIO's stock ESP32-C6 board support is ESP-IDF-only at the time this was
+added.
+
 If `gridrunner.local` does not resolve from the ESP32, set
 `GRIDRUNNER_MQTT_HOST` to the Pi's hotspot or LAN IP address.
 

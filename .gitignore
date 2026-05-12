@@ -11,6 +11,8 @@ __pycache__/
 .venv/
 venv/
 env/
+.platformio-venv/
+.platformio-core/
 
 # GRIDRUNNER runtime data
 data/backups/
@@ -24,3 +26,4 @@ state/
 
 # Firmware local credentials
 firmware/**/include/secrets.h
+firmware/**/.pio/

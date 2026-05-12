@@ -18,6 +18,8 @@ constexpr int LCD_CS = 14;
 constexpr int LCD_DC = 15;
 constexpr int LCD_RST = 21;
 constexpr int LCD_BL = 22;
+constexpr int SD_CS = 4;
+constexpr int LCD_MISO = 5;
 
 constexpr int SCREEN_W = 172;
 constexpr int SCREEN_H = 320;
@@ -55,7 +57,7 @@ struct Aircraft {
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
-Arduino_DataBus *bus = new Arduino_ESP32SPI(LCD_DC, LCD_CS, LCD_SCLK, LCD_MOSI, GFX_NOT_DEFINED);
+Arduino_DataBus *bus = new Arduino_HWSPI(LCD_DC, LCD_CS, LCD_SCLK, LCD_MOSI, LCD_MISO);
 Arduino_GFX *gfx = new Arduino_ST7789(bus, LCD_RST, 0, true, SCREEN_W, SCREEN_H, 34, 0, 34, 0);
 
 Aircraft aircraft[MAX_AIRCRAFT];
@@ -68,6 +70,50 @@ uint32_t lastWifiAttemptMs = 0;
 uint32_t lastMqttAttemptMs = 0;
 uint32_t lastFrameMs = 0;
 int sweepDeg = 0;
+
+#ifdef GRIDRUNNER_LCD_DIAGNOSTIC
+void drawDiagnosticFrame() {
+  static uint32_t lastChangeMs = 0;
+  static uint8_t phase = 0;
+  uint32_t now = millis();
+
+  if (now - lastChangeMs < 1500) {
+    return;
+  }
+  lastChangeMs = now;
+  phase = (phase + 1) % 8;
+
+  bool backlightHigh = phase < 4;
+  digitalWrite(LCD_BL, backlightHigh ? HIGH : LOW);
+
+  uint16_t color = COLOR_BG;
+  switch (phase % 4) {
+    case 0:
+      color = 0xF800;
+      break;
+    case 1:
+      color = 0x07E0;
+      break;
+    case 2:
+      color = 0x001F;
+      break;
+    default:
+      color = 0xFFFF;
+      break;
+  }
+
+  gfx->fillScreen(color);
+  gfx->setTextSize(2);
+  gfx->setTextColor(color == 0xFFFF ? 0x0000 : 0xFFFF);
+  gfx->setCursor(10, 120);
+  gfx->print("LCD DIAG");
+  gfx->setTextSize(1);
+  gfx->setCursor(10, 150);
+  gfx->print(backlightHigh ? "BL HIGH" : "BL LOW");
+
+  Serial.printf("LCD diagnostic phase=%u backlight=%s color=0x%04x\n", phase, backlightHigh ? "HIGH" : "LOW", color);
+}
+#endif
 
 String fieldText(JsonVariantConst value, const char *fallback = "---") {
   if (value.isNull()) {
@@ -300,11 +346,23 @@ void drawFrame() {
 
 void setup() {
   Serial.begin(115200);
+  pinMode(SD_CS, OUTPUT);
+  digitalWrite(SD_CS, HIGH);
   pinMode(LCD_BL, OUTPUT);
   digitalWrite(LCD_BL, HIGH);
 
   gfx->begin();
   gfx->fillScreen(COLOR_BG);
+
+#ifdef GRIDRUNNER_LCD_DIAGNOSTIC
+  Serial.println("GRIDRUNNER LCD diagnostic build");
+  gfx->setTextSize(2);
+  gfx->setTextColor(COLOR_TEXT);
+  gfx->setCursor(12, 120);
+  gfx->print("LCD DIAG");
+  return;
+#endif
+
   drawText(12, 120, "GRIDRUNNER", COLOR_TEXT, 2);
   drawText(16, 146, "ADS-B RADAR", COLOR_HOT, 1);
 
@@ -315,6 +373,11 @@ void setup() {
 }
 
 void loop() {
+#ifdef GRIDRUNNER_LCD_DIAGNOSTIC
+  drawDiagnosticFrame();
+  return;
+#endif
+
   connectWifi();
   connectMqtt();
   mqtt.loop();

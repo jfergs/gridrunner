@@ -22,7 +22,10 @@ class DocsTests(unittest.TestCase):
 
         self.assertIn("gridrunner/adsb/plane-tracker", readme)
         self.assertIn("GPIO14", readme)
+        self.assertIn("pioarduino", readme)
         self.assertIn("GRIDRUNNER_MQTT_TOPIC", source)
+        self.assertIn("Arduino_HWSPI", source)
+        self.assertIn("GRIDRUNNER_LCD_DIAGNOSTIC", source)
         self.assertIn("drawRadarGrid", source)
 
 
