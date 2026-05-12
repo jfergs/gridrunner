@@ -166,6 +166,14 @@ small number of visible flights with route information by callsign. Route lookup
 is enabled by default, bounded by the limit, timeout, and cache settings above,
 and fails quietly when the device is offline.
 
+If aircraft data is missing or degraded, the ADS-B panel shows the aircraft JSON
+path it expected, `readsb.service` state, `lighttpd.service` state, and the
+device command to run next:
+
+```bash
+bash scripts/adsb-health.sh
+```
+
 Health and Wi-Fi scripts hide hostname and Wi-Fi connection names by default.
 Set this only on trusted consoles when full identifiers are needed:
 
@@ -181,6 +189,11 @@ stale. The stale threshold defaults to 15 minutes and can be adjusted with:
 ```bash
 export GRIDRUNNER_EVENTS_STALE_SECONDS=900
 ```
+
+When Bluetooth and Network Device scanning are both disabled, the dashboard
+shows Events as `idle` instead of stale. That means the timer can be healthy
+while no new event lines are expected. Enable scanning or run a one-shot scan
+from Quick Actions or the scan drawer to write fresh events.
 
 Use the real log wrapper instead of an alias-only `logs` command:
 
@@ -329,6 +342,13 @@ libraries. It writes explicit paths to `state/storage.env`; it does not format
 drives, erase data, move `state/`, or make boot depend on removable media. The
 same panel shows horizontal used/free meters for mounted volumes.
 
+The Storage panel also shows an operator message for the active mode:
+
+- `internal`: internal paths are active.
+- `external`: USB storage is active for operator data.
+- `degraded`: external storage is configured but missing or not writable, so
+  runtime scripts fall back to internal backup and event-log paths.
+
 CLI equivalents:
 
 ```bash
@@ -419,8 +439,10 @@ bash scripts/adsb-health.sh
 ```
 
 Then open `http://<device-hostname>.local:8088`, confirm the ADS-B data age is
-current, and test the `Enable Hotspot`, `Connect Known Wi-Fi`, `ADS-B Mode`, and
-`SDR Mode` controls from the web UI.
+current, confirm Events shows either `fresh` or intentional `idle`, and test the
+Quick Actions, `Enable Hotspot`, `Connect Known Wi-Fi`, `ADS-B Mode`, and
+`SDR Mode` controls from the web UI. For a fuller pass, use
+[docs/device-validation.md](docs/device-validation.md).
 
 ## Web Service
 

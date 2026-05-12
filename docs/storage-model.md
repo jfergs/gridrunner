@@ -81,29 +81,25 @@ Services load this file with `EnvironmentFile=-...`. Runtime scripts also parse
 the file explicitly and fall back to internal paths when the external root is
 missing or not writable.
 
-## Web UI Flow
+## Implemented Web UI Flow
 
 The web UI presents external storage as a guided, reversible workflow:
 
 1. Detect removable mounted volumes with device, label, filesystem, UUID, size,
    free space, mount point, and writable state.
 2. Let the operator choose a volume.
-3. Show a preflight checklist:
-   - filesystem writable
-   - minimum free space available
-   - target directory can be created
-   - existing target data will not be overwritten silently
-   - internal rollback path exists
+3. Show mounted-volume used/free meters and low-space severity.
 4. Copy existing backup, event log, SDR, and radio data with preserve mode and
    timestamps when present.
-5. Verify copied file counts and byte counts.
-6. Write `state/storage.env`.
-7. Prompt the operator to restart affected services when a fresh systemd
+5. Write `state/storage.env`.
+6. Prompt the operator to restart affected services when a fresh systemd
    environment is needed.
-8. Show active storage mode and rollback action.
-9. Show used/free disk-space meters for mounted volumes.
+7. Show active storage mode, operator guidance, warnings, and rollback action.
 
 The UI must not auto-format drives or erase data.
+
+Future polish may add a more explicit preflight checklist and copied byte-count
+verification before enabling a volume.
 
 ## Rollback Behavior
 
