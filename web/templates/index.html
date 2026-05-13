@@ -705,7 +705,8 @@
       height: 1px;
       background: linear-gradient(90deg, rgba(108, 255, 141, 0.75), transparent);
       transform-origin: left center;
-      transform: rotate(32deg);
+      animation: rfSweep 2.8s linear infinite;
+      z-index: 1;
     }
     .rf-blip {
       --target-color: var(--cyan);
@@ -719,6 +720,7 @@
       background: var(--target-color);
       box-shadow: 0 0 12px var(--target-color);
       transform: translate(-50%, -50%);
+      z-index: 2;
     }
     .rf-blip-bluetooth,
     .rf-target-bluetooth {
@@ -767,6 +769,20 @@
     .rf-target-rssi {
       color: var(--muted);
       text-align: right;
+    }
+    @keyframes rfSweep {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .rf-radar::after {
+        animation: none;
+        transform: rotate(32deg);
+      }
     }
     .track-link {
       min-height: 42px;
