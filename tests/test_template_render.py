@@ -335,6 +335,40 @@ class TemplateRenderTests(unittest.TestCase):
                             "pending_scan_count": "3",
                         }
                     ],
+                    "rf_targets": [
+                        {
+                            "kind": "wifi",
+                            "label": "GRIDRUNNER",
+                            "detail": "ch 6 WPA2",
+                            "rssi": "-42",
+                            "x": "50.0",
+                            "y": "32.0",
+                        },
+                        {
+                            "kind": "bluetooth",
+                            "label": "BLE 18",
+                            "detail": "known 5 unk 13",
+                            "rssi": "-48",
+                            "x": "62.0",
+                            "y": "44.0",
+                        },
+                        {
+                            "kind": "drone",
+                            "label": "DRONE 1",
+                            "detail": "wifi 0 ble 1",
+                            "rssi": "-58",
+                            "x": "42.0",
+                            "y": "58.0",
+                        },
+                        {
+                            "kind": "deauth",
+                            "label": "DEAUTH 2",
+                            "detail": "window 15s",
+                            "rssi": "-50",
+                            "x": "38.0",
+                            "y": "38.0",
+                        },
+                    ],
                     "ble_total": 18,
                     "wifi_ap_total": 8,
                     "drone_candidate_total": 1,
@@ -396,6 +430,12 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"drone 1", response.body)
         self.assertIn(b"strong GRIDRUNNER", response.body)
         self.assertIn(b"pending 3", response.body)
+        self.assertIn(b"RF target radar", response.body)
+        self.assertIn(b"rf-target-list", response.body)
+        self.assertIn(b"rf-target-wifi", response.body)
+        self.assertIn(b"rf-target-bluetooth", response.body)
+        self.assertIn(b"rf-target-drone", response.body)
+        self.assertIn(b"rf-target-deauth", response.body)
         self.assertIn(b"Storage routing and controls", response.body)
         self.assertIn(b"Use USB Storage", response.body)
         self.assertIn(b"External USB storage is active", response.body)
@@ -458,6 +498,22 @@ class TemplateRenderTests(unittest.TestCase):
                                 "strongest_rssi": -42,
                                 "strongest_ssid": "GRIDRUNNER",
                                 "scan_count": 4,
+                                "aps": [
+                                    {
+                                        "ssid": "GRIDRUNNER",
+                                        "rssi": -42,
+                                        "channel": 6,
+                                        "security": "WPA2",
+                                        "drone_candidate": False,
+                                    },
+                                    {
+                                        "ssid": "DJI-RID",
+                                        "rssi": -58,
+                                        "channel": 11,
+                                        "security": "OPEN",
+                                        "drone_candidate": True,
+                                    },
+                                ],
                             },
                             "drone": {
                                 "candidate_count": 1,
@@ -483,6 +539,9 @@ class TemplateRenderTests(unittest.TestCase):
                 self.assertEqual(summary["pending_scan_total"], 3)
                 self.assertEqual(summary["nodes"][0]["wifi_strongest_ssid"], "GRIDRUNNER")
                 self.assertEqual(summary["nodes"][0]["drone_rssi_peak"], "-58")
+                self.assertEqual(summary["rf_targets"][0]["kind"], "drone")
+                self.assertIn("DRONE 1", [target["label"] for target in summary["rf_targets"]])
+                self.assertIn("GRIDRUNNER", [target["label"] for target in summary["rf_targets"]])
         finally:
             app.EDGE_NODE_STATE_DIR = original_edge_node_state_dir
 

@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import re
 import secrets
@@ -304,6 +305,7 @@ def storage_volume_meters(output):
 def load_edge_nodes(now=None):
     now = int(time.time() if now is None else now)
     nodes = []
+    rf_targets = []
     ble_total = 0
     wifi_ap_total = 0
     drone_candidate_total = 0
@@ -332,6 +334,7 @@ def load_edge_nodes(now=None):
         ble = payload.get("ble", {}) if isinstance(payload.get("ble"), dict) else {}
         wifi = payload.get("wifi", {}) if isinstance(payload.get("wifi"), dict) else {}
         drone = payload.get("drone", {}) if isinstance(payload.get("drone"), dict) else {}
+        deauth = payload.get("deauth", {}) if isinstance(payload.get("deauth"), dict) else {}
         age_seconds = max(0, now - mtime)
         ble_known = int_value(ble.get("known_count"))
         ble_unknown = int_value(ble.get("unknown_count"))
@@ -342,9 +345,33 @@ def load_edge_nodes(now=None):
         wifi_ap_total += wifi_ap_count
         drone_candidate_total += drone_candidate_count
         pending_scan_total += pending_scan_count
+        node_id = short_aircraft_value(payload.get("node_id"), state_file.stem)
+        for row in wifi.get("aps", []) if isinstance(wifi.get("aps"), list) else []:
+            if not isinstance(row, dict):
+                continue
+            label = short_aircraft_value(row.get("ssid"), "<hidden>")
+            rssi = int_value(row.get("rssi"), -95)
+            kind = "drone" if row.get("drone_candidate") else "wifi"
+            detail = f"ch {short_aircraft_value(row.get('channel'))} {short_aircraft_value(row.get('security'))}"
+            rf_targets.append(rf_target(node_id, label, kind, rssi, detail, len(rf_targets)))
+        if ble_known + ble_unknown > 0:
+            label = f"BLE {ble_known + ble_unknown}"
+            detail = f"known {ble_known} unk {ble_unknown}"
+            rf_targets.append(rf_target(node_id, label, "bluetooth", int_value(ble.get("rssi_peak"), -95), detail, len(rf_targets)))
+        if drone_candidate_count > 0:
+            detail = f"wifi {short_aircraft_value(drone.get('wifi_count'), '0')} ble {short_aircraft_value(drone.get('ble_count'), '0')}"
+            rf_targets.append(
+                rf_target(node_id, f"DRONE {drone_candidate_count}", "drone", int_value(drone.get("rssi_peak"), -95), detail, len(rf_targets))
+            )
+        deauth_count = int_value(deauth.get("count"))
+        if deauth_count > 0:
+            detail = f"window {short_aircraft_value(deauth.get('window_seconds'))}s"
+            rf_targets.append(
+                rf_target(node_id, f"DEAUTH {deauth_count}", "deauth", int_value(deauth.get("rssi_peak"), -95), detail, len(rf_targets))
+            )
         nodes.append(
             {
-                "node_id": short_aircraft_value(payload.get("node_id"), state_file.stem),
+                "node_id": node_id,
                 "profile": short_aircraft_value(payload.get("profile")),
                 "timestamp": short_aircraft_value(payload.get("timestamp")),
                 "received_at": short_aircraft_value(payload.get("received_at")),
@@ -374,6 +401,7 @@ def load_edge_nodes(now=None):
         )
 
     nodes.sort(key=lambda node: node["age_seconds"])
+    rf_targets.sort(key=lambda target: (target["kind_order"], target["sort_rssi"]))
     if not nodes:
         return {
             "status": "missing",
@@ -393,6 +421,7 @@ def load_edge_nodes(now=None):
         "wifi_ap_total": wifi_ap_total,
         "drone_candidate_total": drone_candidate_total,
         "pending_scan_total": pending_scan_total,
+        "rf_targets": rf_targets,
         "nodes": nodes,
         "state_dir": str(EDGE_NODE_STATE_DIR),
     }
@@ -413,6 +442,33 @@ def int_value(value, default=0):
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+def rf_target(node_id, label, kind, rssi, detail, index):
+    bounded = max(-95, min(-35, int_value(rssi, -95)))
+    strength = (bounded + 95) / 60
+    radius = 42 - (strength * 32)
+    angle = stable_angle(f"{node_id}:{label}:{kind}:{index}")
+    x = 50 + math.cos(angle) * radius
+    y = 50 + math.sin(angle) * radius
+    return {
+        "node_id": node_id,
+        "label": short_aircraft_value(label),
+        "kind": kind if kind in {"wifi", "bluetooth", "deauth", "drone"} else "wifi",
+        "kind_order": {"deauth": 0, "drone": 1, "wifi": 2, "bluetooth": 3}.get(kind, 4),
+        "rssi": str(rssi),
+        "sort_rssi": -int_value(rssi, -95),
+        "detail": short_aircraft_value(detail),
+        "x": f"{max(8, min(92, x)):.1f}",
+        "y": f"{max(8, min(92, y)):.1f}",
+    }
+
+
+def stable_angle(value):
+    total = 0
+    for index, char in enumerate(value):
+        total += (index + 1) * ord(char)
+    return (total % 360) * math.pi / 180
 
 
 def adsb_route_map_url(callsign):
