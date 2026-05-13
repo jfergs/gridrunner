@@ -50,6 +50,10 @@ constexpr int SCREEN_H = 320;
 constexpr int RADAR_CX = 86;
 constexpr int RADAR_CY = 88;
 constexpr int RADAR_R = 72;
+constexpr int RADAR_MIN_R = 14;
+constexpr int RADAR_MAX_R = RADAR_R - 6;
+constexpr int RSSI_STRONG_DBM = -35;
+constexpr int RSSI_WEAK_DBM = -95;
 constexpr size_t MAX_APS = 12;
 constexpr size_t AP_ROWS_PER_PAGE = 5;
 constexpr uint32_t MQTT_RECONNECT_MS = 3000;
@@ -545,10 +549,17 @@ void publishTelemetry() {
   dirty = true;
 }
 
+int rssiRadius(int rssi) {
+  int bounded = constrain(rssi, RSSI_WEAK_DBM, RSSI_STRONG_DBM);
+  int strength = bounded - RSSI_WEAK_DBM;
+  int span = RSSI_STRONG_DBM - RSSI_WEAK_DBM;
+  int radius = RADAR_MAX_R - (strength * (RADAR_MAX_R - RADAR_MIN_R) / span);
+  return constrain(radius, RADAR_MIN_R, RADAR_MAX_R);
+}
+
 void apPoint(const AccessPoint &item, int index, int16_t &x, int16_t &y) {
   double angle = ((item.channel > 0 ? item.channel * 27 : index * 31) + index * 17) * DEG_TO_RAD;
-  int strength = constrain(item.rssi, -95, -30);
-  double radius = map(strength, -30, -95, 16, RADAR_R - 6);
+  double radius = rssiRadius(item.rssi);
   x = RADAR_CX + sin(angle) * radius;
   y = RADAR_CY - cos(angle) * radius;
 }
