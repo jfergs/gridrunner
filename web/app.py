@@ -459,6 +459,8 @@ def rf_target(node_id, label, kind, rssi, detail, index):
         "rssi": str(rssi),
         "sort_rssi": -int_value(rssi, -95),
         "detail": short_aircraft_value(detail),
+        "radar_x": f"{max(8, min(92, x)):.1f}",
+        "radar_y": f"{max(8, min(92, y)):.1f}",
         "x": f"{max(8, min(92, x)):.1f}",
         "y": f"{max(8, min(92, y)):.1f}",
     }

@@ -744,18 +744,30 @@
     }
     .rf-target-row {
       --target-color: var(--cyan);
-      min-height: 34px;
-      display: grid;
-      grid-template-columns: 76px minmax(0, 1fr) 58px;
-      gap: 8px;
-      align-items: center;
-      padding: 7px 8px;
+      display: block;
+      padding: 0;
       border: 1px solid var(--target-color);
       border-radius: 6px;
       background: rgba(0, 0, 0, 0.26);
       color: var(--text);
       font-size: 11px;
       text-transform: uppercase;
+    }
+    .rf-target-row summary {
+      min-height: 34px;
+      display: grid;
+      grid-template-columns: 76px minmax(0, 1fr) 58px;
+      gap: 8px;
+      align-items: center;
+      padding: 7px 8px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .rf-target-row summary::-webkit-details-marker {
+      display: none;
+    }
+    .rf-target-row[open] summary {
+      border-bottom: 1px solid rgba(122, 139, 145, 0.34);
     }
     .rf-target-kind {
       color: var(--target-color);
@@ -769,6 +781,23 @@
     .rf-target-rssi {
       color: var(--muted);
       text-align: right;
+    }
+    .rf-target-detail {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px 10px;
+      padding: 8px;
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.18);
+    }
+    .rf-target-detail span {
+      overflow-wrap: anywhere;
+    }
+    .rf-target-detail strong {
+      display: block;
+      color: var(--target-color);
+      font-size: 10px;
+      font-weight: 800;
     }
     @keyframes rfSweep {
       from {
@@ -1260,18 +1289,30 @@
           <div id="rf-target-list" class="rf-target-list" aria-label="RF target list">
             {% if edge.rf_targets|default([]) %}
               {% for target in edge.rf_targets %}
-              <div class="rf-target-row rf-target-{{ target.kind }}">
-                <span class="rf-target-kind">{{ target.kind }}</span>
-                <span class="rf-target-label">{{ target.label }} · {{ target.detail }}</span>
-                <span class="rf-target-rssi">{{ target.rssi }}</span>
-              </div>
+              <details class="rf-target-row rf-target-{{ target.kind }}">
+                <summary>
+                  <span class="rf-target-kind">{{ target.kind }}</span>
+                  <span class="rf-target-label">{{ target.label }} · {{ target.detail }}</span>
+                  <span class="rf-target-rssi">{{ target.rssi }}</span>
+                </summary>
+                <div class="rf-target-detail">
+                  <span><strong>Node</strong>{{ target.node_id }}</span>
+                  <span><strong>Class</strong>{{ target.kind }}</span>
+                  <span><strong>RSSI</strong>{{ target.rssi }} dBm</span>
+                  <span><strong>Radar</strong>{{ target.radar_x|default(target.x) }}, {{ target.radar_y|default(target.y) }}</span>
+                  <span><strong>Label</strong>{{ target.label }}</span>
+                  <span><strong>Detail</strong>{{ target.detail }}</span>
+                </div>
+              </details>
               {% endfor %}
             {% else %}
-              <div class="rf-target-row">
-                <span class="rf-target-kind">LOCAL</span>
-                <span class="rf-target-label">no RF targets cached</span>
-                <span class="rf-target-rssi">-</span>
-              </div>
+              <details class="rf-target-row">
+                <summary>
+                  <span class="rf-target-kind">LOCAL</span>
+                  <span class="rf-target-label">no RF targets cached</span>
+                  <span class="rf-target-rssi">-</span>
+                </summary>
+              </details>
             {% endif %}
           </div>
         </div>
@@ -1612,11 +1653,24 @@
         const label = escapeHtml(target.label || "-");
         const detail = escapeHtml(target.detail || "-");
         const rssi = escapeHtml(target.rssi || "-");
-        return '<div class="rf-target-row rf-target-' + kind + '">' +
-          '<span class="rf-target-kind">' + kind + '</span>' +
-          '<span class="rf-target-label">' + label + ' · ' + detail + '</span>' +
-          '<span class="rf-target-rssi">' + rssi + '</span>' +
-          '</div>';
+        const nodeId = escapeHtml(target.node_id || "-");
+        const radarX = escapeHtml(target.radar_x || target.x || "-");
+        const radarY = escapeHtml(target.radar_y || target.y || "-");
+        return '<details class="rf-target-row rf-target-' + kind + '">' +
+          '<summary>' +
+            '<span class="rf-target-kind">' + kind + '</span>' +
+            '<span class="rf-target-label">' + label + ' · ' + detail + '</span>' +
+            '<span class="rf-target-rssi">' + rssi + '</span>' +
+          '</summary>' +
+          '<div class="rf-target-detail">' +
+            '<span><strong>Node</strong>' + nodeId + '</span>' +
+            '<span><strong>Class</strong>' + kind + '</span>' +
+            '<span><strong>RSSI</strong>' + rssi + ' dBm</span>' +
+            '<span><strong>Radar</strong>' + radarX + ', ' + radarY + '</span>' +
+            '<span><strong>Label</strong>' + label + '</span>' +
+            '<span><strong>Detail</strong>' + detail + '</span>' +
+          '</div>' +
+          '</details>';
       }
 
       function nodeMarkup(node) {
@@ -1682,7 +1736,7 @@
         if (rfTargetList) {
           const targets = Array.isArray(edge.rf_targets) ? edge.rf_targets : [];
           rfTargetList.innerHTML = targets.length ? targets.map(targetMarkup).join("") :
-            '<div class="rf-target-row"><span class="rf-target-kind">LOCAL</span><span class="rf-target-label">no RF targets cached</span><span class="rf-target-rssi">-</span></div>';
+            '<details class="rf-target-row"><summary><span class="rf-target-kind">LOCAL</span><span class="rf-target-label">no RF targets cached</span><span class="rf-target-rssi">-</span></summary></details>';
         }
         if (edgeNodeList) {
           edgeNodeList.innerHTML = liveEdgeNodes.length ? liveEdgeNodes.map(nodeMarkup).join("") : "<pre>No edge-node telemetry cached.</pre>";
