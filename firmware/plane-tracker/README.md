@@ -57,6 +57,50 @@ mosquitto_sub -h localhost -t gridrunner/adsb/plane-tracker -C 1 -v
 
 The display renders `null` altitude, speed, or heading values as `---`.
 
+## Display UI
+
+The normal display is intentionally compact:
+
+- Top: spinning radar sweep with aircraft blips.
+- Middle/lower: aircraft list with `ID`, `ALT`, `SPD`, and `HDG`.
+- Bottom: compact status strip.
+
+The bottom status strip uses short codes to avoid crowding the radar:
+
+| Code | Meaning |
+| --- | --- |
+| `A<count>` | Total aircraft reported by the Pi payload |
+| `<age>s` | Payload age in seconds |
+| `W+` / `W-` | Wi-Fi connected / disconnected |
+| `M+` / `M-` | MQTT connected / disconnected |
+| `B<level>` | Current backlight level |
+| `L` / `D` | List view / detail view |
+| `P<page>/<pages>` | Current aircraft list page, only shown when needed |
+
+Color meanings:
+
+| Color | Meaning |
+| --- | --- |
+| Green | Normal radar grid, status, and live text |
+| Dim green | Secondary grid and placeholder text |
+| Yellow | Active aircraft row text |
+| Red | Selected aircraft blip or stale/bad status |
+| Amber | Aircraft not seen for more than 20 seconds |
+
+The list keeps up to 12 aircraft from the MQTT payload and shows 5 at a time.
+Single-tapping through the aircraft advances onto the next page automatically.
+
+## Side Button
+
+The side button is configured on GPIO9 with the internal pull-up enabled:
+
+| Gesture | Action |
+| --- | --- |
+| Single tap | Select next aircraft in list view; return to list from detail view |
+| Double tap | Return to list view |
+| Long press | Open detail view for the selected aircraft |
+| Triple tap | Cycle backlight brightness through `0`, `25`, `50`, `75`, `100` |
+
 ## Touch/JD9853 Variant
 
 If your board is `ESP32-C6-Touch-LCD-1.47`, it uses a different display driver
