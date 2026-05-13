@@ -24,7 +24,7 @@
 #define GRIDRUNNER_BLE_SCAN_INTERVAL_MS 30000
 #endif
 #ifndef GRIDRUNNER_BLE_SCAN_SECONDS
-#define GRIDRUNNER_BLE_SCAN_SECONDS 5
+#define GRIDRUNNER_BLE_SCAN_SECONDS 2
 #endif
 #ifndef GRIDRUNNER_BLE_IGNORE_RSSI_BELOW
 #define GRIDRUNNER_BLE_IGNORE_RSSI_BELOW -95
@@ -54,6 +54,7 @@ constexpr size_t MAX_APS = 12;
 constexpr size_t AP_ROWS_PER_PAGE = 5;
 constexpr uint32_t MQTT_RECONNECT_MS = 3000;
 constexpr uint32_t WIFI_RETRY_MS = 10000;
+constexpr uint32_t WIFI_SCAN_TIMEOUT_MS = 8000;
 constexpr uint32_t STATUS_REFRESH_MS = 5000;
 constexpr uint32_t SWEEP_REFRESH_MS = 120;
 constexpr uint32_t BUTTON_DEBOUNCE_MS = 35;
@@ -111,9 +112,12 @@ String trackerStatus = "boot";
 ViewMode viewMode = ViewMode::List;
 uint8_t brightnessIndex = DEFAULT_BRIGHTNESS_INDEX;
 bool dirty = true;
-bool scanning = false;
+bool wifiScanInProgress = false;
+bool bleScanInProgress = false;
 BLEScan *bleScan = nullptr;
+uint32_t wifiScanStartedMs = 0;
 uint32_t lastBleScanMs = 0;
+uint32_t bleScanStartedMs = 0;
 uint32_t bleScanCount = 0;
 int bleKnownCount = 0;
 int bleUnknownCount = 0;
@@ -133,6 +137,8 @@ uint8_t pendingTapCount = 0;
 uint32_t buttonLastChangeMs = 0;
 uint32_t buttonPressedAtMs = 0;
 uint32_t lastTapAtMs = 0;
+
+void bleScanComplete(BLEScanResults results);
 
 String trimmedCopy(const String &value) {
   String copy = value;
@@ -237,8 +243,12 @@ void recordDroneCandidate(int rssi, bool fromWifi) {
   refreshDroneSummary();
 }
 
+bool scanBusy() {
+  return wifiScanInProgress || bleScanInProgress;
+}
+
 void connectWifi() {
-  if (WiFi.status() == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED || scanBusy()) {
     return;
   }
 
@@ -313,21 +323,7 @@ void sortAccessPoints() {
   }
 }
 
-void scanWifi() {
-  if (scanning) {
-    return;
-  }
-
-  uint32_t now = millis();
-  if (lastScanMs != 0 && now - lastScanMs < GRIDRUNNER_WIFI_SCAN_INTERVAL_MS) {
-    return;
-  }
-
-  scanning = true;
-  trackerStatus = "scan";
-  dirty = true;
-
-  int found = WiFi.scanNetworks(false, true);
+void finishWifiScan(int found) {
   totalAps = found > 0 ? static_cast<size_t>(found) : 0;
   apCount = 0;
   strongestRssi = -127;
@@ -370,25 +366,46 @@ void scanWifi() {
   pendingTelemetryScans++;
   lastScanMs = millis();
   trackerStatus = mqtt.connected() ? "linked" : "local";
-  scanning = false;
+  wifiScanInProgress = false;
   dirty = true;
 }
 
-void scanBle() {
-  if (scanning || bleScan == nullptr) {
-    return;
-  }
-
+void scanWifi() {
   uint32_t now = millis();
-  if (lastBleScanMs != 0 && now - lastBleScanMs < GRIDRUNNER_BLE_SCAN_INTERVAL_MS) {
+  if (wifiScanInProgress) {
+    int complete = WiFi.scanComplete();
+    if (complete >= 0) {
+      finishWifiScan(complete);
+    } else if (complete == WIFI_SCAN_FAILED || now - wifiScanStartedMs > WIFI_SCAN_TIMEOUT_MS) {
+      WiFi.scanDelete();
+      wifiScanInProgress = false;
+      lastScanMs = now;
+      trackerStatus = "wifi-timeout";
+      dirty = true;
+    }
     return;
   }
 
-  scanning = true;
-  trackerStatus = "ble";
-  dirty = true;
+  if (bleScanInProgress || (lastScanMs != 0 && now - lastScanMs < GRIDRUNNER_WIFI_SCAN_INTERVAL_MS)) {
+    return;
+  }
 
-  BLEScanResults *results = bleScan->start(GRIDRUNNER_BLE_SCAN_SECONDS, false);
+  int started = WiFi.scanNetworks(true, true, false, 120);
+  if (started == WIFI_SCAN_RUNNING) {
+    wifiScanInProgress = true;
+    wifiScanStartedMs = now;
+    trackerStatus = "wifi-scan";
+  } else if (started >= 0) {
+    finishWifiScan(started);
+    return;
+  } else {
+    lastScanMs = now;
+    trackerStatus = "wifi-scan-fail";
+  }
+  dirty = true;
+}
+
+void finishBleScan(BLEScanResults *results) {
   int known = 0;
   int unknown = 0;
   int ignored = 0;
@@ -425,10 +442,44 @@ void scanBle() {
   bleScanCount++;
   pendingTelemetryScans++;
   lastBleScanMs = millis();
-  bleScan->clearResults();
+  if (bleScan != nullptr) {
+    bleScan->clearResults();
+  }
   trackerStatus = mqtt.connected() ? "linked" : "local";
-  scanning = false;
+  bleScanInProgress = false;
   dirty = true;
+}
+
+void scanBle() {
+  if (bleScan == nullptr) {
+    return;
+  }
+
+  uint32_t now = millis();
+  if (bleScanInProgress) {
+    if (!bleScan->isScanning() && now - bleScanStartedMs >= GRIDRUNNER_BLE_SCAN_SECONDS * 1000UL) {
+      finishBleScan(bleScan->getResults());
+    }
+    return;
+  }
+
+  if (wifiScanInProgress || (lastBleScanMs != 0 && now - lastBleScanMs < GRIDRUNNER_BLE_SCAN_INTERVAL_MS)) {
+    return;
+  }
+
+  if (bleScan->start(GRIDRUNNER_BLE_SCAN_SECONDS, bleScanComplete, false)) {
+    bleScanInProgress = true;
+    bleScanStartedMs = now;
+    trackerStatus = "ble-scan";
+  } else {
+    lastBleScanMs = now;
+    trackerStatus = "ble-scan-fail";
+  }
+  dirty = true;
+}
+
+void bleScanComplete(BLEScanResults results) {
+  (void)results;
 }
 
 void publishTelemetry() {
@@ -548,7 +599,7 @@ void drawStatus() {
   }
 
   uint16_t color = mqtt.connected() ? COLOR_TEXT : COLOR_WARN;
-  if (scanning) {
+  if (scanBusy()) {
     color = COLOR_WARN;
   }
   drawText(4, 296, signalStatus, color);
