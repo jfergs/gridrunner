@@ -325,8 +325,20 @@ class TemplateRenderTests(unittest.TestCase):
                             "unknown_count": "13",
                             "ignored_count": "2",
                             "rssi_peak": "-48",
+                            "wifi_ap_count": "8",
+                            "wifi_strongest_rssi": "-42",
+                            "wifi_strongest_ssid": "GRIDRUNNER",
+                            "drone_candidate_count": "1",
+                            "drone_wifi_count": "0",
+                            "drone_ble_count": "1",
+                            "drone_rssi_peak": "-58",
+                            "pending_scan_count": "3",
                         }
                     ],
+                    "ble_total": 18,
+                    "wifi_ap_total": 8,
+                    "drone_candidate_total": 1,
+                    "pending_scan_total": 3,
                 },
             },
         )
@@ -379,6 +391,11 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Edge Nodes", response.body)
         self.assertIn(b"node-03", response.body)
         self.assertIn(b"ble-presence", response.body)
+        self.assertIn(b"Drone", response.body)
+        self.assertIn(b"aps 8", response.body)
+        self.assertIn(b"drone 1", response.body)
+        self.assertIn(b"strong GRIDRUNNER", response.body)
+        self.assertIn(b"pending 3", response.body)
         self.assertIn(b"Storage routing and controls", response.body)
         self.assertIn(b"Use USB Storage", response.body)
         self.assertIn(b"External USB storage is active", response.body)
@@ -426,13 +443,27 @@ class TemplateRenderTests(unittest.TestCase):
                             "timestamp": "2026-05-12T17:30:00Z",
                             "received_at": "2026-05-12T17:30:01Z",
                             "battery": {"percent": 82, "voltage": 3.98, "charging": False},
-                            "link": {"transport": "mqtt", "rssi": -61, "last_sync_seconds": 12},
+                            "link": {"transport": "mqtt", "rssi": -61, "last_sync_seconds": 12, "pending_scan_count": 3},
                             "ble": {
                                 "window_seconds": 60,
                                 "known_count": 5,
                                 "unknown_count": 13,
                                 "ignored_count": 2,
                                 "rssi_peak": -48,
+                            },
+                            "wifi": {
+                                "window_seconds": 15,
+                                "ap_count": 8,
+                                "stored_count": 5,
+                                "strongest_rssi": -42,
+                                "strongest_ssid": "GRIDRUNNER",
+                                "scan_count": 4,
+                            },
+                            "drone": {
+                                "candidate_count": 1,
+                                "wifi_count": 0,
+                                "ble_count": 1,
+                                "rssi_peak": -58,
                             },
                         }
                     ),
@@ -446,6 +477,12 @@ class TemplateRenderTests(unittest.TestCase):
                 self.assertEqual(summary["nodes"][0]["node_id"], "node-03")
                 self.assertEqual(summary["nodes"][0]["battery_percent"], "82")
                 self.assertEqual(summary["nodes"][0]["unknown_count"], "13")
+                self.assertEqual(summary["ble_total"], 18)
+                self.assertEqual(summary["wifi_ap_total"], 8)
+                self.assertEqual(summary["drone_candidate_total"], 1)
+                self.assertEqual(summary["pending_scan_total"], 3)
+                self.assertEqual(summary["nodes"][0]["wifi_strongest_ssid"], "GRIDRUNNER")
+                self.assertEqual(summary["nodes"][0]["drone_rssi_peak"], "-58")
         finally:
             app.EDGE_NODE_STATE_DIR = original_edge_node_state_dir
 

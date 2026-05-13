@@ -93,7 +93,7 @@ jq --arg received_at "$received_at" '. + {received_at: $received_at}' "$payload"
 mv "$state_file.tmp" "$state_file"
 
 mkdir -p "$(dirname "$events_log")"
-printf '%s edge-node node=%s profile=%s transport=%s battery=%s ble_known=%s ble_unknown=%s ble_ignored=%s rssi_peak=%s\n' \
+printf '%s edge-node node=%s profile=%s transport=%s battery=%s ble_known=%s ble_unknown=%s ble_ignored=%s rssi_peak=%s wifi_aps=%s drone_candidates=%s pending_scans=%s\n' \
   "$received_at" \
   "$safe_node_id" \
   "$(jq -r '.profile' "$payload")" \
@@ -102,7 +102,10 @@ printf '%s edge-node node=%s profile=%s transport=%s battery=%s ble_known=%s ble
   "$(jq -r '.ble.known_count' "$payload")" \
   "$(jq -r '.ble.unknown_count' "$payload")" \
   "$(jq -r '.ble.ignored_count' "$payload")" \
-  "$(jq -r '.ble.rssi_peak' "$payload")" >> "$events_log"
+  "$(jq -r '.ble.rssi_peak' "$payload")" \
+  "$(jq -r '.wifi.ap_count // 0' "$payload")" \
+  "$(jq -r '.drone.candidate_count // 0' "$payload")" \
+  "$(jq -r '.link.pending_scan_count // 0' "$payload")" >> "$events_log"
 
 printf 'GRIDRUNNER_EDGE_NODE_INGEST status=ok node=%s state_file=%s events_log=%s\n' \
   "$safe_node_id" "$state_file" "$events_log"

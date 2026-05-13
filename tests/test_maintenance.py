@@ -307,7 +307,8 @@ class MaintenanceTests(unittest.TestCase):
   "link": {
     "transport": "mqtt",
     "rssi": -61,
-    "last_sync_seconds": 12
+    "last_sync_seconds": 12,
+    "pending_scan_count": 3
   },
   "ble": {
     "window_seconds": 60,
@@ -315,6 +316,20 @@ class MaintenanceTests(unittest.TestCase):
     "unknown_count": 13,
     "ignored_count": 2,
     "rssi_peak": -48
+  },
+  "wifi": {
+    "window_seconds": 15,
+    "ap_count": 8,
+    "stored_count": 5,
+    "strongest_rssi": -42,
+    "strongest_ssid": "GRIDRUNNER",
+    "scan_count": 4
+  },
+  "drone": {
+    "candidate_count": 1,
+    "wifi_count": 0,
+    "ble_count": 1,
+    "rssi_peak": -58
   }
 }
 """,
@@ -345,6 +360,9 @@ class MaintenanceTests(unittest.TestCase):
             event_text = events_log.read_text(encoding="utf-8")
             self.assertIn("edge-node node=node-03", event_text)
             self.assertIn("ble_unknown=13", event_text)
+            self.assertIn("wifi_aps=8", event_text)
+            self.assertIn("drone_candidates=1", event_text)
+            self.assertIn("pending_scans=3", event_text)
 
 
 if __name__ == "__main__":

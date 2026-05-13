@@ -304,6 +304,10 @@ def storage_volume_meters(output):
 def load_edge_nodes(now=None):
     now = int(time.time() if now is None else now)
     nodes = []
+    ble_total = 0
+    wifi_ap_total = 0
+    drone_candidate_total = 0
+    pending_scan_total = 0
 
     try:
         state_files = sorted(EDGE_NODE_STATE_DIR.glob("*.json"))
@@ -326,7 +330,18 @@ def load_edge_nodes(now=None):
         battery = payload.get("battery", {}) if isinstance(payload.get("battery"), dict) else {}
         link = payload.get("link", {}) if isinstance(payload.get("link"), dict) else {}
         ble = payload.get("ble", {}) if isinstance(payload.get("ble"), dict) else {}
+        wifi = payload.get("wifi", {}) if isinstance(payload.get("wifi"), dict) else {}
+        drone = payload.get("drone", {}) if isinstance(payload.get("drone"), dict) else {}
         age_seconds = max(0, now - mtime)
+        ble_known = int_value(ble.get("known_count"))
+        ble_unknown = int_value(ble.get("unknown_count"))
+        wifi_ap_count = int_value(wifi.get("ap_count"))
+        drone_candidate_count = int_value(drone.get("candidate_count"))
+        pending_scan_count = int_value(link.get("pending_scan_count"))
+        ble_total += ble_known + ble_unknown
+        wifi_ap_total += wifi_ap_count
+        drone_candidate_total += drone_candidate_count
+        pending_scan_total += pending_scan_count
         nodes.append(
             {
                 "node_id": short_aircraft_value(payload.get("node_id"), state_file.stem),
@@ -340,11 +355,21 @@ def load_edge_nodes(now=None):
                 "transport": short_aircraft_value(link.get("transport")),
                 "rssi": short_aircraft_value(link.get("rssi")),
                 "last_sync_seconds": short_aircraft_value(link.get("last_sync_seconds")),
+                "pending_scan_count": short_aircraft_value(pending_scan_count, "0"),
                 "window_seconds": short_aircraft_value(ble.get("window_seconds")),
-                "known_count": short_aircraft_value(ble.get("known_count"), "0"),
-                "unknown_count": short_aircraft_value(ble.get("unknown_count"), "0"),
+                "known_count": short_aircraft_value(ble_known, "0"),
+                "unknown_count": short_aircraft_value(ble_unknown, "0"),
                 "ignored_count": short_aircraft_value(ble.get("ignored_count"), "0"),
                 "rssi_peak": short_aircraft_value(ble.get("rssi_peak")),
+                "wifi_ap_count": short_aircraft_value(wifi_ap_count, "0"),
+                "wifi_stored_count": short_aircraft_value(wifi.get("stored_count"), "0"),
+                "wifi_strongest_rssi": short_aircraft_value(wifi.get("strongest_rssi")),
+                "wifi_strongest_ssid": short_aircraft_value(wifi.get("strongest_ssid")),
+                "wifi_scan_count": short_aircraft_value(wifi.get("scan_count"), "0"),
+                "drone_candidate_count": short_aircraft_value(drone_candidate_count, "0"),
+                "drone_wifi_count": short_aircraft_value(drone.get("wifi_count"), "0"),
+                "drone_ble_count": short_aircraft_value(drone.get("ble_count"), "0"),
+                "drone_rssi_peak": short_aircraft_value(drone.get("rssi_peak")),
             }
         )
 
@@ -364,6 +389,10 @@ def load_edge_nodes(now=None):
         "status": status_value,
         "message": f"{len(nodes)} edge node{'s' if len(nodes) != 1 else ''}; newest {newest_age}s ago",
         "count": len(nodes),
+        "ble_total": ble_total,
+        "wifi_ap_total": wifi_ap_total,
+        "drone_candidate_total": drone_candidate_total,
+        "pending_scan_total": pending_scan_total,
         "nodes": nodes,
         "state_dir": str(EDGE_NODE_STATE_DIR),
     }
@@ -377,6 +406,13 @@ def short_aircraft_value(value, default="-"):
     if value in (None, ""):
         return default
     return str(value).strip() or default
+
+
+def int_value(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def adsb_route_map_url(callsign):

@@ -1130,6 +1130,10 @@
         <span>{{ edge.message }}</span>
         <div class="telemetry-grid">
           <div class="telemetry"><span>Nodes</span><strong>{{ edge.count }}</strong></div>
+          <div class="telemetry"><span>BLE</span><strong>{{ edge.ble_total|default(0) }}</strong></div>
+          <div class="telemetry"><span>APs</span><strong>{{ edge.wifi_ap_total|default(0) }}</strong></div>
+          <div class="telemetry"><span>Drone</span><strong>{{ edge.drone_candidate_total|default(0) }}</strong></div>
+          <div class="telemetry"><span>Pending</span><strong>{{ edge.pending_scan_total|default(0) }}</strong></div>
           <div class="telemetry"><span>State</span><strong>{{ edge.state_dir }}</strong></div>
         </div>
         <details class="drawer">
@@ -1147,8 +1151,20 @@
                     <span>link {{ node.transport }}</span>
                     <span>known {{ node.known_count }}</span>
                     <span>unk {{ node.unknown_count }}</span>
+                    <span>aps {{ node.wifi_ap_count }}</span>
+                    <span>drone {{ node.drone_candidate_count }}</span>
                     <span>peak {{ node.rssi_peak }}</span>
+                    <span>wifi {{ node.wifi_strongest_rssi }}</span>
+                    <span>pending {{ node.pending_scan_count }}</span>
                   </div>
+                  {% if node.wifi_strongest_ssid != '-' or node.drone_candidate_count != '0' %}
+                  <div class="flight-meta">
+                    <span>strong {{ node.wifi_strongest_ssid }}</span>
+                    <span>drone-wifi {{ node.drone_wifi_count }}</span>
+                    <span>drone-ble {{ node.drone_ble_count }}</span>
+                    <span>drone-peak {{ node.drone_rssi_peak }}</span>
+                  </div>
+                  {% endif %}
                 </div>
                 <div><span class="status health-{{ node.freshness }}">{{ node.freshness }}</span></div>
               </div>
