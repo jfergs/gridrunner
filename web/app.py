@@ -1145,6 +1145,13 @@ def index(request: Request, _user=Depends(require_auth)):
     return response
 
 
+@app.get("/edge-nodes/api")
+def edge_nodes_api(_user=Depends(require_auth)):
+    response = JSONResponse(load_edge_nodes())
+    no_store(response)
+    return response
+
+
 @app.post("/scans", response_class=HTMLResponse)
 def scan_action(
     request: Request,

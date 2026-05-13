@@ -1225,23 +1225,23 @@
         {% set edge = edge_nodes|default({"status": "missing", "message": "no edge-node telemetry cached", "count": 0, "nodes": [], "state_dir": ""}) %}
         <span class="deck-label">Edge Mesh</span>
         <h2>Edge Nodes</h2>
-        <span class="status health-{{ edge.status }}">{{ edge.status }}</span>
-        <span>{{ edge.message }}</span>
+        <span id="edge-status" class="status health-{{ edge.status }}">{{ edge.status }}</span>
+        <span id="edge-message">{{ edge.message }}</span>
         <div class="telemetry-grid">
-          <div class="telemetry"><span>Nodes</span><strong>{{ edge.count }}</strong></div>
-          <div class="telemetry"><span>BLE</span><strong>{{ edge.ble_total|default(0) }}</strong></div>
-          <div class="telemetry"><span>APs</span><strong>{{ edge.wifi_ap_total|default(0) }}</strong></div>
-          <div class="telemetry"><span>Drone</span><strong>{{ edge.drone_candidate_total|default(0) }}</strong></div>
-          <div class="telemetry"><span>Pending</span><strong>{{ edge.pending_scan_total|default(0) }}</strong></div>
-          <div class="telemetry"><span>State</span><strong>{{ edge.state_dir }}</strong></div>
+          <div class="telemetry"><span>Nodes</span><strong id="edge-count">{{ edge.count }}</strong></div>
+          <div class="telemetry"><span>BLE</span><strong id="edge-ble-total">{{ edge.ble_total|default(0) }}</strong></div>
+          <div class="telemetry"><span>APs</span><strong id="edge-wifi-total">{{ edge.wifi_ap_total|default(0) }}</strong></div>
+          <div class="telemetry"><span>Drone</span><strong id="edge-drone-total">{{ edge.drone_candidate_total|default(0) }}</strong></div>
+          <div class="telemetry"><span>Pending</span><strong id="edge-pending-total">{{ edge.pending_scan_total|default(0) }}</strong></div>
+          <div class="telemetry"><span>State</span><strong id="edge-state-dir">{{ edge.state_dir }}</strong></div>
         </div>
         <div class="rf-monitor">
-          <div class="rf-radar" aria-label="RF target radar">
+          <div id="rf-radar" class="rf-radar" aria-label="RF target radar">
             {% for target in edge.rf_targets|default([]) %}
             <span class="rf-blip rf-blip-{{ target.kind }}" style="--x: {{ target.x }}%; --y: {{ target.y }}%;" title="{{ target.kind }} {{ target.label }} {{ target.rssi }} dBm"></span>
             {% endfor %}
           </div>
-          <div class="rf-target-list" aria-label="RF target list">
+          <div id="rf-target-list" class="rf-target-list" aria-label="RF target list">
             {% if edge.rf_targets|default([]) %}
               {% for target in edge.rf_targets %}
               <div class="rf-target-row rf-target-{{ target.kind }}">
@@ -1263,7 +1263,7 @@
           <summary>Edge-node telemetry</summary>
           <div class="drawer-body">
             {% if edge.nodes %}
-            <div class="flight-board">
+            <div id="edge-node-list" class="flight-board">
               {% for node in edge.nodes %}
               <div class="flight-row">
                 <div>
@@ -1294,7 +1294,7 @@
               {% endfor %}
             </div>
             {% else %}
-            <pre>No edge-node telemetry cached.</pre>
+            <div id="edge-node-list" class="flight-board"><pre>No edge-node telemetry cached.</pre></div>
             {% endif %}
           </div>
         </details>
@@ -1550,6 +1550,160 @@
       const toggleButton = document.getElementById("scan-toggle-button");
       const profileSwitch = document.getElementById("scan-profile-switch");
       const profileAction = document.getElementById("scan-profile-action");
+      const edgePanel = document.getElementById("edge-nodes");
+      const edgeStatus = document.getElementById("edge-status");
+      const edgeMessage = document.getElementById("edge-message");
+      const edgeCount = document.getElementById("edge-count");
+      const edgeBleTotal = document.getElementById("edge-ble-total");
+      const edgeWifiTotal = document.getElementById("edge-wifi-total");
+      const edgeDroneTotal = document.getElementById("edge-drone-total");
+      const edgePendingTotal = document.getElementById("edge-pending-total");
+      const edgeStateDir = document.getElementById("edge-state-dir");
+      const rfRadar = document.getElementById("rf-radar");
+      const rfTargetList = document.getElementById("rf-target-list");
+      const edgeNodeList = document.getElementById("edge-node-list");
+      let liveEdgeNodes = [];
+      let edgePollInFlight = false;
+
+      function setText(element, value) {
+        if (element) {
+          element.textContent = value === undefined || value === null ? "" : String(value);
+        }
+      }
+
+      function clearHealthClasses(element) {
+        if (!element) {
+          return;
+        }
+        Array.from(element.classList).forEach(function (className) {
+          if (className.indexOf("health-") === 0) {
+            element.classList.remove(className);
+          }
+        });
+      }
+
+      function escapeHtml(value) {
+        return String(value === undefined || value === null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function targetMarkup(target) {
+        const kind = escapeHtml(target.kind || "wifi");
+        const label = escapeHtml(target.label || "-");
+        const detail = escapeHtml(target.detail || "-");
+        const rssi = escapeHtml(target.rssi || "-");
+        return '<div class="rf-target-row rf-target-' + kind + '">' +
+          '<span class="rf-target-kind">' + kind + '</span>' +
+          '<span class="rf-target-label">' + label + ' · ' + detail + '</span>' +
+          '<span class="rf-target-rssi">' + rssi + '</span>' +
+          '</div>';
+      }
+
+      function nodeMarkup(node) {
+        const freshness = escapeHtml(node.freshness || "unknown");
+        let extra = "";
+        if ((node.wifi_strongest_ssid || "-") !== "-" || String(node.drone_candidate_count || "0") !== "0") {
+          extra = '<div class="flight-meta">' +
+            '<span>strong ' + escapeHtml(node.wifi_strongest_ssid || "-") + '</span>' +
+            '<span>drone-wifi ' + escapeHtml(node.drone_wifi_count || "0") + '</span>' +
+            '<span>drone-ble ' + escapeHtml(node.drone_ble_count || "0") + '</span>' +
+            '<span>drone-peak ' + escapeHtml(node.drone_rssi_peak || "-") + '</span>' +
+            '</div>';
+        }
+        return '<div class="flight-row">' +
+          '<div>' +
+            '<div><span class="flight-ident">' + escapeHtml(node.node_id || "-") + '</span><span class="flight-route">' + escapeHtml(node.profile || "-") + '</span></div>' +
+            '<div class="flight-meta">' +
+              '<span>age <span class="edge-node-age" data-age="' + escapeHtml(node.age_seconds || 0) + '">' + escapeHtml(node.age_seconds || 0) + '</span>s</span>' +
+              '<span>batt ' + escapeHtml(node.battery_percent || "-") + '%</span>' +
+              '<span>link ' + escapeHtml(node.transport || "-") + '</span>' +
+              '<span>known ' + escapeHtml(node.known_count || "0") + '</span>' +
+              '<span>unk ' + escapeHtml(node.unknown_count || "0") + '</span>' +
+              '<span>aps ' + escapeHtml(node.wifi_ap_count || "0") + '</span>' +
+              '<span>drone ' + escapeHtml(node.drone_candidate_count || "0") + '</span>' +
+              '<span>peak ' + escapeHtml(node.rssi_peak || "-") + '</span>' +
+              '<span>wifi ' + escapeHtml(node.wifi_strongest_rssi || "-") + '</span>' +
+              '<span>pending ' + escapeHtml(node.pending_scan_count || "0") + '</span>' +
+            '</div>' +
+            extra +
+          '</div>' +
+          '<div><span class="status health-' + freshness + '">' + freshness + '</span></div>' +
+        '</div>';
+      }
+
+      function renderEdge(edge) {
+        if (!edge) {
+          return;
+        }
+        liveEdgeNodes = Array.isArray(edge.nodes) ? edge.nodes : [];
+        if (edgeStatus) {
+          clearHealthClasses(edgeStatus);
+          edgeStatus.classList.add("health-" + (edge.status || "unknown"));
+          edgeStatus.textContent = edge.status || "unknown";
+        }
+        setText(edgeMessage, edge.message || "");
+        setText(edgeCount, edge.count || 0);
+        setText(edgeBleTotal, edge.ble_total || 0);
+        setText(edgeWifiTotal, edge.wifi_ap_total || 0);
+        setText(edgeDroneTotal, edge.drone_candidate_total || 0);
+        setText(edgePendingTotal, edge.pending_scan_total || 0);
+        setText(edgeStateDir, edge.state_dir || "");
+        if (rfRadar) {
+          const targets = Array.isArray(edge.rf_targets) ? edge.rf_targets : [];
+          rfRadar.innerHTML = targets.map(function (target) {
+            const kind = escapeHtml(target.kind || "wifi");
+            const label = escapeHtml(target.label || "-");
+            const rssi = escapeHtml(target.rssi || "-");
+            const x = Number(target.x || 50);
+            const y = Number(target.y || 50);
+            return '<span class="rf-blip rf-blip-' + kind + '" style="--x: ' + x + '%; --y: ' + y + '%;" title="' + kind + ' ' + label + ' ' + rssi + ' dBm"></span>';
+          }).join("");
+        }
+        if (rfTargetList) {
+          const targets = Array.isArray(edge.rf_targets) ? edge.rf_targets : [];
+          rfTargetList.innerHTML = targets.length ? targets.map(targetMarkup).join("") :
+            '<div class="rf-target-row"><span class="rf-target-kind">LOCAL</span><span class="rf-target-label">no RF targets cached</span><span class="rf-target-rssi">-</span></div>';
+        }
+        if (edgeNodeList) {
+          edgeNodeList.innerHTML = liveEdgeNodes.length ? liveEdgeNodes.map(nodeMarkup).join("") : "<pre>No edge-node telemetry cached.</pre>";
+        }
+      }
+
+      async function refreshEdge() {
+        if (!edgePanel || edgePollInFlight) {
+          return;
+        }
+        edgePollInFlight = true;
+        try {
+          const response = await fetch("/edge-nodes/api", {
+            credentials: "same-origin",
+            headers: { "Accept": "application/json" },
+          });
+          if (response.ok) {
+            renderEdge(await response.json());
+          }
+        } finally {
+          edgePollInFlight = false;
+        }
+      }
+
+      function tickEdgeAges() {
+        if (!edgePanel) {
+          return;
+        }
+        liveEdgeNodes.forEach(function (node) {
+          node.age_seconds = Number(node.age_seconds || 0) + 1;
+        });
+        document.querySelectorAll(".edge-node-age").forEach(function (element) {
+          const age = Number(element.dataset.age || element.textContent || 0) + 1;
+          element.dataset.age = age;
+          element.textContent = age;
+        });
+      }
 
       function setNotice(message) {
         if (!notice) {
@@ -1647,6 +1801,12 @@
           profileAction.value = profileSwitch.value === "1" ? "profile:field" : "profile:low-impact";
           submitScanForm(profileSwitch.form);
         });
+      }
+
+      if (edgePanel) {
+        setInterval(tickEdgeAges, 1000);
+        setInterval(refreshEdge, 2000);
+        refreshEdge();
       }
     }());
   </script>

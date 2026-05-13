@@ -436,6 +436,9 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"rf-target-bluetooth", response.body)
         self.assertIn(b"rf-target-drone", response.body)
         self.assertIn(b"rf-target-deauth", response.body)
+        self.assertIn(b"/edge-nodes/api", response.body)
+        self.assertIn(b"setInterval(tickEdgeAges, 1000)", response.body)
+        self.assertIn(b"setInterval(refreshEdge, 2000)", response.body)
         self.assertIn(b"Storage routing and controls", response.body)
         self.assertIn(b"Use USB Storage", response.body)
         self.assertIn(b"External USB storage is active", response.body)
@@ -542,6 +545,49 @@ class TemplateRenderTests(unittest.TestCase):
                 self.assertEqual(summary["rf_targets"][0]["kind"], "drone")
                 self.assertIn("DRONE 1", [target["label"] for target in summary["rf_targets"]])
                 self.assertIn("GRIDRUNNER", [target["label"] for target in summary["rf_targets"]])
+        finally:
+            app.EDGE_NODE_STATE_DIR = original_edge_node_state_dir
+
+    def test_edge_nodes_api_returns_live_summary(self):
+        original_edge_node_state_dir = app.EDGE_NODE_STATE_DIR
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                edge_dir = Path(temp_dir) / "edge-nodes"
+                edge_dir.mkdir()
+                (edge_dir / "node-03.json").write_text(
+                    json.dumps(
+                        {
+                            "schema": "gridrunner.edge_node.v1",
+                            "node_id": "node-03",
+                            "profile": "rf-handheld",
+                            "timestamp": "2026-05-12T17:30:00Z",
+                            "received_at": "2026-05-12T17:30:01Z",
+                            "battery": {"percent": 82, "charging": False},
+                            "link": {"transport": "mqtt", "rssi": -61, "last_sync_seconds": 12, "pending_scan_count": 2},
+                            "ble": {"window_seconds": 30, "known_count": 1, "unknown_count": 2, "ignored_count": 0, "rssi_peak": -44},
+                            "wifi": {
+                                "window_seconds": 15,
+                                "ap_count": 1,
+                                "stored_count": 1,
+                                "strongest_rssi": -42,
+                                "strongest_ssid": "GRIDRUNNER",
+                                "aps": [{"ssid": "GRIDRUNNER", "rssi": -42, "channel": 6, "security": "WPA2"}],
+                            },
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                app.EDGE_NODE_STATE_DIR = edge_dir
+
+                response = app.edge_nodes_api(_user="operator")
+                payload = json.loads(response.body)
+
+                self.assertEqual(payload["status"], "present")
+                self.assertEqual(payload["count"], 1)
+                self.assertEqual(payload["ble_total"], 3)
+                self.assertEqual(payload["wifi_ap_total"], 1)
+                self.assertEqual(payload["pending_scan_total"], 2)
+                self.assertEqual(payload["rf_targets"][0]["label"], "GRIDRUNNER")
         finally:
             app.EDGE_NODE_STATE_DIR = original_edge_node_state_dir
 
