@@ -406,8 +406,8 @@ work here; roll up only the current priorities to the global backlog tracker.
     - `ghostctl sdr`
     - `ghostctl events`
     - `ghostctl wifi status`
-  - Wrap existing scripts in `~/gridrunner/scripts` and legacy scripts in
-    `/home/ghost`.
+  - Wrap existing scripts in `~/gridrunner/scripts` and legacy scripts in the
+    configured operator home.
   - Update README and AGENTS.md with usage.
 
 - Improve tmux dashboard layout.

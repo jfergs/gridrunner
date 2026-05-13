@@ -59,7 +59,7 @@ class TemplateRenderTests(unittest.TestCase):
                 "events-service": {"status": "present", "detail": "timer-active"},
                 "adsb-tools": {"status": "present", "detail": "rtl-supported"},
             },
-            "GRIDRUNNER_DISK_HEALTH status=warn used_percent=90 available_kb=100 mount=/ path=/home/ghost/gridrunner",
+            "GRIDRUNNER_DISK_HEALTH status=warn used_percent=90 available_kb=100 mount=/ path=/home/operator/gridrunner",
             services,
             True,
         )
