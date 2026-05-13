@@ -11,6 +11,8 @@ class SudoersTests(unittest.TestCase):
 
         self.assertIn("/usr/bin/systemctl restart gridrunner-web.service", script)
         self.assertIn("/usr/bin/systemctl enable --now mosquitto.service", script)
+        self.assertIn("/usr/bin/systemctl enable --now gridrunner-edge-node-ingest.service", script)
+        self.assertIn("/etc/systemd/system/gridrunner-edge-node-ingest.service", script)
         self.assertIn("/usr/bin/systemctl enable --now gridrunner-plane-tracker.timer", script)
         self.assertIn("/etc/systemd/system/gridrunner-plane-tracker.service", script)
 

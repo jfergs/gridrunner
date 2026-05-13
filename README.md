@@ -468,6 +468,21 @@ systemctl status gridrunner-web.service
 journalctl -u gridrunner-web.service -n 100 --no-pager
 ```
 
+## Edge-Node MQTT Ingest
+
+The `Edge Node MQTT` install item installs Mosquitto, creates the edge-node
+state directories, renders `deploy/systemd/gridrunner-edge-node-ingest.service`,
+and enables the subscriber service:
+
+```bash
+bash scripts/install-items.sh --apply edge-node-mqtt
+systemctl status gridrunner-edge-node-ingest.service
+```
+
+The service subscribes to `gridrunner/nodes/+/telemetry` and writes validated
+latest-state JSON files under `state/edge-nodes/` via
+`scripts/edge-node-ingest.sh`.
+
 ## Power Controls
 
 The web panel includes Restart and Shutdown controls in the upper-right power

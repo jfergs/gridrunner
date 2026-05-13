@@ -26,6 +26,20 @@ class EventsServiceInstallTests(unittest.TestCase):
         self.assertEqual(item["label"], "ESP32 Plane Tracker")
         self.assertFalse(item["default"])
 
+    def test_edge_node_mqtt_dry_run_renders_ingest_service(self):
+        result = subprocess.run(
+            ["bash", str(REPO_DIR / "scripts" / "install-items.sh"), "--dry-run", "edge-node-mqtt"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("gridrunner-edge-node-ingest.service", result.stdout)
+        self.assertIn("systemctl enable --now mosquitto.service", result.stdout)
+        self.assertIn("systemctl enable --now gridrunner-edge-node-ingest.service", result.stdout)
+        self.assertIn("GRIDRUNNER_INSTALL_RESULT item=edge-node-mqtt status=planned", result.stdout)
+
     def test_events_service_dry_run_renders_units_and_enables_timer(self):
         result = subprocess.run(
             ["bash", str(REPO_DIR / "scripts" / "install-items.sh"), "--dry-run", "events-service"],
@@ -61,6 +75,15 @@ class EventsServiceInstallTests(unittest.TestCase):
 
         self.assertIn("adsb-plane-tracker.sh --publish", service)
         self.assertIn("After=network-online.target mosquitto.service readsb.service", service)
+
+    def test_edge_node_ingest_service_subscribes_to_mqtt(self):
+        service = (REPO_DIR / "deploy" / "systemd" / "gridrunner-edge-node-ingest.service").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("edge-node-subscribe.sh", service)
+        self.assertIn("After=network-online.target mosquitto.service", service)
+        self.assertIn("Restart=always", service)
 
     def test_events_service_accepts_timeout_exit_as_success(self):
         service = (REPO_DIR / "deploy" / "systemd" / "gridrunner-events.service").read_text(

@@ -1,0 +1,19 @@
+[Unit]
+Description=GRIDRUNNER edge-node MQTT ingest
+After=network-online.target mosquitto.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{OPERATOR_USER}}
+WorkingDirectory={{GRIDRUNNER_HOME}}
+Environment=GRIDRUNNER_HOME={{GRIDRUNNER_HOME}}
+Environment=GRIDRUNNER_OPERATOR_USER={{OPERATOR_USER}}
+Environment=GRIDRUNNER_OPERATOR_HOME={{OPERATOR_HOME}}
+Environment=GRIDRUNNER_DEVICE_HOSTNAME={{DEVICE_HOSTNAME}}
+EnvironmentFile=-{{GRIDRUNNER_HOME}}/state/gridrunner.env
+EnvironmentFile=-{{GRIDRUNNER_HOME}}/state/storage.env
+Restart=always
+RestartSec=5
+ExecStart=/usr/bin/bash {{GRIDRUNNER_HOME}}/scripts/edge-node-subscribe.sh
+

@@ -69,6 +69,11 @@ EOF
 }
 
 install_apt() {
+  if [ "$MODE" != "apply" ]; then
+    echo "[skip] install packages: $*"
+    return 0
+  fi
+
   if ! command -v apt-get >/dev/null 2>&1; then
     echo "apt-get not found; package install unavailable: $*"
     return 1
@@ -118,16 +123,37 @@ install_wifi_tools() {
 
 install_edge_node_mqtt() {
   local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
+  local operator_user="${GRIDRUNNER_OPERATOR_USER:-$(id -un)}"
+  local operator_home="${GRIDRUNNER_OPERATOR_HOME:-$HOME}"
+  local device_hostname="${GRIDRUNNER_DEVICE_HOSTNAME:-$(hostname -s)}"
   local state_dir="${GRIDRUNNER_STATE_DIR:-$project_dir/state}"
+  local service_template="$project_dir/deploy/systemd/gridrunner-edge-node-ingest.service"
+  local service_rendered="$project_dir/state/gridrunner-edge-node-ingest.service"
 
   install_apt mosquitto mosquitto-clients jq || return 1
   run_step mkdir -p "$state_dir/edge-nodes" "$project_dir/data/edge-nodes" || return 1
 
-  if command -v systemctl >/dev/null 2>&1; then
-    sudo_step systemctl enable --now mosquitto.service || return 1
+  if [ ! -f "$service_template" ]; then
+    echo "edge-node ingest service template not found: $service_template"
+    return 1
   fi
 
-  echo "edge-node MQTT support installed; subscribe ingest to gridrunner/nodes/+/telemetry when firmware is ready."
+  if [ "$MODE" = "apply" ]; then
+    render_template "$service_template" "$service_rendered" "$project_dir" "$operator_user" "$operator_home" "$device_hostname" || return 1
+    require_sudo || return 1
+    sudo_step install -m 0644 "$service_rendered" /etc/systemd/system/gridrunner-edge-node-ingest.service || return 1
+  else
+    echo "[skip] render $service_template -> $service_rendered"
+    echo "[skip] sudo -n install -m 0644 $service_rendered /etc/systemd/system/gridrunner-edge-node-ingest.service"
+  fi
+
+  if [ "$MODE" = "dry-run" ] || command -v systemctl >/dev/null 2>&1; then
+    sudo_step systemctl enable --now mosquitto.service || return 1
+    sudo_step systemctl daemon-reload || return 1
+    sudo_step systemctl enable --now gridrunner-edge-node-ingest.service || return 1
+  fi
+
+  echo "edge-node MQTT ingest installed and subscribed to gridrunner/nodes/+/telemetry."
 }
 
 install_plane_tracker() {

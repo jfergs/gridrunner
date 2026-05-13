@@ -47,7 +47,6 @@ work here; roll up only the current priorities to the global backlog tracker.
       constrain the firmware profile.
   - Remaining acceptance criteria:
     - Decide MQTT broker/install item scope.
-    - Wire MQTT subscription service into `scripts/edge-node-ingest.sh`.
     - Add a compact edge-node web panel.
     - Prototype the first Waveshare ESP32-C6 display firmware.
   - Seed implementation:
@@ -55,6 +54,8 @@ work here; roll up only the current priorities to the global backlog tracker.
       and creates `state/edge-nodes/`.
     - `scripts/edge-node-ingest.sh` validates v1 telemetry, writes latest node
       state, and appends a redacted event summary.
+    - `gridrunner-edge-node-ingest.service` subscribes to
+      `gridrunner/nodes/+/telemetry` and pipes payloads into the ingest script.
     - Web UI shows cached edge-node freshness, battery, link, and BLE counts.
 
 - Validate mobile-first Web UI on the device.

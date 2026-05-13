@@ -138,11 +138,12 @@ Initial Pi-side support now exists:
 - `scripts/edge-node-ingest.sh` accepts telemetry JSON from stdin or a file,
   validates the `gridrunner.edge_node.v1` summary payload, caches latest state
   under `state/edge-nodes/`, and appends a redacted event summary.
+- `scripts/edge-node-subscribe.sh` keeps a `mosquitto_sub` subscription open on
+  `gridrunner/nodes/+/telemetry` and sends each payload to the ingest script.
+- `gridrunner-edge-node-ingest.service` runs the subscriber continuously under
+  systemd; the `edge-node-mqtt` install item renders, installs, and enables it.
 - The web UI reads cached node state and shows freshness, battery, link, and
   BLE summary counts.
-
-The remaining integration gap is the always-on MQTT subscription service that
-connects `gridrunner/nodes/+/telemetry` to the ingest script.
 
 ## Firmware Profiles
 
