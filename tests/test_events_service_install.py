@@ -84,6 +84,7 @@ class EventsServiceInstallTests(unittest.TestCase):
         self.assertIn("edge-node-subscribe.sh", service)
         self.assertIn("After=network-online.target mosquitto.service", service)
         self.assertIn("Restart=always", service)
+        self.assertIn("WantedBy=multi-user.target", service)
 
     def test_events_service_accepts_timeout_exit_as_success(self):
         service = (REPO_DIR / "deploy" / "systemd" / "gridrunner-events.service").read_text(

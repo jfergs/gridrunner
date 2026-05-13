@@ -17,3 +17,5 @@ Restart=always
 RestartSec=5
 ExecStart=/usr/bin/bash {{GRIDRUNNER_HOME}}/scripts/edge-node-subscribe.sh
 
+[Install]
+WantedBy=multi-user.target
