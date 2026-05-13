@@ -48,7 +48,8 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Remaining acceptance criteria:
     - Decide MQTT broker/install item scope.
     - Add a compact edge-node web panel.
-    - Prototype the first Waveshare ESP32-C6 display firmware.
+    - Extend handheld RF tracker firmware with BLE discovery.
+    - Research drone Remote ID detection support on ESP32-C6.
   - Seed implementation:
     - Optional `edge-node-mqtt` install item installs Mosquitto clients/broker
       and creates `state/edge-nodes/`.
@@ -57,6 +58,10 @@ work here; roll up only the current priorities to the global backlog tracker.
     - `gridrunner-edge-node-ingest.service` subscribes to
       `gridrunner/nodes/+/telemetry` and pipes payloads into the ingest script.
     - Web UI shows cached edge-node freshness, battery, link, and BLE counts.
+    - `firmware/rf-tracker/` starts GitHub issue `#42` with a Waveshare
+      ESP32-C6 handheld tracker MVP: passive Wi-Fi AP discovery, local
+      radar/list UI, side-button navigation, and MQTT telemetry back to the
+      Gridrunner core.
 
 - Validate mobile-first Web UI on the device.
   - Direction: rugged cassette-cyberdeck field terminal, not a neon poster.

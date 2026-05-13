@@ -14,6 +14,7 @@ GRIDRUNNER provides a local web UI for health checks, backup, radio inventory, A
 - [External storage model](docs/storage-model.md)
 - [ESP32-C6 edge-node architecture](docs/edge-node-architecture.md)
 - [ESP32-C6 plane tracker](docs/esp32-c6-plane-tracker.md)
+- [ESP32-C6 RF tracker firmware](firmware/rf-tracker/README.md)
 
 ## Quick Start
 
