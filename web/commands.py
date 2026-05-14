@@ -21,6 +21,8 @@ COMMANDS = {
     "storage_list": ["bash", project_script("storage-control.sh"), "list"],
     "storage_enable": ["bash", project_script("storage-control.sh"), "enable"],
     "storage_disable": ["bash", project_script("storage-control.sh"), "disable"],
+    "operator_display_status": ["bash", project_script("operator-display.sh"), "status"],
+    "operator_display_configure": ["bash", project_script("operator-display.sh"), "configure"],
     "edge_node_status": ["bash", project_script("edge-node-ingest.sh"), "--status"],
     "plane_tracker_status": ["bash", project_script("adsb-plane-tracker.sh"), "--status"],
     "install": ["bash", project_script("install-items.sh")],

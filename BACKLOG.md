@@ -320,6 +320,26 @@ work here; roll up only the current priorities to the global backlog tracker.
   - `wifi-status.sh` emits `last_action` and `last_action_age_seconds`.
   - Web UI Wi-Fi Telemetry shows the last fallback action.
 
+## Operator Display / Local Screen
+
+- Bundle local display work.
+  - Hardware setup, kiosk/fullscreen behavior, tmux display mode, and small
+    screen validation are tracked as one operator-display workflow.
+  - Implemented foundation:
+    - Initial install panel includes Elecrow RR050, Waveshare 5-inch HDMI, and
+      official Raspberry Pi Touch Display profiles.
+    - Managed HDMI 800x480 config is available for Elecrow/Waveshare-compatible
+      screens; vendor `LCD-show` driver execution is explicit opt-in.
+    - `Operator Display Mode` installs a startup launcher for web UI, ADS-B map,
+      or tmux dashboard mode.
+    - Web UI includes an Operator Display panel with display profile state and
+      startup mode controls.
+    - Web UI includes a fullscreen toggle for browser sessions.
+    - Tmux display mode opens a tiled health, ADS-B, and events layout.
+  - Remaining acceptance criteria:
+    - Validate Chromium kiosk startup on the Raspberry Pi desktop image.
+    - Validate touch targets on the physical Elecrow display.
+
 ## Web UI / Control Plane
 
 - Continue retrofuture field terminal refinement.
@@ -382,6 +402,8 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Preserve iPhone/iPad tap ergonomics.
 
 - Add an optional fullscreen operator mode.
+  - Bundled under Operator Display / Local Screen.
+  - Foundation implemented with a browser Fullscreen button.
   - Provide a clear fullscreen control for iPad/kiosk/touchscreen use, similar
     to the Quentin.XYZ fullscreen prompt.
   - Keep the regular browser layout fully usable without fullscreen.
@@ -417,6 +439,8 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Update README and AGENTS.md with usage.
 
 - Improve tmux dashboard layout.
+  - Bundled under Operator Display / Local Screen.
+  - Foundation implemented with a tiled operator-display tmux session.
   - Keep core dashboard separate from sensor/radio dashboard.
   - Add an airspace/network window with ADS-B and network scan panes.
   - Add a radio utilities window for SDR, `rtl_433`, JS8Call/Winlink notes,
@@ -493,10 +517,13 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Let the user choose internal card storage or external media storage.
 
 - Add GPIO touchscreen setup support.
-  - Prompt during setup for popular GPIO touchscreen models.
-  - Install the selected screen drivers.
-  - When a screen is present, provide a startup display mode for ADS-B map,
-    tmux dashboard, or the web UI.
+  - Bundled under Operator Display / Local Screen.
+  - Initial install panel includes Elecrow RR050, Waveshare 5-inch HDMI, and
+    official Raspberry Pi Touch Display profiles.
+  - Managed HDMI 800x480 config is available for Elecrow/Waveshare-compatible
+    screens; vendor `LCD-show` driver execution is explicit opt-in.
+  - `Operator Display Mode` provides startup display mode for ADS-B map, tmux
+    dashboard, or the web UI.
 
 - Add Codex/automation hardening.
   - Ensure AGENTS.md warns against installing Debian `readsb`.

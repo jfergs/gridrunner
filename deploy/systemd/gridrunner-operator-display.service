@@ -1,0 +1,25 @@
+[Unit]
+Description=GRIDRUNNER local operator display
+After=graphical.target network-online.target gridrunner-web.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{OPERATOR_USER}}
+WorkingDirectory={{GRIDRUNNER_HOME}}
+Environment=GRIDRUNNER_HOME={{GRIDRUNNER_HOME}}
+Environment=GRIDRUNNER_OPERATOR_USER={{OPERATOR_USER}}
+Environment=GRIDRUNNER_OPERATOR_HOME={{OPERATOR_HOME}}
+Environment=GRIDRUNNER_DEVICE_HOSTNAME={{DEVICE_HOSTNAME}}
+Environment=GRIDRUNNER_STATE_DIR={{GRIDRUNNER_HOME}}/state
+Environment=DISPLAY=:0
+Environment=XAUTHORITY={{OPERATOR_HOME}}/.Xauthority
+EnvironmentFile=-{{GRIDRUNNER_HOME}}/state/gridrunner.env
+EnvironmentFile=-{{GRIDRUNNER_HOME}}/state/storage.env
+EnvironmentFile=-{{GRIDRUNNER_HOME}}/state/operator-display.env
+ExecStart=/usr/bin/bash {{GRIDRUNNER_HOME}}/scripts/operator-display.sh launch
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical.target

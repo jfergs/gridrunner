@@ -153,6 +153,29 @@ class TemplateRenderTests(unittest.TestCase):
 
         self.assertIn(b"invalid form token", response.body)
 
+    def test_operator_display_action_rejects_invalid_form_token(self):
+        request = SimpleNamespace(scope={"type": "http", "method": "POST", "path": "/operator-display", "headers": []})
+
+        response = app.operator_display_action(request, mode="web", confirm_token="bad-token")
+
+        self.assertIn(b"invalid form token", response.body)
+
+    def test_operator_display_summary_marks_unconfigured_state_missing(self):
+        summary = app.operator_display_summary(
+            "GRIDRUNNER_OPERATOR_DISPLAY mode=web configured=0 state_file=/tmp/operator-display.env web_url=http://gridrunner.local:8088 adsb_url=http://gridrunner.local/tar1090/"
+        )
+
+        self.assertEqual(summary["status"], "missing")
+        self.assertEqual(summary["mode"], "web")
+
+    def test_operator_display_summary_marks_configured_state_present(self):
+        summary = app.operator_display_summary(
+            "GRIDRUNNER_OPERATOR_DISPLAY mode=adsb configured=1 state_file=/tmp/operator-display.env web_url=http://gridrunner.local:8088 adsb_url=http://gridrunner.local/tar1090/"
+        )
+
+        self.assertEqual(summary["status"], "present")
+        self.assertEqual(summary["message"], "startup mode adsb")
+
     def test_index_template_renders_without_wifi_status_context(self):
         request = SimpleNamespace(scope={"type": "http", "method": "GET", "path": "/", "headers": []})
 
@@ -307,6 +330,21 @@ class TemplateRenderTests(unittest.TestCase):
                         "selectable": "yes",
                     },
                 ],
+                "operator_display": {
+                    "status": "present",
+                    "mode": "web",
+                    "message": "startup mode web",
+                    "state_file": "/home/operator/gridrunner/state/operator-display.env",
+                    "web_url": "http://gridrunner.local:8088",
+                    "adsb_url": "http://gridrunner.local/tar1090/",
+                    "display_profile": {
+                        "profile": "elecrow-rr050",
+                        "label": "Elecrow RR050 5-inch HDMI touch",
+                        "boot_config": "/boot/firmware/config.txt",
+                        "reboot_required": "1",
+                    },
+                    "output": "GRIDRUNNER_OPERATOR_DISPLAY mode=web",
+                },
                 "adsb_guidance": ["Aircraft data is aging; check readsb if the count stops changing."],
                 "edge_nodes": {
                     "status": "present",
@@ -383,6 +421,8 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"ADS-B PRESENT", response.body)
         self.assertIn(b"WEB PRESENT", response.body)
         self.assertIn(b"field terminal active", response.body)
+        self.assertIn(b'id="fullscreen-toggle"', response.body)
+        self.assertIn(b"requestFullscreen", response.body)
         self.assertIn(b"Quick Actions", response.body)
         self.assertIn(b"Transport Deck", response.body)
         self.assertIn(b"quick-action-map", response.body)
@@ -422,6 +462,10 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Wi-Fi Scan Now", response.body)
         self.assertIn(b">Map</a>", response.body)
         self.assertIn(b"Storage", response.body)
+        self.assertIn(b"Operator Display", response.body)
+        self.assertIn(b"Elecrow RR050 5-inch HDMI touch", response.body)
+        self.assertIn(b"ADS-B Map", response.body)
+        self.assertIn(b"display config changed; reboot required", response.body)
         self.assertIn(b"Edge Nodes", response.body)
         self.assertIn(b"node-03", response.body)
         self.assertIn(b"ble-presence", response.body)

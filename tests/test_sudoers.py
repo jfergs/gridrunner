@@ -15,6 +15,8 @@ class SudoersTests(unittest.TestCase):
         self.assertIn("/etc/systemd/system/gridrunner-edge-node-ingest.service", script)
         self.assertIn("/usr/bin/systemctl enable --now gridrunner-plane-tracker.timer", script)
         self.assertIn("/etc/systemd/system/gridrunner-plane-tracker.service", script)
+        self.assertIn("/usr/bin/systemctl enable gridrunner-operator-display.service", script)
+        self.assertIn("/etc/systemd/system/gridrunner-operator-display.service", script)
 
     def test_sudoers_allows_networkmanager_wifi_controls(self):
         script = (REPO_DIR / "scripts" / "setup-sudoers.sh").read_text(encoding="utf-8")
@@ -24,6 +26,11 @@ class SudoersTests(unittest.TestCase):
         self.assertIn("/usr/bin/nmcli connection down *", script)
         self.assertIn("/usr/bin/nmcli connection modify *", script)
         self.assertIn("/usr/bin/nmcli connection add *", script)
+
+    def test_sudoers_allows_display_configurator(self):
+        script = (REPO_DIR / "scripts" / "setup-sudoers.sh").read_text(encoding="utf-8")
+
+        self.assertIn("/usr/bin/bash */scripts/configure-display.sh *", script)
 
 
 if __name__ == "__main__":

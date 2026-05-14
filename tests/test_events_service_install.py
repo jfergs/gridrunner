@@ -26,6 +26,19 @@ class EventsServiceInstallTests(unittest.TestCase):
         self.assertEqual(item["label"], "ESP32 Plane Tracker")
         self.assertFalse(item["default"])
 
+    def test_manifest_includes_display_profiles(self):
+        manifest = json.loads((REPO_DIR / "install-items.json").read_text(encoding="utf-8"))
+        items = {item["id"]: item for item in manifest}
+
+        self.assertEqual(items["display-elecrow-rr050"]["label"], "Display: Elecrow RR050")
+        self.assertEqual(items["display-waveshare-5hdmi"]["label"], "Display: Waveshare 5-inch HDMI")
+        self.assertEqual(items["display-raspberrypi-touch"]["label"], "Display: Raspberry Pi Touch")
+        self.assertEqual(items["operator-display"]["label"], "Operator Display Mode")
+        self.assertFalse(items["display-elecrow-rr050"]["default"])
+        self.assertFalse(items["display-waveshare-5hdmi"]["default"])
+        self.assertFalse(items["display-raspberrypi-touch"]["default"])
+        self.assertFalse(items["operator-display"]["default"])
+
     def test_edge_node_mqtt_dry_run_renders_ingest_service(self):
         result = subprocess.run(
             ["bash", str(REPO_DIR / "scripts" / "install-items.sh"), "--dry-run", "edge-node-mqtt"],
@@ -68,6 +81,130 @@ class EventsServiceInstallTests(unittest.TestCase):
         self.assertIn("systemctl enable --now gridrunner-plane-tracker.timer", result.stdout)
         self.assertIn("GRIDRUNNER_INSTALL_RESULT item=plane-tracker status=planned", result.stdout)
 
+    def test_display_profile_dry_run_calls_configurator(self):
+        result = subprocess.run(
+            [
+                "bash",
+                str(REPO_DIR / "scripts" / "install-items.sh"),
+                "--dry-run",
+                "display-elecrow-rr050",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("install packages: git evtest xinput", result.stdout)
+        self.assertIn("configure-display.sh elecrow-rr050", result.stdout)
+        self.assertIn("GRIDRUNNER_INSTALL_RESULT item=display-elecrow-rr050 status=planned", result.stdout)
+
+    def test_configure_display_dry_run_lists_supported_profile(self):
+        result = subprocess.run(
+            [
+                "bash",
+                str(REPO_DIR / "scripts" / "configure-display.sh"),
+                "raspberrypi-touch",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env={**os.environ, "GRIDRUNNER_DISPLAY_MODE": "dry-run"},
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Official Raspberry Pi Touch Display selected", result.stdout)
+
+    def test_configure_display_writes_managed_hdmi_block(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            boot_config = temp_path / "config.txt"
+            state_dir = temp_path / "state"
+            boot_config.write_text(
+                "\n".join(
+                    [
+                        "arm_64bit=1",
+                        "# BEGIN GRIDRUNNER display profile",
+                        "old=value",
+                        "# END GRIDRUNNER display profile",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    "bash",
+                    str(REPO_DIR / "scripts" / "configure-display.sh"),
+                    "elecrow-rr050",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env={
+                    **os.environ,
+                    "GRIDRUNNER_BOOT_CONFIG": str(boot_config),
+                    "GRIDRUNNER_STATE_DIR": str(state_dir),
+                },
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            config_text = boot_config.read_text(encoding="utf-8")
+            self.assertIn("arm_64bit=1", config_text)
+            self.assertIn("hdmi_cvt=800 480 60 6 0 0 0", config_text)
+            self.assertNotIn("old=value", config_text)
+            state_text = (state_dir / "display.env").read_text(encoding="utf-8")
+            self.assertIn("GRIDRUNNER_DISPLAY_PROFILE='elecrow-rr050'", state_text)
+
+    def test_operator_display_dry_run_renders_service(self):
+        result = subprocess.run(
+            [
+                "bash",
+                str(REPO_DIR / "scripts" / "install-items.sh"),
+                "--dry-run",
+                "operator-display",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("install packages: tmux unclutter chromium-browser", result.stdout)
+        self.assertIn("gridrunner-operator-display.service", result.stdout)
+        self.assertIn("operator-display.sh configure web", result.stdout)
+        self.assertIn("systemctl enable gridrunner-operator-display.service", result.stdout)
+        self.assertIn("GRIDRUNNER_INSTALL_RESULT item=operator-display status=planned", result.stdout)
+
+    def test_operator_display_configure_writes_state(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_file = Path(temp_dir) / "operator-display.env"
+            result = subprocess.run(
+                [
+                    "bash",
+                    str(REPO_DIR / "scripts" / "operator-display.sh"),
+                    "configure",
+                    "adsb",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                env={**os.environ, "GRIDRUNNER_OPERATOR_DISPLAY_STATE": str(state_file)},
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            state_text = state_file.read_text(encoding="utf-8")
+            self.assertIn("OPERATOR_DISPLAY_MODE='adsb'", state_text)
+            self.assertIn("GRIDRUNNER_OPERATOR_DISPLAY mode=adsb", result.stdout)
+
+    def test_operator_display_script_defines_tiled_tmux_layout(self):
+        script = (REPO_DIR / "scripts" / "operator-display.sh").read_text(encoding="utf-8")
+
+        self.assertIn('tmux split-window -h -t "$OPERATOR_DISPLAY_TMUX_SESSION:ops"', script)
+        self.assertIn('tmux split-window -v -t "$OPERATOR_DISPLAY_TMUX_SESSION:ops.1"', script)
+        self.assertIn("tmux select-layout", script)
+
     def test_plane_tracker_service_publishes_adsb_summary(self):
         service = (REPO_DIR / "deploy" / "systemd" / "gridrunner-plane-tracker.service").read_text(
             encoding="utf-8"
@@ -85,6 +222,15 @@ class EventsServiceInstallTests(unittest.TestCase):
         self.assertIn("After=network-online.target mosquitto.service", service)
         self.assertIn("Restart=always", service)
         self.assertIn("WantedBy=multi-user.target", service)
+
+    def test_operator_display_service_launches_display_script(self):
+        service = (REPO_DIR / "deploy" / "systemd" / "gridrunner-operator-display.service").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("operator-display.sh launch", service)
+        self.assertIn("After=graphical.target network-online.target gridrunner-web.service", service)
+        self.assertIn("WantedBy=graphical.target", service)
 
     def test_events_service_accepts_timeout_exit_as_success(self):
         service = (REPO_DIR / "deploy" / "systemd" / "gridrunner-events.service").read_text(

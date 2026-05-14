@@ -25,12 +25,14 @@ $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/install -m 0644 * /etc/systemd/syst
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/install -m 0644 * /etc/systemd/system/gridrunner-edge-node-ingest.service
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/install -m 0644 * /etc/systemd/system/gridrunner-plane-tracker.service
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/install -m 0644 * /etc/systemd/system/gridrunner-plane-tracker.timer
+$OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/install -m 0644 * /etc/systemd/system/gridrunner-operator-display.service
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl daemon-reload
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl enable gridrunner-web.service
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl restart gridrunner-web.service
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl enable --now gridrunner-events.timer
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl enable --now gridrunner-edge-node-ingest.service
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl enable --now gridrunner-plane-tracker.timer
+$OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl enable gridrunner-operator-display.service
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl enable --now mosquitto.service
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl restart gridrunner-events.service
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/nmcli radio wifi on
@@ -41,6 +43,7 @@ $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/nmcli connection add *
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/systemctl reboot
 $OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/bash */scripts/install-adsb-readsb.sh
+$OPERATOR_USER ALL=(root) NOPASSWD: /usr/bin/env GRIDRUNNER_HOME=* GRIDRUNNER_STATE_DIR=* GRIDRUNNER_DISPLAY_VENDOR_DRIVER=* GRIDRUNNER_LCD_SHOW_URL=* /usr/bin/bash */scripts/configure-display.sh *
 EOF
 
 chmod 0440 "$SUDOERS_FILE"

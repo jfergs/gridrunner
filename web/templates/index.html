@@ -72,6 +72,14 @@
       flex-wrap: wrap;
       padding-right: 0;
     }
+    .topbar-actions {
+      width: min(360px, calc(100vw - 24px));
+      margin-left: auto;
+      align-self: flex-start;
+      display: grid;
+      grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr);
+      gap: 10px;
+    }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -843,9 +851,9 @@
       text-shadow: 0 0 8px rgba(91, 231, 255, 0.16);
     }
     .power-tray {
-      width: min(320px, calc(100vw - 24px));
-      margin-left: auto;
-      align-self: flex-start;
+      width: auto;
+      margin-left: 0;
+      align-self: stretch;
     }
     .power-tray summary {
       min-height: 52px;
@@ -874,6 +882,12 @@
       border-radius: 6px;
       background: rgba(7, 10, 13, 0.98);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    }
+    .fullscreen-button {
+      min-height: 52px;
+      padding: 0 16px;
+      border-color: var(--line);
+      cursor: pointer;
     }
     .node-strip {
       display: flex;
@@ -1009,6 +1023,10 @@
       .power-tray {
         width: 100%;
       }
+      .topbar-actions {
+        width: 100%;
+        grid-template-columns: 1fr;
+      }
       .telemetry-grid,
       .self-test-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1069,21 +1087,24 @@
         {% endfor %}
       </div>
     </div>
-    <details class="power-tray">
-      <summary>Power</summary>
-      <div class="power-menu">
-        <form method="post" action="/power" onsubmit="return confirm('Restart this GRIDRUNNER device?');">
-          <input type="hidden" name="action" value="restart">
-          <input type="hidden" name="confirm_token" value="{{ power_action_token }}">
-          <button class="danger">Restart</button>
-        </form>
-        <form method="post" action="/power" onsubmit="return confirm('Shut down this GRIDRUNNER device?');">
-          <input type="hidden" name="action" value="shutdown">
-          <input type="hidden" name="confirm_token" value="{{ power_action_token }}">
-          <button class="danger">Shutdown</button>
-        </form>
-      </div>
-    </details>
+    <div class="topbar-actions">
+      <button class="fullscreen-button" id="fullscreen-toggle" type="button">Fullscreen</button>
+      <details class="power-tray">
+        <summary>Power</summary>
+        <div class="power-menu">
+          <form method="post" action="/power" onsubmit="return confirm('Restart this GRIDRUNNER device?');">
+            <input type="hidden" name="action" value="restart">
+            <input type="hidden" name="confirm_token" value="{{ power_action_token }}">
+            <button class="danger">Restart</button>
+          </form>
+          <form method="post" action="/power" onsubmit="return confirm('Shut down this GRIDRUNNER device?');">
+            <input type="hidden" name="action" value="shutdown">
+            <input type="hidden" name="confirm_token" value="{{ power_action_token }}">
+            <button class="danger">Shutdown</button>
+          </form>
+        </div>
+      </details>
+    </div>
   </div>
   {% if not auth_enabled %}
   <div class="panel warning">
@@ -1093,6 +1114,7 @@
 
   <nav class="quick-nav" aria-label="GRIDRUNNER sections">
     <a href="#wifi">Wi-Fi</a>
+    <a href="#operator-display">Display</a>
     <a href="#storage">Storage</a>
     <a href="#edge-nodes">Edge</a>
     <a href="#adsb">ADS-B</a>
@@ -1169,6 +1191,57 @@
           </div>
         </details>
         <div class="transport-strip" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="panel" id="operator-display">
+        {% set display = operator_display|default({"status": "missing", "mode": "web", "message": "operator display not configured", "display_profile": {"label": "No display profile selected", "profile": "none", "boot_config": ""}, "web_url": "", "adsb_url": "", "state_file": "", "output": ""}) %}
+        {% set profile = display.display_profile %}
+        <span class="deck-label">Local Screen</span>
+        <h2>Operator Display</h2>
+        <span class="status health-{{ display.status }}">{{ display.status }}</span>
+        <span>{{ display.message }}</span>
+        <div class="telemetry-grid">
+          <div class="telemetry"><span>Startup</span><strong>{{ display.mode }}</strong></div>
+          <div class="telemetry"><span>Panel</span><strong>{{ profile.label }}</strong></div>
+          <div class="telemetry"><span>Profile</span><strong>{{ profile.profile }}</strong></div>
+          <div class="telemetry"><span>Boot Config</span><strong>{{ profile.boot_config|default("-") }}</strong></div>
+        </div>
+        {% if profile.reboot_required == "1" %}
+        <span class="inline-warning">display config changed; reboot required</span>
+        {% endif %}
+        <details class="drawer">
+          <summary>Startup display mode</summary>
+          <div class="drawer-body">
+            <div class="actions">
+              <form method="post" action="/operator-display">
+                <input type="hidden" name="mode" value="web">
+                <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+                <button>Web UI</button>
+              </form>
+              <form method="post" action="/operator-display">
+                <input type="hidden" name="mode" value="adsb">
+                <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+                <button>ADS-B Map</button>
+              </form>
+              <form method="post" action="/operator-display">
+                <input type="hidden" name="mode" value="tmux">
+                <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+                <button>tmux</button>
+              </form>
+              <form method="post" action="/operator-display">
+                <input type="hidden" name="mode" value="off">
+                <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+                <button class="danger">Off</button>
+              </form>
+            </div>
+            <div class="telemetry-grid">
+              <div class="telemetry"><span>Web URL</span><strong>{{ display.web_url|default("-") }}</strong></div>
+              <div class="telemetry"><span>ADS-B URL</span><strong>{{ display.adsb_url|default("-") }}</strong></div>
+              <div class="telemetry"><span>State</span><strong>{{ display.state_file|default("-") }}</strong></div>
+            </div>
+            <pre>{{ display.output }}</pre>
+          </div>
+        </details>
       </div>
 
       <div class="panel" id="events">
@@ -1619,6 +1692,7 @@
       const rfRadar = document.getElementById("rf-radar");
       const rfTargetList = document.getElementById("rf-target-list");
       const edgeNodeList = document.getElementById("edge-node-list");
+      const fullscreenToggle = document.getElementById("fullscreen-toggle");
       let liveEdgeNodes = [];
       let edgePollInFlight = false;
 
@@ -1783,6 +1857,30 @@
         notice.hidden = !message;
       }
 
+      function setFullscreenLabel() {
+        if (!fullscreenToggle) {
+          return;
+        }
+        fullscreenToggle.textContent = document.fullscreenElement ? "Exit Fullscreen" : "Fullscreen";
+      }
+
+      async function toggleFullscreen() {
+        if (!fullscreenToggle || !document.documentElement.requestFullscreen) {
+          return;
+        }
+        try {
+          if (document.fullscreenElement) {
+            await document.exitFullscreen();
+            if (window.localStorage) window.localStorage.setItem("gridrunnerFullscreen", "0");
+          } else {
+            await document.documentElement.requestFullscreen();
+            if (window.localStorage) window.localStorage.setItem("gridrunnerFullscreen", "1");
+          }
+        } finally {
+          setFullscreenLabel();
+        }
+      }
+
       function updateControls(controls) {
         if (!controls) {
           return;
@@ -1877,6 +1975,14 @@
         setInterval(tickEdgeAges, 1000);
         setInterval(refreshEdge, 2000);
         refreshEdge();
+      }
+
+      if (fullscreenToggle && document.documentElement.requestFullscreen) {
+        fullscreenToggle.addEventListener("click", toggleFullscreen);
+        document.addEventListener("fullscreenchange", setFullscreenLabel);
+        setFullscreenLabel();
+      } else if (fullscreenToggle) {
+        fullscreenToggle.hidden = true;
       }
     }());
   </script>

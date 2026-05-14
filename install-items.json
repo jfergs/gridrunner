@@ -48,6 +48,30 @@
     "default": false
   },
   {
+    "id": "display-elecrow-rr050",
+    "label": "Display: Elecrow RR050",
+    "description": "Configure the Elecrow RR050 5-inch 800x480 HDMI/GPIO touch display.",
+    "default": false
+  },
+  {
+    "id": "display-waveshare-5hdmi",
+    "label": "Display: Waveshare 5-inch HDMI",
+    "description": "Configure common Waveshare-compatible 5-inch 800x480 HDMI/GPIO touch displays.",
+    "default": false
+  },
+  {
+    "id": "display-raspberrypi-touch",
+    "label": "Display: Raspberry Pi Touch",
+    "description": "Record use of the official Raspberry Pi DSI Touch Display.",
+    "default": false
+  },
+  {
+    "id": "operator-display",
+    "label": "Operator Display Mode",
+    "description": "Install startup display mode for the local screen: web UI, ADS-B map, or tmux dashboard.",
+    "default": false
+  },
+  {
     "id": "wifi-tools",
     "label": "Wi-Fi Fallback",
     "description": "NetworkManager tooling for known-network and hotspot fallback.",

@@ -428,6 +428,13 @@ directory when needed:
 export GRIDRUNNER_STATE_DIR=/path/to/state
 ```
 
+The install panel also includes optional display profiles for compact local
+screens. `Display: Elecrow RR050` and `Display: Waveshare 5-inch HDMI` configure
+common 800x480 HDMI/GPIO-touch panels. `Display: Raspberry Pi Touch` records the
+official DSI display profile, which Raspberry Pi OS normally handles without a
+vendor driver script. `Operator Display Mode` can start the local screen in the
+web UI, ADS-B map, or tmux dashboard mode. See `docs/display-setup.md`.
+
 ## Pi Update Smoke Test
 
 After pulling an update on the Pi, use this quick path to confirm privileged web

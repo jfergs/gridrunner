@@ -32,6 +32,7 @@ from config import (
     OPERATOR_USER,
     PROJECT_DIR,
     SCAN_STATE_FILE,
+    STATE_DIR,
     STORAGE_STATE_FILE,
     WEB_DIR,
     WEB_PASSWORD,
@@ -65,6 +66,12 @@ STORAGE_KEYS = {
     "GRIDRUNNER_RADIO_DIR",
     "GRIDRUNNER_ADSB_HISTORY_DIR",
     "GRIDRUNNER_MEDIA_DIR",
+}
+DISPLAY_KEYS = {
+    "GRIDRUNNER_DISPLAY_PROFILE",
+    "GRIDRUNNER_DISPLAY_LABEL",
+    "GRIDRUNNER_DISPLAY_BOOT_CONFIG",
+    "GRIDRUNNER_DISPLAY_REBOOT_REQUIRED",
 }
 SCAN_PROFILES = {
     "low-impact": {
@@ -618,6 +625,67 @@ def adsb_aircraft_summary(limit=5, now=None):
     return summary
 
 
+def load_display_profile():
+    state_file = STATE_DIR / "display.env"
+    profile = {
+        "profile": "none",
+        "label": "No display profile selected",
+        "boot_config": "",
+        "reboot_required": "",
+    }
+
+    try:
+        lines = state_file.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return profile
+    except OSError:
+        profile["profile"] = "degraded"
+        profile["label"] = "Display profile unreadable"
+        return profile
+
+    fields = {}
+    for line in lines:
+        key, _, value = line.partition("=")
+        if key in DISPLAY_KEYS:
+            fields[key] = value.strip().strip("'\"")
+
+    profile["profile"] = fields.get("GRIDRUNNER_DISPLAY_PROFILE") or "unknown"
+    profile["label"] = fields.get("GRIDRUNNER_DISPLAY_LABEL") or profile["profile"]
+    profile["boot_config"] = fields.get("GRIDRUNNER_DISPLAY_BOOT_CONFIG", "")
+    profile["reboot_required"] = fields.get("GRIDRUNNER_DISPLAY_REBOOT_REQUIRED", "")
+    return profile
+
+
+def operator_display_summary(status_output=None):
+    output = status_output if status_output is not None else run_cmd(COMMANDS["operator_display_status"])
+    status_fields = parse_keyed_status(output, "GRIDRUNNER_OPERATOR_DISPLAY ", replace_underscores=False)
+    display_profile = load_display_profile()
+    mode = status_fields.get("mode", "web")
+    configured = status_fields.get("configured", "0") == "1"
+    state_file = status_fields.get("state_file", "")
+
+    if mode == "off":
+        status_name = "skipped"
+        message = "local display startup is off"
+    elif configured:
+        status_name = "present"
+        message = f"startup mode {mode}"
+    else:
+        status_name = "missing"
+        message = "operator display not configured"
+
+    return {
+        "status": status_name,
+        "mode": mode,
+        "message": message,
+        "state_file": state_file,
+        "web_url": status_fields.get("web_url", ""),
+        "adsb_url": status_fields.get("adsb_url", ""),
+        "display_profile": display_profile,
+        "output": output,
+    }
+
+
 def adsb_operator_guidance(summary, services=None):
     services = services or {}
     status_value = summary.get("status", "unknown")
@@ -1098,6 +1166,7 @@ def index(request: Request, _user=Depends(require_auth)):
     adsb_summary = adsb_aircraft_summary()
     storage_status_output = run_cmd(COMMANDS["storage_status"])
     storage_list_output = run_cmd(COMMANDS["storage_list"])
+    operator_display = operator_display_summary()
     storage = storage_summary(storage_status_output)
     storage_volumes = storage_volume_options(storage_list_output)
     storage_meters = storage_volume_meters(storage_list_output)
@@ -1138,6 +1207,7 @@ def index(request: Request, _user=Depends(require_auth)):
             "scan_controls": scan_controls,
             "scan_notice": request.query_params.get("scan_notice", ""),
             "storage": storage,
+            "operator_display": operator_display,
             "storage_volumes": storage_volumes,
             "storage_meters": storage_meters,
             "edge_nodes": edge_nodes,
@@ -1256,6 +1326,33 @@ def storage_action(
         "result.html",
         {
             "title": "GRIDRUNNER STORAGE",
+            "output": output,
+        },
+    )
+    no_store(response)
+    return response
+
+
+@app.post("/operator-display", response_class=HTMLResponse)
+def operator_display_action(
+    request: Request,
+    mode: str = Form(...),
+    confirm_token: str = Form(""),
+    _user=Depends(require_auth),
+):
+    if not valid_form_token(confirm_token):
+        return csrf_rejected_response(request, "GRIDRUNNER OPERATOR DISPLAY")
+
+    if mode not in {"web", "adsb", "tmux", "off"}:
+        output = f"Unknown operator display mode: {mode}"
+    else:
+        output = run_cmd(COMMANDS["operator_display_configure"] + [mode])
+
+    response = templates.TemplateResponse(
+        request,
+        "result.html",
+        {
+            "title": "GRIDRUNNER OPERATOR DISPLAY",
             "output": output,
         },
     )
