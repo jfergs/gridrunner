@@ -131,7 +131,7 @@ run_lcd_show() {
   fi
   git -C "$LCD_SHOW_DIR" pull --ff-only || return 1
   chmod -R u+rwX,go+rX "$LCD_SHOW_DIR" || return 1
-  bash "$LCD_SHOW_DIR/$helper"
+  (cd "$LCD_SHOW_DIR" && bash "./$helper")
 }
 
 configure_hdmi_800x480() {

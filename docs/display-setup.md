@@ -44,6 +44,9 @@ Then select the Elecrow or Waveshare display item in the Initial Install panel.
 The dashboard `Operator Display` panel shows the selected display profile and
 lets you choose the startup mode after the install item is available.
 
+Vendor helpers are run from the cloned `LCD-show` directory because those
+scripts use relative paths internally.
+
 ## Manual Preview
 
 ```bash
