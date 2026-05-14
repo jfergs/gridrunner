@@ -64,14 +64,48 @@ browser_command() {
   fi
 }
 
+detect_x_display() {
+  local display=""
+  local socket=""
+
+  if [ -n "${DISPLAY:-}" ] && [ -S "/tmp/.X11-unix/X${DISPLAY#:}" ]; then
+    return 0
+  fi
+
+  display="$(ps -u "$(id -un)" -o args= 2>/dev/null | sed -n 's/.*Xorg \(:[0-9][0-9]*\).*/\1/p' | head -n 1)"
+  if [ -z "$display" ]; then
+    display="$(ps -eo args= 2>/dev/null | sed -n 's/.*Xorg \(:[0-9][0-9]*\).*/\1/p' | head -n 1)"
+  fi
+  if [ -n "$display" ]; then
+    export DISPLAY="$display"
+    return 0
+  fi
+
+  for socket in /tmp/.X11-unix/X*; do
+    if [ -S "$socket" ]; then
+      export DISPLAY=":${socket##*X}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 launch_browser() {
   local url="$1"
   local browser=""
+
+  detect_x_display || {
+    echo "No local X display found. Start the graphical session or use tmux display mode."
+    return 1
+  }
 
   browser="$(browser_command)" || {
     echo "No supported browser found. Install chromium-browser, chromium, or firefox."
     return 1
   }
+
+  echo "Launching operator display on DISPLAY=$DISPLAY url=$url"
 
   if command -v unclutter >/dev/null 2>&1; then
     unclutter -idle 1 >/dev/null 2>&1 &

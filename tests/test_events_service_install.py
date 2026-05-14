@@ -206,6 +206,12 @@ class EventsServiceInstallTests(unittest.TestCase):
         self.assertIn('tmux split-window -v -t "$OPERATOR_DISPLAY_TMUX_SESSION:ops.1"', script)
         self.assertIn("tmux select-layout", script)
 
+    def test_operator_display_script_detects_x_display(self):
+        script = (REPO_DIR / "scripts" / "operator-display.sh").read_text(encoding="utf-8")
+
+        self.assertIn("detect_x_display", script)
+        self.assertIn("/tmp/.X11-unix/X", script)
+
     def test_plane_tracker_service_publishes_adsb_summary(self):
         service = (REPO_DIR / "deploy" / "systemd" / "gridrunner-plane-tracker.service").read_text(
             encoding="utf-8"
@@ -232,6 +238,7 @@ class EventsServiceInstallTests(unittest.TestCase):
         self.assertIn("operator-display.sh launch", service)
         self.assertIn("After=graphical.target network-online.target gridrunner-web.service", service)
         self.assertIn("WantedBy=graphical.target", service)
+        self.assertNotIn("Environment=DISPLAY=:0", service)
 
     def test_events_service_accepts_timeout_exit_as_success(self):
         service = (REPO_DIR / "deploy" / "systemd" / "gridrunner-events.service").read_text(

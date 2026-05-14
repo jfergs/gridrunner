@@ -92,3 +92,7 @@ bash scripts/operator-display.sh status
 has a `Fullscreen` button for browser sessions that are not already kiosked.
 `adsb` opens `http://<device-hostname>.local/tar1090/`. `tmux` opens a local
 `gridrunner` tmux session with tiled health, ADS-B, and events panes.
+
+For browser modes, `operator-display.sh` detects the active local X display at
+launch time. This avoids hardcoding `DISPLAY=:0` on systems where LightDM or the
+desktop starts on another display number.
