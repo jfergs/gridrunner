@@ -221,6 +221,28 @@ install_display_profile() {
   fi
 }
 
+install_browser_runtime() {
+  local browser_package=""
+
+  for browser_package in chromium chromium-browser firefox-esr; do
+    if [ "$MODE" = "dry-run" ]; then
+      echo "[skip] install first available browser package: chromium chromium-browser firefox-esr"
+      return 0
+    fi
+
+    if sudo_env_step DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      -o Dpkg::Options::=--force-confdef \
+      -o Dpkg::Options::=--force-confold \
+      "$browser_package"; then
+      echo "installed browser package: $browser_package"
+      return 0
+    fi
+  done
+
+  echo "No supported browser package installed. Tried chromium, chromium-browser, firefox-esr."
+  return 1
+}
+
 install_operator_display() {
   local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
   local operator_user="${GRIDRUNNER_OPERATOR_USER:-$(id -un)}"
@@ -231,9 +253,11 @@ install_operator_display() {
   local service_rendered="$project_dir/state/gridrunner-operator-display.service"
 
   if [ "$MODE" = "apply" ]; then
-    install_apt tmux unclutter chromium-browser || return 1
+    install_apt tmux unclutter || return 1
+    install_browser_runtime || return 1
   else
-    echo "[skip] install packages: tmux unclutter chromium-browser"
+    echo "[skip] install packages: tmux unclutter"
+    install_browser_runtime || return 1
   fi
 
   if [ ! -f "$service_template" ]; then

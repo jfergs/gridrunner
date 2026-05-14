@@ -59,7 +59,8 @@ Reboot after applying a display profile.
 The `Operator Display Mode` install item installs
 `gridrunner-operator-display.service`, which launches one of the local screen
 modes after the graphical target is available. It installs `tmux`, `unclutter`,
-and `chromium-browser` for the local display workflow.
+and the first available browser package from `chromium`, `chromium-browser`, or
+`firefox-esr` for the local display workflow.
 
 Default mode is the GRIDRUNNER web UI:
 

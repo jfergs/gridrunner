@@ -171,7 +171,8 @@ class EventsServiceInstallTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("install packages: tmux unclutter chromium-browser", result.stdout)
+        self.assertIn("install packages: tmux unclutter", result.stdout)
+        self.assertIn("install first available browser package: chromium chromium-browser firefox-esr", result.stdout)
         self.assertIn("gridrunner-operator-display.service", result.stdout)
         self.assertIn("operator-display.sh configure web", result.stdout)
         self.assertIn("systemctl enable gridrunner-operator-display.service", result.stdout)
