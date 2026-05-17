@@ -389,10 +389,12 @@ cd ~/gridrunner
 sudo bash scripts/install-adsb-readsb.sh
 ```
 
-That helper runs the wiedehopf installer:
+That helper downloads the wiedehopf installer to a temporary file before
+execution. For a pinned install, set the expected installer hash first:
 
 ```bash
-sudo bash -c "$(wget -q -O - https://raw.githubusercontent.com/wiedehopf/adsb-scripts/master/readsb-install.sh)"
+export GRIDRUNNER_READSB_INSTALL_SHA256='<expected-sha256>'
+sudo -E bash scripts/install-adsb-readsb.sh
 ```
 
 Then it marks `readsb` held with `apt-mark hold readsb` when available. Check

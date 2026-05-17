@@ -188,11 +188,19 @@ check_display_profile() {
     return
   fi
 
-  if grep -Eqx "GRIDRUNNER_DISPLAY_PROFILE=['\"]?$expected_profile['\"]?" "$state_file"; then
-    emit "$item" present "reboot-required"
-  else
-    emit "$item" missing "different-profile"
-  fi
+  while IFS='=' read -r key value; do
+    [ "$key" = "GRIDRUNNER_DISPLAY_PROFILE" ] || continue
+    value="${value%\'}"
+    value="${value#\'}"
+    value="${value%\"}"
+    value="${value#\"}"
+    if [ "$value" = "$expected_profile" ]; then
+      emit "$item" present "reboot-required"
+      return
+    fi
+  done < "$state_file"
+
+  emit "$item" missing "different-profile"
 }
 
 check_operator_display() {

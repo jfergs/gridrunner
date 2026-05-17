@@ -107,13 +107,18 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Completed foundation:
     - `/run`, `/scans`, `/power`, `/install`, and `/install/skip` use shared
       form-token protection.
+    - `scripts/setup-sudoers.sh` narrows package install rules to known
+      GRIDRUNNER package groups and rendered service files.
+    - `wifi-fallback.sh` and `wifi-status.sh` parse only expected Wi-Fi config
+      keys instead of shell-sourcing the config file.
+    - `install-adsb-readsb.sh` downloads the wiedehopf installer before
+      execution and supports optional `GRIDRUNNER_READSB_INSTALL_SHA256`
+      verification.
     - `ruff check web tests`, `shellcheck scripts/*.sh`, and the unit suite pass.
   - Remaining acceptance criteria:
-    - Narrow `scripts/setup-sudoers.sh` NOPASSWD rules.
-    - Replace shell-sourced Wi-Fi config parsing in `wifi-fallback.sh` and
-      `wifi-status.sh` with explicit parsing of expected keys only.
-    - Harden ADS-B installer supply chain by downloading before execution and
-      pinning or documenting verification.
+    - Validate narrowed sudoers rules on the Raspberry Pi installer flow.
+    - Pin the ADS-B installer hash when the exact upstream revision is selected
+      for device deployment.
 
 - Validate Wi-Fi failover and fallback hotspot behavior on device.
   - Completed foundation:

@@ -182,6 +182,109 @@ class WifiFallbackTests(unittest.TestCase):
             self.assertIn("ssid Field Runner", calls)
             self.assertIn("wifi-sec.psk password123", calls)
 
+    def test_reads_shell_quoted_apostrophe_in_config_value(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_file = Path(temp_dir) / "wifi-fallback.env"
+            config_file.write_text(
+                "\n".join(
+                    [
+                        "HOTSPOT='GRIDRUNNER-HOTSPOT'",
+                        "HOTSPOT_SSID='Field'\\''s Runner'",
+                        "HOTSPOT_PASSWORD='password123'",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            nmcli_script = textwrap.dedent(
+                """\
+                #!/bin/bash
+                echo "$*" >> "$NMCLI_CALLS"
+                if [ "$*" = "-t -f RUNNING general" ]; then
+                  echo running
+                elif [ "$*" = "-t -f WIFI general" ]; then
+                  echo enabled
+                elif [ "$*" = "-t -f NAME,DEVICE connection show --active" ]; then
+                  exit 0
+                elif [ "$*" = "-t -f NAME,TYPE connection show" ]; then
+                  exit 0
+                elif [ "$*" = "-t -f NAME connection show" ]; then
+                  exit 0
+                elif [ "$*" = "dev wifi list ifname wlan0" ]; then
+                  exit 0
+                elif [ "$1 $2 $3" = "connection add type" ]; then
+                  exit 0
+                elif [ "$1 $2" = "connection down" ]; then
+                  exit 0
+                elif [ "$1 $2 $3" = "connection up GRIDRUNNER-HOTSPOT" ]; then
+                  exit 0
+                fi
+                exit 0
+                """
+            )
+
+            result, calls, _log = self.run_with_fake_nmcli(
+                nmcli_script,
+                {"GRIDRUNNER_WIFI_CONFIG": str(config_file)},
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("ssid Field's Runner", calls)
+
+    def test_ignores_unexpected_config_keys(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_file = Path(temp_dir) / "wifi-fallback.env"
+            marker = Path(temp_dir) / "marker"
+            config_file.write_text(
+                "\n".join(
+                    [
+                        "HOTSPOT='GRIDRUNNER-HOTSPOT'",
+                        "HOTSPOT_PASSWORD='password123'",
+                        f"PATH='{temp_dir}'",
+                        f"UNSAFE='$(touch {marker})'",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            nmcli_script = textwrap.dedent(
+                """\
+                #!/bin/bash
+                echo "$*" >> "$NMCLI_CALLS"
+                if [ "$*" = "-t -f RUNNING general" ]; then
+                  echo running
+                elif [ "$*" = "-t -f WIFI general" ]; then
+                  echo enabled
+                elif [ "$*" = "-t -f NAME,DEVICE connection show --active" ]; then
+                  exit 0
+                elif [ "$*" = "-t -f NAME,TYPE connection show" ]; then
+                  exit 0
+                elif [ "$*" = "-t -f NAME connection show" ]; then
+                  exit 0
+                elif [ "$*" = "dev wifi list ifname wlan0" ]; then
+                  exit 0
+                elif [ "$1 $2 $3" = "connection add type" ]; then
+                  exit 0
+                elif [ "$1 $2" = "connection down" ]; then
+                  exit 0
+                elif [ "$1 $2 $3" = "connection up GRIDRUNNER-HOTSPOT" ]; then
+                  exit 0
+                fi
+                exit 0
+                """
+            )
+
+            result, calls, _log = self.run_with_fake_nmcli(
+                nmcli_script,
+                {"GRIDRUNNER_WIFI_CONFIG": str(config_file)},
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("connection up GRIDRUNNER-HOTSPOT", calls)
+            self.assertFalse(marker.exists())
+
     def test_manual_hotspot_disconnects_known_wifi_and_starts_hotspot(self):
         nmcli_script = textwrap.dedent(
             """\

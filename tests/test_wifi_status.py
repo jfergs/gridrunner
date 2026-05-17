@@ -16,7 +16,7 @@ import app  # noqa: E402
 
 
 class WifiStatusTests(unittest.TestCase):
-    def run_with_fakes(self, connection, action_state=None):
+    def run_with_fakes(self, connection, action_state=None, extra_env=None):
         with tempfile.TemporaryDirectory() as temp_dir:
             fake_bin = Path(temp_dir) / "bin"
             fake_bin.mkdir()
@@ -61,6 +61,8 @@ class WifiStatusTests(unittest.TestCase):
             env["PATH"] = f"{fake_bin}:{env['PATH']}"
             if action_state:
                 env["GRIDRUNNER_WIFI_ACTION_STATE"] = str(action_state)
+            if extra_env:
+                env.update(extra_env)
 
             return subprocess.run(
                 ["bash", str(SCRIPT)],
@@ -115,6 +117,31 @@ class WifiStatusTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("last_action=started-hotspot", result.stdout)
         self.assertIn("last action: started-hotspot", result.stdout)
+
+    def test_ignores_unexpected_config_keys(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_file = Path(temp_dir) / "wifi-fallback.env"
+            marker = Path(temp_dir) / "marker"
+            config_file.write_text(
+                "\n".join(
+                    [
+                        "HOTSPOT='GRIDRUNNER-HOTSPOT'",
+                        f"PATH='{temp_dir}'",
+                        f"UNSAFE='$(touch {marker})'",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_with_fakes(
+                "GRIDRUNNER-HOTSPOT",
+                extra_env={"GRIDRUNNER_WIFI_CONFIG": str(config_file)},
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("mode=hotspot", result.stdout)
+            self.assertFalse(marker.exists())
 
 
 if __name__ == "__main__":
