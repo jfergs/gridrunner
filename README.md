@@ -9,6 +9,13 @@ GRIDRUNNER provides a local web UI for health checks, backup, radio inventory, A
 - Web UI: `http://<device-hostname>.local:8088`
 - ADS-B map: `http://<device-hostname>.local/tar1090/`
 
+## Architecture Notes
+
+- [External storage model](docs/storage-model.md)
+- [ESP32-C6 edge-node architecture](docs/edge-node-architecture.md)
+- [ESP32-C6 plane tracker](docs/esp32-c6-plane-tracker.md)
+- [ESP32-C6 RF tracker firmware](firmware/rf-tracker/README.md)
+
 ## Quick Start
 
 Run this on the Linux device you want to turn into a GRIDRUNNER node:
@@ -382,10 +389,12 @@ cd ~/gridrunner
 sudo bash scripts/install-adsb-readsb.sh
 ```
 
-That helper runs the wiedehopf installer:
+That helper downloads the wiedehopf installer to a temporary file before
+execution. For a pinned install, set the expected installer hash first:
 
 ```bash
-sudo bash -c "$(wget -q -O - https://raw.githubusercontent.com/wiedehopf/adsb-scripts/master/readsb-install.sh)"
+export GRIDRUNNER_READSB_INSTALL_SHA256='<expected-sha256>'
+sudo -E bash scripts/install-adsb-readsb.sh
 ```
 
 Then it marks `readsb` held with `apt-mark hold readsb` when available. Check
@@ -420,6 +429,13 @@ directory when needed:
 ```bash
 export GRIDRUNNER_STATE_DIR=/path/to/state
 ```
+
+The install panel also includes optional display profiles for compact local
+screens. `Display: Elecrow RR050` and `Display: Waveshare 5-inch HDMI` configure
+common 800x480 HDMI/GPIO-touch panels. `Display: Raspberry Pi Touch` records the
+official DSI display profile, which Raspberry Pi OS normally handles without a
+vendor driver script. `Operator Display Mode` can start the local screen in the
+web UI, ADS-B map, or tmux dashboard mode. See `docs/display-setup.md`.
 
 ## Pi Update Smoke Test
 
@@ -461,6 +477,21 @@ bootstrap web process already using port `8088`. Check it with:
 systemctl status gridrunner-web.service
 journalctl -u gridrunner-web.service -n 100 --no-pager
 ```
+
+## Edge-Node MQTT Ingest
+
+The `Edge Node MQTT` install item installs Mosquitto, creates the edge-node
+state directories, renders `deploy/systemd/gridrunner-edge-node-ingest.service`,
+and enables the subscriber service:
+
+```bash
+bash scripts/install-items.sh --apply edge-node-mqtt
+systemctl status gridrunner-edge-node-ingest.service
+```
+
+The service subscribes to `gridrunner/nodes/+/telemetry` and writes validated
+latest-state JSON files under `state/edge-nodes/` via
+`scripts/edge-node-ingest.sh`.
 
 ## Power Controls
 

@@ -30,5 +30,8 @@ emit_service gridrunner-web gridrunner-web.service
 emit_service gridrunner-wifi-timer gridrunner-wifi.timer
 emit_service gridrunner-wifi gridrunner-wifi.service
 emit_service gridrunner-events-timer gridrunner-events.timer
+emit_service gridrunner-plane-tracker-timer gridrunner-plane-tracker.timer
+emit_service gridrunner-plane-tracker gridrunner-plane-tracker.service
+emit_service mosquitto mosquitto.service
 emit_service readsb readsb.service
 emit_service lighttpd lighttpd.service

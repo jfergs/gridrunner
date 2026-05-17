@@ -2,6 +2,7 @@
 set -eu
 
 INSTALL_URL="${GRIDRUNNER_READSB_INSTALL_URL:-https://raw.githubusercontent.com/wiedehopf/adsb-scripts/master/readsb-install.sh}"
+INSTALL_SHA256="${GRIDRUNNER_READSB_INSTALL_SHA256:-}"
 
 if [ "$(id -u)" -ne 0 ]; then
   echo "Run as root: sudo $0"
@@ -11,14 +12,34 @@ fi
 echo "Installing wiedehopf readsb build."
 echo "Do not install the Debian readsb package for GRIDRUNNER ADS-B."
 
+installer="$(mktemp)"
+trap 'rm -f "$installer"' EXIT
+
 if command -v wget >/dev/null 2>&1; then
-  bash -c "$(wget -q -O - "$INSTALL_URL")"
+  wget -q -O "$installer" "$INSTALL_URL"
 elif command -v curl >/dev/null 2>&1; then
-  bash -c "$(curl -fsSL "$INSTALL_URL")"
+  curl -fsSL "$INSTALL_URL" -o "$installer"
 else
   echo "wget or curl is required to install readsb."
   exit 1
 fi
+
+if [ ! -s "$installer" ]; then
+  echo "Downloaded readsb installer is empty."
+  exit 1
+fi
+
+if [ -n "$INSTALL_SHA256" ]; then
+  if ! command -v sha256sum >/dev/null 2>&1; then
+    echo "sha256sum is required when GRIDRUNNER_READSB_INSTALL_SHA256 is set."
+    exit 1
+  fi
+  printf '%s  %s\n' "$INSTALL_SHA256" "$installer" | sha256sum -c -
+else
+  echo "No GRIDRUNNER_READSB_INSTALL_SHA256 set; executing downloaded installer without checksum pinning."
+fi
+
+bash "$installer"
 
 if command -v apt-mark >/dev/null 2>&1; then
   apt-mark hold readsb || true

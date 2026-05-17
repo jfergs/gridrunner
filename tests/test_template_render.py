@@ -22,6 +22,7 @@ class TemplateRenderTests(unittest.TestCase):
                 "web-service": {"status": "present", "detail": "active"},
                 "events-service": {"status": "present", "detail": "timer-active"},
             },
+            {"status": "present", "count": 1},
         )
 
         self.assertEqual(
@@ -31,6 +32,7 @@ class TemplateRenderTests(unittest.TestCase):
                 {"label": "WIFI HOTSPOT", "severity": "ok"},
                 {"label": "EVENTS STALE", "severity": "warn"},
                 {"label": "EVENT TIMER PRESENT", "severity": "ok"},
+                {"label": "EDGE NODES PRESENT", "severity": "ok"},
                 {"label": "ADS-B DEGRADED", "severity": "warn"},
                 {"label": "WEB PRESENT", "severity": "ok"},
             ],
@@ -57,7 +59,7 @@ class TemplateRenderTests(unittest.TestCase):
                 "events-service": {"status": "present", "detail": "timer-active"},
                 "adsb-tools": {"status": "present", "detail": "rtl-supported"},
             },
-            "GRIDRUNNER_DISK_HEALTH status=warn used_percent=90 available_kb=100 mount=/ path=/home/ghost/gridrunner",
+            "GRIDRUNNER_DISK_HEALTH status=warn used_percent=90 available_kb=100 mount=/ path=/home/operator/gridrunner",
             services,
             True,
         )
@@ -151,6 +153,29 @@ class TemplateRenderTests(unittest.TestCase):
 
         self.assertIn(b"invalid form token", response.body)
 
+    def test_operator_display_action_rejects_invalid_form_token(self):
+        request = SimpleNamespace(scope={"type": "http", "method": "POST", "path": "/operator-display", "headers": []})
+
+        response = app.operator_display_action(request, mode="web", confirm_token="bad-token")
+
+        self.assertIn(b"invalid form token", response.body)
+
+    def test_operator_display_summary_marks_unconfigured_state_missing(self):
+        summary = app.operator_display_summary(
+            "GRIDRUNNER_OPERATOR_DISPLAY mode=web configured=0 state_file=/tmp/operator-display.env web_url=http://gridrunner.local:8088 adsb_url=http://gridrunner.local/tar1090/"
+        )
+
+        self.assertEqual(summary["status"], "missing")
+        self.assertEqual(summary["mode"], "web")
+
+    def test_operator_display_summary_marks_configured_state_present(self):
+        summary = app.operator_display_summary(
+            "GRIDRUNNER_OPERATOR_DISPLAY mode=adsb configured=1 state_file=/tmp/operator-display.env web_url=http://gridrunner.local:8088 adsb_url=http://gridrunner.local/tar1090/"
+        )
+
+        self.assertEqual(summary["status"], "present")
+        self.assertEqual(summary["message"], "startup mode adsb")
+
     def test_index_template_renders_without_wifi_status_context(self):
         request = SimpleNamespace(scope={"type": "http", "method": "GET", "path": "/", "headers": []})
 
@@ -179,6 +204,7 @@ class TemplateRenderTests(unittest.TestCase):
                 "component_health": {},
                 "node_status": [{"label": "NODE ONLINE", "severity": "ok"}],
                 "self_tests": [],
+                "edge_nodes": {"status": "missing", "message": "no edge-node telemetry cached", "count": 0, "nodes": []},
             },
         )
 
@@ -228,6 +254,7 @@ class TemplateRenderTests(unittest.TestCase):
                     {"label": "WIFI KNOWN-WIFI", "severity": "ok"},
                     {"label": "EVENTS FRESH", "severity": "ok"},
                     {"label": "EVENT TIMER PRESENT", "severity": "ok"},
+                    {"label": "EDGE NODES PRESENT", "severity": "ok"},
                     {"label": "ADS-B PRESENT", "severity": "ok"},
                     {"label": "WEB PRESENT", "severity": "ok"},
                 ],
@@ -303,7 +330,88 @@ class TemplateRenderTests(unittest.TestCase):
                         "selectable": "yes",
                     },
                 ],
+                "operator_display": {
+                    "status": "present",
+                    "mode": "web",
+                    "message": "startup mode web",
+                    "state_file": "/home/operator/gridrunner/state/operator-display.env",
+                    "web_url": "http://gridrunner.local:8088",
+                    "adsb_url": "http://gridrunner.local/tar1090/",
+                    "display_profile": {
+                        "profile": "elecrow-rr050",
+                        "label": "Elecrow RR050 5-inch HDMI touch",
+                        "boot_config": "/boot/firmware/config.txt",
+                        "reboot_required": "1",
+                    },
+                    "output": "GRIDRUNNER_OPERATOR_DISPLAY mode=web",
+                },
                 "adsb_guidance": ["Aircraft data is aging; check readsb if the count stops changing."],
+                "edge_nodes": {
+                    "status": "present",
+                    "message": "1 edge node; newest 12s ago",
+                    "count": 1,
+                    "state_dir": "/tmp/gridrunner/state/edge-nodes",
+                    "nodes": [
+                        {
+                            "node_id": "node-03",
+                            "profile": "ble-presence",
+                            "age_seconds": 12,
+                            "freshness": "present",
+                            "battery_percent": "82",
+                            "transport": "mqtt",
+                            "known_count": "5",
+                            "unknown_count": "13",
+                            "ignored_count": "2",
+                            "rssi_peak": "-48",
+                            "wifi_ap_count": "8",
+                            "wifi_strongest_rssi": "-42",
+                            "wifi_strongest_ssid": "GRIDRUNNER",
+                            "drone_candidate_count": "1",
+                            "drone_wifi_count": "0",
+                            "drone_ble_count": "1",
+                            "drone_rssi_peak": "-58",
+                            "pending_scan_count": "3",
+                        }
+                    ],
+                    "rf_targets": [
+                        {
+                            "kind": "wifi",
+                            "label": "GRIDRUNNER",
+                            "detail": "ch 6 WPA2",
+                            "rssi": "-42",
+                            "x": "50.0",
+                            "y": "32.0",
+                        },
+                        {
+                            "kind": "bluetooth",
+                            "label": "BLE 18",
+                            "detail": "known 5 unk 13",
+                            "rssi": "-48",
+                            "x": "62.0",
+                            "y": "44.0",
+                        },
+                        {
+                            "kind": "drone",
+                            "label": "DRONE 1",
+                            "detail": "wifi 0 ble 1",
+                            "rssi": "-58",
+                            "x": "42.0",
+                            "y": "58.0",
+                        },
+                        {
+                            "kind": "deauth",
+                            "label": "DEAUTH 2",
+                            "detail": "window 15s",
+                            "rssi": "-50",
+                            "x": "38.0",
+                            "y": "38.0",
+                        },
+                    ],
+                    "ble_total": 18,
+                    "wifi_ap_total": 8,
+                    "drone_candidate_total": 1,
+                    "pending_scan_total": 3,
+                },
             },
         )
 
@@ -313,6 +421,8 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"ADS-B PRESENT", response.body)
         self.assertIn(b"WEB PRESENT", response.body)
         self.assertIn(b"field terminal active", response.body)
+        self.assertIn(b'id="fullscreen-toggle"', response.body)
+        self.assertIn(b"requestFullscreen", response.body)
         self.assertIn(b"Quick Actions", response.body)
         self.assertIn(b"Transport Deck", response.body)
         self.assertIn(b"quick-action-map", response.body)
@@ -352,6 +462,30 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertIn(b"Wi-Fi Scan Now", response.body)
         self.assertIn(b">Map</a>", response.body)
         self.assertIn(b"Storage", response.body)
+        self.assertIn(b"Operator Display", response.body)
+        self.assertIn(b"Elecrow RR050 5-inch HDMI touch", response.body)
+        self.assertIn(b"ADS-B Map", response.body)
+        self.assertIn(b"display config changed; reboot required", response.body)
+        self.assertIn(b"Edge Nodes", response.body)
+        self.assertIn(b"node-03", response.body)
+        self.assertIn(b"ble-presence", response.body)
+        self.assertIn(b"Drone", response.body)
+        self.assertIn(b"aps 8", response.body)
+        self.assertIn(b"drone 1", response.body)
+        self.assertIn(b"strong GRIDRUNNER", response.body)
+        self.assertIn(b"pending 3", response.body)
+        self.assertIn(b"RF target radar", response.body)
+        self.assertIn(b"rf-target-list", response.body)
+        self.assertIn(b"rf-target-wifi", response.body)
+        self.assertIn(b"rf-target-bluetooth", response.body)
+        self.assertIn(b"rf-target-drone", response.body)
+        self.assertIn(b"rf-target-deauth", response.body)
+        self.assertIn(b"rf-target-detail", response.body)
+        self.assertIn(b"<strong>Node</strong>", response.body)
+        self.assertIn(b"<strong>Radar</strong>", response.body)
+        self.assertIn(b"/edge-nodes/api", response.body)
+        self.assertIn(b"setInterval(tickEdgeAges, 1000)", response.body)
+        self.assertIn(b"setInterval(refreshEdge, 2000)", response.body)
         self.assertIn(b"Storage routing and controls", response.body)
         self.assertIn(b"Use USB Storage", response.body)
         self.assertIn(b"External USB storage is active", response.body)
@@ -382,6 +516,127 @@ class TemplateRenderTests(unittest.TestCase):
         self.assertEqual(meters[0]["free_label"], "6.0 GB")
         self.assertEqual(meters[1]["mount"], "/media/ghost/USB")
         self.assertEqual(meters[1]["used_label"], "4.0 GB")
+
+    def test_load_edge_nodes_reads_cached_state(self):
+        original_edge_node_state_dir = app.EDGE_NODE_STATE_DIR
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                edge_dir = Path(temp_dir) / "edge-nodes"
+                edge_dir.mkdir()
+                state_file = edge_dir / "node-03.json"
+                state_file.write_text(
+                    json.dumps(
+                        {
+                            "schema": "gridrunner.edge_node.v1",
+                            "node_id": "node-03",
+                            "profile": "ble-presence",
+                            "timestamp": "2026-05-12T17:30:00Z",
+                            "received_at": "2026-05-12T17:30:01Z",
+                            "battery": {"percent": 82, "voltage": 3.98, "charging": False},
+                            "link": {"transport": "mqtt", "rssi": -61, "last_sync_seconds": 12, "pending_scan_count": 3},
+                            "ble": {
+                                "window_seconds": 60,
+                                "known_count": 5,
+                                "unknown_count": 13,
+                                "ignored_count": 2,
+                                "rssi_peak": -48,
+                            },
+                            "wifi": {
+                                "window_seconds": 15,
+                                "ap_count": 8,
+                                "stored_count": 5,
+                                "strongest_rssi": -42,
+                                "strongest_ssid": "GRIDRUNNER",
+                                "scan_count": 4,
+                                "aps": [
+                                    {
+                                        "ssid": "GRIDRUNNER",
+                                        "rssi": -42,
+                                        "channel": 6,
+                                        "security": "WPA2",
+                                        "drone_candidate": False,
+                                    },
+                                    {
+                                        "ssid": "DJI-RID",
+                                        "rssi": -58,
+                                        "channel": 11,
+                                        "security": "OPEN",
+                                        "drone_candidate": True,
+                                    },
+                                ],
+                            },
+                            "drone": {
+                                "candidate_count": 1,
+                                "wifi_count": 0,
+                                "ble_count": 1,
+                                "rssi_peak": -58,
+                            },
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                app.EDGE_NODE_STATE_DIR = edge_dir
+                summary = app.load_edge_nodes(now=int(state_file.stat().st_mtime) + 30)
+
+                self.assertEqual(summary["status"], "present")
+                self.assertEqual(summary["count"], 1)
+                self.assertEqual(summary["nodes"][0]["node_id"], "node-03")
+                self.assertEqual(summary["nodes"][0]["battery_percent"], "82")
+                self.assertEqual(summary["nodes"][0]["unknown_count"], "13")
+                self.assertEqual(summary["ble_total"], 18)
+                self.assertEqual(summary["wifi_ap_total"], 8)
+                self.assertEqual(summary["drone_candidate_total"], 1)
+                self.assertEqual(summary["pending_scan_total"], 3)
+                self.assertEqual(summary["nodes"][0]["wifi_strongest_ssid"], "GRIDRUNNER")
+                self.assertEqual(summary["nodes"][0]["drone_rssi_peak"], "-58")
+                self.assertEqual(summary["rf_targets"][0]["kind"], "drone")
+                self.assertIn("DRONE 1", [target["label"] for target in summary["rf_targets"]])
+                self.assertIn("GRIDRUNNER", [target["label"] for target in summary["rf_targets"]])
+        finally:
+            app.EDGE_NODE_STATE_DIR = original_edge_node_state_dir
+
+    def test_edge_nodes_api_returns_live_summary(self):
+        original_edge_node_state_dir = app.EDGE_NODE_STATE_DIR
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                edge_dir = Path(temp_dir) / "edge-nodes"
+                edge_dir.mkdir()
+                (edge_dir / "node-03.json").write_text(
+                    json.dumps(
+                        {
+                            "schema": "gridrunner.edge_node.v1",
+                            "node_id": "node-03",
+                            "profile": "rf-handheld",
+                            "timestamp": "2026-05-12T17:30:00Z",
+                            "received_at": "2026-05-12T17:30:01Z",
+                            "battery": {"percent": 82, "charging": False},
+                            "link": {"transport": "mqtt", "rssi": -61, "last_sync_seconds": 12, "pending_scan_count": 2},
+                            "ble": {"window_seconds": 30, "known_count": 1, "unknown_count": 2, "ignored_count": 0, "rssi_peak": -44},
+                            "wifi": {
+                                "window_seconds": 15,
+                                "ap_count": 1,
+                                "stored_count": 1,
+                                "strongest_rssi": -42,
+                                "strongest_ssid": "GRIDRUNNER",
+                                "aps": [{"ssid": "GRIDRUNNER", "rssi": -42, "channel": 6, "security": "WPA2"}],
+                            },
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                app.EDGE_NODE_STATE_DIR = edge_dir
+
+                response = app.edge_nodes_api(_user="operator")
+                payload = json.loads(response.body)
+
+                self.assertEqual(payload["status"], "present")
+                self.assertEqual(payload["count"], 1)
+                self.assertEqual(payload["ble_total"], 3)
+                self.assertEqual(payload["wifi_ap_total"], 1)
+                self.assertEqual(payload["pending_scan_total"], 2)
+                self.assertEqual(payload["rf_targets"][0]["label"], "GRIDRUNNER")
+        finally:
+            app.EDGE_NODE_STATE_DIR = original_edge_node_state_dir
 
     def test_storage_config_uses_external_events_log_when_ready(self):
         original_storage_state_file = app.STORAGE_STATE_FILE

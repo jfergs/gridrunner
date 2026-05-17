@@ -69,6 +69,11 @@ EOF
 }
 
 install_apt() {
+  if [ "$MODE" != "apply" ]; then
+    echo "[skip] install packages: $*"
+    return 0
+  fi
+
   if ! command -v apt-get >/dev/null 2>&1; then
     echo "apt-get not found; package install unavailable: $*"
     return 1
@@ -116,6 +121,169 @@ install_wifi_tools() {
   install_apt network-manager
 }
 
+install_edge_node_mqtt() {
+  local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
+  local operator_user="${GRIDRUNNER_OPERATOR_USER:-$(id -un)}"
+  local operator_home="${GRIDRUNNER_OPERATOR_HOME:-$HOME}"
+  local device_hostname="${GRIDRUNNER_DEVICE_HOSTNAME:-$(hostname -s)}"
+  local state_dir="${GRIDRUNNER_STATE_DIR:-$project_dir/state}"
+  local service_template="$project_dir/deploy/systemd/gridrunner-edge-node-ingest.service"
+  local service_rendered="$project_dir/state/gridrunner-edge-node-ingest.service"
+
+  install_apt mosquitto mosquitto-clients jq || return 1
+  run_step mkdir -p "$state_dir/edge-nodes" "$project_dir/data/edge-nodes" || return 1
+
+  if [ ! -f "$service_template" ]; then
+    echo "edge-node ingest service template not found: $service_template"
+    return 1
+  fi
+
+  if [ "$MODE" = "apply" ]; then
+    render_template "$service_template" "$service_rendered" "$project_dir" "$operator_user" "$operator_home" "$device_hostname" || return 1
+    require_sudo || return 1
+    sudo_step install -m 0644 "$service_rendered" /etc/systemd/system/gridrunner-edge-node-ingest.service || return 1
+  else
+    echo "[skip] render $service_template -> $service_rendered"
+    echo "[skip] sudo -n install -m 0644 $service_rendered /etc/systemd/system/gridrunner-edge-node-ingest.service"
+  fi
+
+  if [ "$MODE" = "dry-run" ] || command -v systemctl >/dev/null 2>&1; then
+    sudo_step systemctl enable --now mosquitto.service || return 1
+    sudo_step systemctl daemon-reload || return 1
+    sudo_step systemctl enable --now gridrunner-edge-node-ingest.service || return 1
+  fi
+
+  echo "edge-node MQTT ingest installed and subscribed to gridrunner/nodes/+/telemetry."
+}
+
+install_plane_tracker() {
+  local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
+  local operator_user="${GRIDRUNNER_OPERATOR_USER:-$(id -un)}"
+  local operator_home="${GRIDRUNNER_OPERATOR_HOME:-$HOME}"
+  local device_hostname="${GRIDRUNNER_DEVICE_HOSTNAME:-$(hostname -s)}"
+  local service_template="$project_dir/deploy/systemd/gridrunner-plane-tracker.service"
+  local timer_template="$project_dir/deploy/systemd/gridrunner-plane-tracker.timer"
+  local service_rendered="$project_dir/state/gridrunner-plane-tracker.service"
+  local timer_rendered="$project_dir/state/gridrunner-plane-tracker.timer"
+
+  if [ "$MODE" = "apply" ]; then
+    install_apt mosquitto-clients jq || return 1
+  else
+    echo "[skip] install packages: mosquitto-clients jq"
+  fi
+
+  if [ ! -f "$service_template" ]; then
+    echo "plane tracker service template not found: $service_template"
+    return 1
+  fi
+  if [ ! -f "$timer_template" ]; then
+    echo "plane tracker timer template not found: $timer_template"
+    return 1
+  fi
+
+  run_step mkdir -p "$project_dir/state" "$project_dir/data/adsb" || return 1
+
+  if [ "$MODE" = "apply" ]; then
+    render_template "$service_template" "$service_rendered" "$project_dir" "$operator_user" "$operator_home" "$device_hostname" || return 1
+    render_template "$timer_template" "$timer_rendered" "$project_dir" "$operator_user" "$operator_home" "$device_hostname" || return 1
+    require_sudo || return 1
+    sudo_step install -m 0644 "$service_rendered" /etc/systemd/system/gridrunner-plane-tracker.service || return 1
+    sudo_step install -m 0644 "$timer_rendered" /etc/systemd/system/gridrunner-plane-tracker.timer || return 1
+  else
+    echo "[skip] render $service_template -> $service_rendered"
+    echo "[skip] render $timer_template -> $timer_rendered"
+    echo "[skip] sudo -n install -m 0644 $service_rendered /etc/systemd/system/gridrunner-plane-tracker.service"
+    echo "[skip] sudo -n install -m 0644 $timer_rendered /etc/systemd/system/gridrunner-plane-tracker.timer"
+  fi
+
+  sudo_step systemctl daemon-reload &&
+    sudo_step systemctl enable --now gridrunner-plane-tracker.timer
+
+  echo "gridrunner-plane-tracker.timer installed and enabled."
+}
+
+install_display_profile() {
+  local profile="$1"
+  local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
+
+  if [ "$MODE" = "apply" ]; then
+    install_apt git evtest xinput || return 1
+    require_sudo || return 1
+    sudo_step env \
+      GRIDRUNNER_HOME="$project_dir" \
+      GRIDRUNNER_STATE_DIR="${GRIDRUNNER_STATE_DIR:-$project_dir/state}" \
+      GRIDRUNNER_DISPLAY_VENDOR_DRIVER="${GRIDRUNNER_DISPLAY_VENDOR_DRIVER:-0}" \
+      GRIDRUNNER_LCD_SHOW_URL="${GRIDRUNNER_LCD_SHOW_URL:-https://github.com/waveshareteam/LCD-show.git}" \
+      /usr/bin/bash "$project_dir/scripts/configure-display.sh" "$profile" || return 1
+  else
+    echo "[skip] install packages: git evtest xinput"
+    echo "[skip] sudo -n env GRIDRUNNER_HOME=$project_dir GRIDRUNNER_STATE_DIR=${GRIDRUNNER_STATE_DIR:-$project_dir/state} GRIDRUNNER_DISPLAY_VENDOR_DRIVER=${GRIDRUNNER_DISPLAY_VENDOR_DRIVER:-0} GRIDRUNNER_LCD_SHOW_URL=${GRIDRUNNER_LCD_SHOW_URL:-https://github.com/waveshareteam/LCD-show.git} /usr/bin/bash $project_dir/scripts/configure-display.sh $profile"
+  fi
+}
+
+install_browser_runtime() {
+  local browser_package=""
+
+  for browser_package in chromium chromium-browser firefox-esr; do
+    if [ "$MODE" = "dry-run" ]; then
+      echo "[skip] install first available browser package: chromium chromium-browser firefox-esr"
+      return 0
+    fi
+
+    if sudo_env_step DEBIAN_FRONTEND=noninteractive apt-get install -y \
+      -o Dpkg::Options::=--force-confdef \
+      -o Dpkg::Options::=--force-confold \
+      "$browser_package"; then
+      echo "installed browser package: $browser_package"
+      return 0
+    fi
+  done
+
+  echo "No supported browser package installed. Tried chromium, chromium-browser, firefox-esr."
+  return 1
+}
+
+install_operator_display() {
+  local project_dir="${GRIDRUNNER_HOME:-$DEFAULT_PROJECT_DIR}"
+  local operator_user="${GRIDRUNNER_OPERATOR_USER:-$(id -un)}"
+  local operator_home="${GRIDRUNNER_OPERATOR_HOME:-$HOME}"
+  local device_hostname="${GRIDRUNNER_DEVICE_HOSTNAME:-$(hostname -s)}"
+  local display_mode="${GRIDRUNNER_OPERATOR_DISPLAY_MODE:-web}"
+  local service_template="$project_dir/deploy/systemd/gridrunner-operator-display.service"
+  local service_rendered="$project_dir/state/gridrunner-operator-display.service"
+
+  if [ "$MODE" = "apply" ]; then
+    install_apt tmux unclutter || return 1
+    install_browser_runtime || return 1
+  else
+    echo "[skip] install packages: tmux unclutter"
+    install_browser_runtime || return 1
+  fi
+
+  if [ ! -f "$service_template" ]; then
+    echo "operator display service template not found: $service_template"
+    return 1
+  fi
+
+  run_step mkdir -p "$project_dir/state" || return 1
+
+  if [ "$MODE" = "apply" ]; then
+    bash "$project_dir/scripts/operator-display.sh" configure "$display_mode" || return 1
+    render_template "$service_template" "$service_rendered" "$project_dir" "$operator_user" "$operator_home" "$device_hostname" || return 1
+    require_sudo || return 1
+    sudo_step install -m 0644 "$service_rendered" /etc/systemd/system/gridrunner-operator-display.service || return 1
+  else
+    echo "[skip] bash $project_dir/scripts/operator-display.sh configure $display_mode"
+    echo "[skip] render $service_template -> $service_rendered"
+    echo "[skip] sudo -n install -m 0644 $service_rendered /etc/systemd/system/gridrunner-operator-display.service"
+  fi
+
+  sudo_step systemctl daemon-reload &&
+    sudo_step systemctl enable gridrunner-operator-display.service
+
+  echo "gridrunner-operator-display.service installed. Start it after a graphical session is available, or reboot into the local display."
+}
+
 install_ham_tools() {
   install_apt flrig pat
 }
@@ -126,9 +294,11 @@ install_operator_dirs() {
   run_step mkdir -p \
     "$project_dir/data" \
     "$project_dir/data/adsb" \
+    "$project_dir/data/edge-nodes" \
     "$project_dir/data/media" \
     "$project_dir/logs" \
     "$project_dir/state" \
+    "$project_dir/state/edge-nodes" \
     "$project_dir/radio" \
     "$project_dir/sdr"
 }
@@ -269,6 +439,24 @@ for item in "$@"; do
       ;;
     wifi-tools)
       install_wifi_tools
+      ;;
+    edge-node-mqtt)
+      install_edge_node_mqtt
+      ;;
+    plane-tracker)
+      install_plane_tracker
+      ;;
+    display-elecrow-rr050)
+      install_display_profile elecrow-rr050
+      ;;
+    display-waveshare-5hdmi)
+      install_display_profile waveshare-5hdmi
+      ;;
+    display-raspberrypi-touch)
+      install_display_profile raspberrypi-touch
+      ;;
+    operator-display)
+      install_operator_display
       ;;
     ham-tools)
       install_ham_tools

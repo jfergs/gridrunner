@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import re
 import secrets
@@ -23,12 +24,15 @@ from config import (
     ADSB_ROUTE_LOOKUP_LIMIT,
     ADSB_ROUTE_LOOKUP_TIMEOUT,
     DEVICE_HOSTNAME,
+    EDGE_NODE_STALE_SECONDS,
+    EDGE_NODE_STATE_DIR,
     EVENTS_LOG,
     EVENTS_STALE_SECONDS,
     OPERATOR_HOME,
     OPERATOR_USER,
     PROJECT_DIR,
     SCAN_STATE_FILE,
+    STATE_DIR,
     STORAGE_STATE_FILE,
     WEB_DIR,
     WEB_PASSWORD,
@@ -62,6 +66,12 @@ STORAGE_KEYS = {
     "GRIDRUNNER_RADIO_DIR",
     "GRIDRUNNER_ADSB_HISTORY_DIR",
     "GRIDRUNNER_MEDIA_DIR",
+}
+DISPLAY_KEYS = {
+    "GRIDRUNNER_DISPLAY_PROFILE",
+    "GRIDRUNNER_DISPLAY_LABEL",
+    "GRIDRUNNER_DISPLAY_BOOT_CONFIG",
+    "GRIDRUNNER_DISPLAY_REBOOT_REQUIRED",
 }
 SCAN_PROFILES = {
     "low-impact": {
@@ -299,6 +309,131 @@ def storage_volume_meters(output):
     return meters
 
 
+def load_edge_nodes(now=None):
+    now = int(time.time() if now is None else now)
+    nodes = []
+    rf_targets = []
+    ble_total = 0
+    wifi_ap_total = 0
+    drone_candidate_total = 0
+    pending_scan_total = 0
+
+    try:
+        state_files = sorted(EDGE_NODE_STATE_DIR.glob("*.json"))
+    except OSError:
+        return {
+            "status": "degraded",
+            "message": "edge-node state unreadable",
+            "count": 0,
+            "nodes": [],
+            "state_dir": str(EDGE_NODE_STATE_DIR),
+        }
+
+    for state_file in state_files:
+        try:
+            payload = json.loads(state_file.read_text(encoding="utf-8"))
+            mtime = int(state_file.stat().st_mtime)
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        battery = payload.get("battery", {}) if isinstance(payload.get("battery"), dict) else {}
+        link = payload.get("link", {}) if isinstance(payload.get("link"), dict) else {}
+        ble = payload.get("ble", {}) if isinstance(payload.get("ble"), dict) else {}
+        wifi = payload.get("wifi", {}) if isinstance(payload.get("wifi"), dict) else {}
+        drone = payload.get("drone", {}) if isinstance(payload.get("drone"), dict) else {}
+        deauth = payload.get("deauth", {}) if isinstance(payload.get("deauth"), dict) else {}
+        age_seconds = max(0, now - mtime)
+        ble_known = int_value(ble.get("known_count"))
+        ble_unknown = int_value(ble.get("unknown_count"))
+        wifi_ap_count = int_value(wifi.get("ap_count"))
+        drone_candidate_count = int_value(drone.get("candidate_count"))
+        pending_scan_count = int_value(link.get("pending_scan_count"))
+        ble_total += ble_known + ble_unknown
+        wifi_ap_total += wifi_ap_count
+        drone_candidate_total += drone_candidate_count
+        pending_scan_total += pending_scan_count
+        node_id = short_aircraft_value(payload.get("node_id"), state_file.stem)
+        for row in wifi.get("aps", []) if isinstance(wifi.get("aps"), list) else []:
+            if not isinstance(row, dict):
+                continue
+            label = short_aircraft_value(row.get("ssid"), "<hidden>")
+            rssi = int_value(row.get("rssi"), -95)
+            kind = "drone" if row.get("drone_candidate") else "wifi"
+            detail = f"ch {short_aircraft_value(row.get('channel'))} {short_aircraft_value(row.get('security'))}"
+            rf_targets.append(rf_target(node_id, label, kind, rssi, detail, len(rf_targets)))
+        if ble_known + ble_unknown > 0:
+            label = f"BLE {ble_known + ble_unknown}"
+            detail = f"known {ble_known} unk {ble_unknown}"
+            rf_targets.append(rf_target(node_id, label, "bluetooth", int_value(ble.get("rssi_peak"), -95), detail, len(rf_targets)))
+        if drone_candidate_count > 0:
+            detail = f"wifi {short_aircraft_value(drone.get('wifi_count'), '0')} ble {short_aircraft_value(drone.get('ble_count'), '0')}"
+            rf_targets.append(
+                rf_target(node_id, f"DRONE {drone_candidate_count}", "drone", int_value(drone.get("rssi_peak"), -95), detail, len(rf_targets))
+            )
+        deauth_count = int_value(deauth.get("count"))
+        if deauth_count > 0:
+            detail = f"window {short_aircraft_value(deauth.get('window_seconds'))}s"
+            rf_targets.append(
+                rf_target(node_id, f"DEAUTH {deauth_count}", "deauth", int_value(deauth.get("rssi_peak"), -95), detail, len(rf_targets))
+            )
+        nodes.append(
+            {
+                "node_id": node_id,
+                "profile": short_aircraft_value(payload.get("profile")),
+                "timestamp": short_aircraft_value(payload.get("timestamp")),
+                "received_at": short_aircraft_value(payload.get("received_at")),
+                "age_seconds": age_seconds,
+                "freshness": "stale" if age_seconds > EDGE_NODE_STALE_SECONDS else "present",
+                "battery_percent": short_aircraft_value(battery.get("percent")),
+                "charging": battery.get("charging"),
+                "transport": short_aircraft_value(link.get("transport")),
+                "rssi": short_aircraft_value(link.get("rssi")),
+                "last_sync_seconds": short_aircraft_value(link.get("last_sync_seconds")),
+                "pending_scan_count": short_aircraft_value(pending_scan_count, "0"),
+                "window_seconds": short_aircraft_value(ble.get("window_seconds")),
+                "known_count": short_aircraft_value(ble_known, "0"),
+                "unknown_count": short_aircraft_value(ble_unknown, "0"),
+                "ignored_count": short_aircraft_value(ble.get("ignored_count"), "0"),
+                "rssi_peak": short_aircraft_value(ble.get("rssi_peak")),
+                "wifi_ap_count": short_aircraft_value(wifi_ap_count, "0"),
+                "wifi_stored_count": short_aircraft_value(wifi.get("stored_count"), "0"),
+                "wifi_strongest_rssi": short_aircraft_value(wifi.get("strongest_rssi")),
+                "wifi_strongest_ssid": short_aircraft_value(wifi.get("strongest_ssid")),
+                "wifi_scan_count": short_aircraft_value(wifi.get("scan_count"), "0"),
+                "drone_candidate_count": short_aircraft_value(drone_candidate_count, "0"),
+                "drone_wifi_count": short_aircraft_value(drone.get("wifi_count"), "0"),
+                "drone_ble_count": short_aircraft_value(drone.get("ble_count"), "0"),
+                "drone_rssi_peak": short_aircraft_value(drone.get("rssi_peak")),
+            }
+        )
+
+    nodes.sort(key=lambda node: node["age_seconds"])
+    rf_targets.sort(key=lambda target: (target["kind_order"], target["sort_rssi"]))
+    if not nodes:
+        return {
+            "status": "missing",
+            "message": "no edge-node telemetry cached",
+            "count": 0,
+            "nodes": [],
+            "state_dir": str(EDGE_NODE_STATE_DIR),
+        }
+
+    status_value = "stale" if all(node["freshness"] == "stale" for node in nodes) else "present"
+    newest_age = nodes[0]["age_seconds"]
+    return {
+        "status": status_value,
+        "message": f"{len(nodes)} edge node{'s' if len(nodes) != 1 else ''}; newest {newest_age}s ago",
+        "count": len(nodes),
+        "ble_total": ble_total,
+        "wifi_ap_total": wifi_ap_total,
+        "drone_candidate_total": drone_candidate_total,
+        "pending_scan_total": pending_scan_total,
+        "rf_targets": rf_targets,
+        "nodes": nodes,
+        "state_dir": str(EDGE_NODE_STATE_DIR),
+    }
+
+
 def storage_mount_allowed(mount_path, volumes):
     return any(volume.get("mount") == mount_path and volume.get("writable") == "yes" for volume in volumes)
 
@@ -307,6 +442,42 @@ def short_aircraft_value(value, default="-"):
     if value in (None, ""):
         return default
     return str(value).strip() or default
+
+
+def int_value(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def rf_target(node_id, label, kind, rssi, detail, index):
+    bounded = max(-95, min(-35, int_value(rssi, -95)))
+    strength = (bounded + 95) / 60
+    radius = 42 - (strength * 32)
+    angle = stable_angle(f"{node_id}:{label}:{kind}:{index}")
+    x = 50 + math.cos(angle) * radius
+    y = 50 + math.sin(angle) * radius
+    return {
+        "node_id": node_id,
+        "label": short_aircraft_value(label),
+        "kind": kind if kind in {"wifi", "bluetooth", "deauth", "drone"} else "wifi",
+        "kind_order": {"deauth": 0, "drone": 1, "wifi": 2, "bluetooth": 3}.get(kind, 4),
+        "rssi": str(rssi),
+        "sort_rssi": -int_value(rssi, -95),
+        "detail": short_aircraft_value(detail),
+        "radar_x": f"{max(8, min(92, x)):.1f}",
+        "radar_y": f"{max(8, min(92, y)):.1f}",
+        "x": f"{max(8, min(92, x)):.1f}",
+        "y": f"{max(8, min(92, y)):.1f}",
+    }
+
+
+def stable_angle(value):
+    total = 0
+    for index, char in enumerate(value):
+        total += (index + 1) * ord(char)
+    return (total % 360) * math.pi / 180
 
 
 def adsb_route_map_url(callsign):
@@ -452,6 +623,67 @@ def adsb_aircraft_summary(limit=5, now=None):
         )
 
     return summary
+
+
+def load_display_profile():
+    state_file = STATE_DIR / "display.env"
+    profile = {
+        "profile": "none",
+        "label": "No display profile selected",
+        "boot_config": "",
+        "reboot_required": "",
+    }
+
+    try:
+        lines = state_file.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return profile
+    except OSError:
+        profile["profile"] = "degraded"
+        profile["label"] = "Display profile unreadable"
+        return profile
+
+    fields = {}
+    for line in lines:
+        key, _, value = line.partition("=")
+        if key in DISPLAY_KEYS:
+            fields[key] = value.strip().strip("'\"")
+
+    profile["profile"] = fields.get("GRIDRUNNER_DISPLAY_PROFILE") or "unknown"
+    profile["label"] = fields.get("GRIDRUNNER_DISPLAY_LABEL") or profile["profile"]
+    profile["boot_config"] = fields.get("GRIDRUNNER_DISPLAY_BOOT_CONFIG", "")
+    profile["reboot_required"] = fields.get("GRIDRUNNER_DISPLAY_REBOOT_REQUIRED", "")
+    return profile
+
+
+def operator_display_summary(status_output=None):
+    output = status_output if status_output is not None else run_cmd(COMMANDS["operator_display_status"])
+    status_fields = parse_keyed_status(output, "GRIDRUNNER_OPERATOR_DISPLAY ", replace_underscores=False)
+    display_profile = load_display_profile()
+    mode = status_fields.get("mode", "web")
+    configured = status_fields.get("configured", "0") == "1"
+    state_file = status_fields.get("state_file", "")
+
+    if mode == "off":
+        status_name = "skipped"
+        message = "local display startup is off"
+    elif configured:
+        status_name = "present"
+        message = f"startup mode {mode}"
+    else:
+        status_name = "missing"
+        message = "operator display not configured"
+
+    return {
+        "status": status_name,
+        "mode": mode,
+        "message": message,
+        "state_file": state_file,
+        "web_url": status_fields.get("web_url", ""),
+        "adsb_url": status_fields.get("adsb_url", ""),
+        "display_profile": display_profile,
+        "output": output,
+    }
 
 
 def adsb_operator_guidance(summary, services=None):
@@ -805,10 +1037,11 @@ def status_label(status_value):
     return "WARN"
 
 
-def build_node_status(wifi_status, event_status, component_health):
+def build_node_status(wifi_status, event_status, component_health, edge_nodes=None):
     wifi_mode = wifi_status.get("mode", "unknown")
     wifi_health = wifi_status.get("status", "unknown")
     event_health = event_status.get("status", "unknown")
+    edge_health = (edge_nodes or {}).get("status", "unknown")
     adsb_health = component_health.get("adsb-tools", {}).get("status", "unknown")
     web_health = component_health.get("web-service", {}).get("status", "unknown")
     events_service_health = component_health.get("events-service", {}).get("status", "unknown")
@@ -826,6 +1059,10 @@ def build_node_status(wifi_status, event_status, component_health):
         {
             "label": f"EVENT TIMER {events_service_health}".upper(),
             "severity": severity_for_status(events_service_health),
+        },
+        {
+            "label": f"EDGE NODES {edge_health}".upper(),
+            "severity": severity_for_status(edge_health),
         },
         {
             "label": f"ADS-B {adsb_health}".upper(),
@@ -888,6 +1125,7 @@ def build_self_tests(wifi_status, event_status, component_health, health_output,
         service_check("WI-FI TIMER", "gridrunner-wifi-timer", services),
         service_check("WI-FI SERVICE", "gridrunner-wifi", services),
         service_check("EVENT TIMER", "gridrunner-events-timer", services),
+        service_check("MOSQUITTO", "mosquitto", services),
         service_check("READSB", "readsb", services),
         service_check("LIGHTTPD", "lighttpd", services),
         {
@@ -928,10 +1166,12 @@ def index(request: Request, _user=Depends(require_auth)):
     adsb_summary = adsb_aircraft_summary()
     storage_status_output = run_cmd(COMMANDS["storage_status"])
     storage_list_output = run_cmd(COMMANDS["storage_list"])
+    operator_display = operator_display_summary()
     storage = storage_summary(storage_status_output)
     storage_volumes = storage_volume_options(storage_list_output)
     storage_meters = storage_volume_meters(storage_list_output)
-    node_status = build_node_status(wifi_status, event_status, component_health)
+    edge_nodes = load_edge_nodes()
+    node_status = build_node_status(wifi_status, event_status, component_health, edge_nodes)
     auth_enabled = bool(WEB_PASSWORD)
     self_tests = build_self_tests(
         wifi_status,
@@ -967,10 +1207,19 @@ def index(request: Request, _user=Depends(require_auth)):
             "scan_controls": scan_controls,
             "scan_notice": request.query_params.get("scan_notice", ""),
             "storage": storage,
+            "operator_display": operator_display,
             "storage_volumes": storage_volumes,
             "storage_meters": storage_meters,
+            "edge_nodes": edge_nodes,
         },
     )
+    no_store(response)
+    return response
+
+
+@app.get("/edge-nodes/api")
+def edge_nodes_api(_user=Depends(require_auth)):
+    response = JSONResponse(load_edge_nodes())
     no_store(response)
     return response
 
@@ -1077,6 +1326,33 @@ def storage_action(
         "result.html",
         {
             "title": "GRIDRUNNER STORAGE",
+            "output": output,
+        },
+    )
+    no_store(response)
+    return response
+
+
+@app.post("/operator-display", response_class=HTMLResponse)
+def operator_display_action(
+    request: Request,
+    mode: str = Form(...),
+    confirm_token: str = Form(""),
+    _user=Depends(require_auth),
+):
+    if not valid_form_token(confirm_token):
+        return csrf_rejected_response(request, "GRIDRUNNER OPERATOR DISPLAY")
+
+    if mode not in {"web", "adsb", "tmux", "off"}:
+        output = f"Unknown operator display mode: {mode}"
+    else:
+        output = run_cmd(COMMANDS["operator_display_configure"] + [mode])
+
+    response = templates.TemplateResponse(
+        request,
+        "result.html",
+        {
+            "title": "GRIDRUNNER OPERATOR DISPLAY",
             "output": output,
         },
     )

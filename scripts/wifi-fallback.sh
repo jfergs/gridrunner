@@ -2,10 +2,42 @@
 set -u
 
 CONFIG_FILE="${GRIDRUNNER_WIFI_CONFIG:-$HOME/.config/gridrunner/wifi-fallback.env}"
-if [ -r "$CONFIG_FILE" ]; then
-  # shellcheck disable=SC1090
-  . "$CONFIG_FILE"
-fi
+
+config_value() {
+  local value="$1"
+
+  case "$value" in
+    \'*\')
+      value="${value#\'}"
+      value="${value%\'}"
+      value="$(printf '%s' "$value" | sed "s/'\\\\''/'/g")"
+      ;;
+    \"*\")
+      value="${value#\"}"
+      value="${value%\"}"
+      ;;
+  esac
+
+  printf '%s' "$value"
+}
+
+load_config() {
+  local key=""
+  local value=""
+
+  [ -r "$CONFIG_FILE" ] || return 0
+
+  while IFS='=' read -r key value; do
+    case "$key" in
+      IFACE|HOTSPOT|HOTSPOT_SSID|HOTSPOT_PASSWORD|HOTSPOT_ALIASES|OPERATOR_LABEL|LOG|SCAN_SETTLE_SECONDS|MIN_KNOWN_WIFI_SIGNAL)
+        value="$(config_value "$value")"
+        printf -v "$key" '%s' "$value"
+        ;;
+    esac
+  done < "$CONFIG_FILE"
+}
+
+load_config
 
 IFACE="${IFACE:-wlan0}"
 HOTSPOT="${HOTSPOT:-GRIDRUNNER-HOTSPOT}"

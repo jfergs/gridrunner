@@ -24,9 +24,13 @@ echo
 echo "--- Events ---"
 "$(dirname "$0")/event-health.sh"
 echo
+echo "--- Edge Nodes ---"
+"$(dirname "$0")/edge-node-ingest.sh" --status
+echo
 echo "--- ADS-B ---"
 systemctl is-active readsb 2>/dev/null
 "$(dirname "$0")/adsb-health.sh"
+"$(dirname "$0")/adsb-plane-tracker.sh" --status
 echo
 echo "--- SDR Devices ---"
 rtl_test -t 2>&1 | head -20

@@ -35,6 +35,34 @@ work here; roll up only the current priorities to the global backlog tracker.
 
 ## High Priority
 
+- Design ESP32-C6 edge-node layer.
+  - GitHub issue: `#12`.
+  - Architecture note: `docs/edge-node-architecture.md`.
+  - Initial direction:
+    - ESP32-C6 nodes publish low-power BLE presence summaries, battery, link,
+      sync, and local display state.
+    - Raspberry Pi 5 remains the aggregation, storage, analysis, and web UI
+      node.
+    - MQTT is the first transport target, with ESPHome left open if it does not
+      constrain the firmware profile.
+  - Remaining acceptance criteria:
+    - Decide MQTT broker/install item scope.
+    - Add a compact edge-node web panel.
+    - Extend handheld RF tracker firmware with BLE discovery.
+    - Research drone Remote ID detection support on ESP32-C6.
+  - Seed implementation:
+    - Optional `edge-node-mqtt` install item installs Mosquitto clients/broker
+      and creates `state/edge-nodes/`.
+    - `scripts/edge-node-ingest.sh` validates v1 telemetry, writes latest node
+      state, and appends a redacted event summary.
+    - `gridrunner-edge-node-ingest.service` subscribes to
+      `gridrunner/nodes/+/telemetry` and pipes payloads into the ingest script.
+    - Web UI shows cached edge-node freshness, battery, link, and BLE counts.
+    - `firmware/rf-tracker/` starts GitHub issue `#42` with a Waveshare
+      ESP32-C6 handheld tracker MVP: passive Wi-Fi AP discovery, local
+      radar/list UI, side-button navigation, and MQTT telemetry back to the
+      Gridrunner core.
+
 - Validate mobile-first Web UI on the device.
   - Direction: rugged cassette-cyberdeck field terminal, not a neon poster.
   - Primary target: iPhone Safari; secondary targets: iPad and laptop.
@@ -79,13 +107,18 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Completed foundation:
     - `/run`, `/scans`, `/power`, `/install`, and `/install/skip` use shared
       form-token protection.
+    - `scripts/setup-sudoers.sh` narrows package install rules to known
+      GRIDRUNNER package groups and rendered service files.
+    - `wifi-fallback.sh` and `wifi-status.sh` parse only expected Wi-Fi config
+      keys instead of shell-sourcing the config file.
+    - `install-adsb-readsb.sh` downloads the wiedehopf installer before
+      execution and supports optional `GRIDRUNNER_READSB_INSTALL_SHA256`
+      verification.
     - `ruff check web tests`, `shellcheck scripts/*.sh`, and the unit suite pass.
   - Remaining acceptance criteria:
-    - Narrow `scripts/setup-sudoers.sh` NOPASSWD rules.
-    - Replace shell-sourced Wi-Fi config parsing in `wifi-fallback.sh` and
-      `wifi-status.sh` with explicit parsing of expected keys only.
-    - Harden ADS-B installer supply chain by downloading before execution and
-      pinning or documenting verification.
+    - Validate narrowed sudoers rules on the Raspberry Pi installer flow.
+    - Pin the ADS-B installer hash when the exact upstream revision is selected
+      for device deployment.
 
 - Validate Wi-Fi failover and fallback hotspot behavior on device.
   - Completed foundation:
@@ -145,6 +178,15 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Route lookup is bounded by request limit, timeout, and in-memory cache
     settings so offline operation stays fast.
   - ADS-B map controls are labeled `Map`.
+
+- ESP32-C6 plane tracker.
+  - `scripts/adsb-plane-tracker.sh` publishes a retained compact ADS-B summary
+    for display nodes.
+  - Optional `plane-tracker` install item renders and enables
+    `gridrunner-plane-tracker.timer`.
+  - MQTT payload contract is documented in `docs/esp32-c6-plane-tracker.md`.
+  - Remaining work: flash the ESP32-C6 firmware and validate display behavior
+    against the retained `gridrunner/adsb/plane-tracker` topic.
 
 - Web UI operator state polish.
   - Recent Events distinguishes idle scan-off state from stale or failed event
@@ -283,6 +325,26 @@ work here; roll up only the current priorities to the global backlog tracker.
   - `wifi-status.sh` emits `last_action` and `last_action_age_seconds`.
   - Web UI Wi-Fi Telemetry shows the last fallback action.
 
+## Operator Display / Local Screen
+
+- Bundle local display work.
+  - Hardware setup, kiosk/fullscreen behavior, tmux display mode, and small
+    screen validation are tracked as one operator-display workflow.
+  - Implemented foundation:
+    - Initial install panel includes Elecrow RR050, Waveshare 5-inch HDMI, and
+      official Raspberry Pi Touch Display profiles.
+    - Managed HDMI 800x480 config is available for Elecrow/Waveshare-compatible
+      screens; vendor `LCD-show` driver execution is explicit opt-in.
+    - `Operator Display Mode` installs a startup launcher for web UI, ADS-B map,
+      or tmux dashboard mode.
+    - Web UI includes an Operator Display panel with display profile state and
+      startup mode controls.
+    - Web UI includes a fullscreen toggle for browser sessions.
+    - Tmux display mode opens a tiled health, ADS-B, and events layout.
+  - Remaining acceptance criteria:
+    - Validate Chromium kiosk startup on the Raspberry Pi desktop image.
+    - Validate touch targets on the physical Elecrow display.
+
 ## Web UI / Control Plane
 
 - Continue retrofuture field terminal refinement.
@@ -345,6 +407,8 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Preserve iPhone/iPad tap ergonomics.
 
 - Add an optional fullscreen operator mode.
+  - Bundled under Operator Display / Local Screen.
+  - Foundation implemented with a browser Fullscreen button.
   - Provide a clear fullscreen control for iPad/kiosk/touchscreen use, similar
     to the Quentin.XYZ fullscreen prompt.
   - Keep the regular browser layout fully usable without fullscreen.
@@ -375,11 +439,13 @@ work here; roll up only the current priorities to the global backlog tracker.
     - `ghostctl sdr`
     - `ghostctl events`
     - `ghostctl wifi status`
-  - Wrap existing scripts in `~/gridrunner/scripts` and legacy scripts in
-    `/home/ghost`.
+  - Wrap existing scripts in `~/gridrunner/scripts` and legacy scripts in the
+    configured operator home.
   - Update README and AGENTS.md with usage.
 
 - Improve tmux dashboard layout.
+  - Bundled under Operator Display / Local Screen.
+  - Foundation implemented with a tiled operator-display tmux session.
   - Keep core dashboard separate from sensor/radio dashboard.
   - Add an airspace/network window with ADS-B and network scan panes.
   - Add a radio utilities window for SDR, `rtl_433`, JS8Call/Winlink notes,
@@ -456,10 +522,13 @@ work here; roll up only the current priorities to the global backlog tracker.
   - Let the user choose internal card storage or external media storage.
 
 - Add GPIO touchscreen setup support.
-  - Prompt during setup for popular GPIO touchscreen models.
-  - Install the selected screen drivers.
-  - When a screen is present, provide a startup display mode for ADS-B map,
-    tmux dashboard, or the web UI.
+  - Bundled under Operator Display / Local Screen.
+  - Initial install panel includes Elecrow RR050, Waveshare 5-inch HDMI, and
+    official Raspberry Pi Touch Display profiles.
+  - Managed HDMI 800x480 config is available for Elecrow/Waveshare-compatible
+    screens; vendor `LCD-show` driver execution is explicit opt-in.
+  - `Operator Display Mode` provides startup display mode for ADS-B map, tmux
+    dashboard, or the web UI.
 
 - Add Codex/automation hardening.
   - Ensure AGENTS.md warns against installing Debian `readsb`.

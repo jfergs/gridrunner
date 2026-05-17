@@ -72,6 +72,14 @@
       flex-wrap: wrap;
       padding-right: 0;
     }
+    .topbar-actions {
+      width: min(360px, calc(100vw - 24px));
+      margin-left: auto;
+      align-self: flex-start;
+      display: grid;
+      grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr);
+      gap: 10px;
+    }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -100,6 +108,9 @@
     }
     #storage {
       order: -3;
+    }
+    #edge-nodes {
+      order: -2;
     }
     #events {
       order: 8;
@@ -672,6 +683,144 @@
       font-size: 11px;
       text-transform: uppercase;
     }
+    .rf-monitor {
+      display: grid;
+      grid-template-columns: minmax(180px, 0.82fr) minmax(220px, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+      align-items: start;
+    }
+    .rf-radar {
+      position: relative;
+      aspect-ratio: 1;
+      min-height: 210px;
+      overflow: hidden;
+      border: 1px solid rgba(45, 255, 243, 0.42);
+      border-radius: 7px;
+      background:
+        radial-gradient(circle at 50% 50%, transparent 0 17%, rgba(45, 255, 243, 0.18) 18%, transparent 19% 36%, rgba(45, 255, 243, 0.14) 37%, transparent 38% 60%, rgba(45, 255, 243, 0.12) 61%, transparent 62%),
+        linear-gradient(90deg, transparent 49.5%, rgba(45, 255, 243, 0.24) 50%, transparent 50.5%),
+        linear-gradient(0deg, transparent 49.5%, rgba(45, 255, 243, 0.24) 50%, transparent 50.5%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 7px),
+        rgba(0, 0, 0, 0.3);
+      box-shadow: inset 0 0 26px rgba(45, 255, 243, 0.08);
+    }
+    .rf-radar::after {
+      content: "";
+      position: absolute;
+      inset: 50% auto auto 50%;
+      width: 48%;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(108, 255, 141, 0.75), transparent);
+      transform-origin: left center;
+      animation: rfSweep 2.8s linear infinite;
+      z-index: 1;
+    }
+    .rf-blip {
+      --target-color: var(--cyan);
+      position: absolute;
+      left: var(--x);
+      top: var(--y);
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1px solid var(--target-color);
+      background: var(--target-color);
+      box-shadow: 0 0 12px var(--target-color);
+      transform: translate(-50%, -50%);
+      z-index: 2;
+    }
+    .rf-blip-bluetooth,
+    .rf-target-bluetooth {
+      --target-color: var(--green);
+    }
+    .rf-blip-deauth,
+    .rf-target-deauth {
+      --target-color: var(--red);
+    }
+    .rf-blip-drone,
+    .rf-target-drone {
+      --target-color: var(--amber);
+    }
+    .rf-target-list {
+      height: 430px;
+      overflow-y: auto;
+      display: grid;
+      align-content: start;
+      gap: 7px;
+      padding-right: 2px;
+    }
+    .rf-target-row {
+      --target-color: var(--cyan);
+      display: block;
+      padding: 0;
+      border: 1px solid var(--target-color);
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.26);
+      color: var(--text);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+    .rf-target-row summary {
+      min-height: 34px;
+      display: grid;
+      grid-template-columns: 76px minmax(0, 1fr) 58px;
+      gap: 8px;
+      align-items: center;
+      padding: 7px 8px;
+      cursor: pointer;
+      list-style: none;
+    }
+    .rf-target-row summary::-webkit-details-marker {
+      display: none;
+    }
+    .rf-target-row[open] summary {
+      border-bottom: 1px solid rgba(122, 139, 145, 0.34);
+    }
+    .rf-target-kind {
+      color: var(--target-color);
+      font-weight: 800;
+    }
+    .rf-target-label {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .rf-target-rssi {
+      color: var(--muted);
+      text-align: right;
+    }
+    .rf-target-detail {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px 10px;
+      padding: 8px;
+      color: var(--muted);
+      background: rgba(0, 0, 0, 0.18);
+    }
+    .rf-target-detail span {
+      overflow-wrap: anywhere;
+    }
+    .rf-target-detail strong {
+      display: block;
+      color: var(--target-color);
+      font-size: 10px;
+      font-weight: 800;
+    }
+    @keyframes rfSweep {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .rf-radar::after {
+        animation: none;
+        transform: rotate(32deg);
+      }
+    }
     .track-link {
       min-height: 42px;
       min-width: 74px;
@@ -702,9 +851,9 @@
       text-shadow: 0 0 8px rgba(91, 231, 255, 0.16);
     }
     .power-tray {
-      width: min(320px, calc(100vw - 24px));
-      margin-left: auto;
-      align-self: flex-start;
+      width: auto;
+      margin-left: 0;
+      align-self: stretch;
     }
     .power-tray summary {
       min-height: 52px;
@@ -733,6 +882,12 @@
       border-radius: 6px;
       background: rgba(7, 10, 13, 0.98);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    }
+    .fullscreen-button {
+      min-height: 52px;
+      padding: 0 16px;
+      border-color: var(--line);
+      cursor: pointer;
     }
     .node-strip {
       display: flex;
@@ -868,6 +1023,10 @@
       .power-tray {
         width: 100%;
       }
+      .topbar-actions {
+        width: 100%;
+        grid-template-columns: 1fr;
+      }
       .telemetry-grid,
       .self-test-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -885,6 +1044,12 @@
       }
       .scan-row {
         grid-template-columns: 1fr;
+      }
+      .rf-monitor {
+        grid-template-columns: 1fr;
+      }
+      .rf-target-list {
+        height: 360px;
       }
       .flight-row {
         grid-template-columns: 1fr;
@@ -922,21 +1087,24 @@
         {% endfor %}
       </div>
     </div>
-    <details class="power-tray">
-      <summary>Power</summary>
-      <div class="power-menu">
-        <form method="post" action="/power" onsubmit="return confirm('Restart this GRIDRUNNER device?');">
-          <input type="hidden" name="action" value="restart">
-          <input type="hidden" name="confirm_token" value="{{ power_action_token }}">
-          <button class="danger">Restart</button>
-        </form>
-        <form method="post" action="/power" onsubmit="return confirm('Shut down this GRIDRUNNER device?');">
-          <input type="hidden" name="action" value="shutdown">
-          <input type="hidden" name="confirm_token" value="{{ power_action_token }}">
-          <button class="danger">Shutdown</button>
-        </form>
-      </div>
-    </details>
+    <div class="topbar-actions">
+      <button class="fullscreen-button" id="fullscreen-toggle" type="button">Fullscreen</button>
+      <details class="power-tray">
+        <summary>Power</summary>
+        <div class="power-menu">
+          <form method="post" action="/power" onsubmit="return confirm('Restart this GRIDRUNNER device?');">
+            <input type="hidden" name="action" value="restart">
+            <input type="hidden" name="confirm_token" value="{{ power_action_token }}">
+            <button class="danger">Restart</button>
+          </form>
+          <form method="post" action="/power" onsubmit="return confirm('Shut down this GRIDRUNNER device?');">
+            <input type="hidden" name="action" value="shutdown">
+            <input type="hidden" name="confirm_token" value="{{ power_action_token }}">
+            <button class="danger">Shutdown</button>
+          </form>
+        </div>
+      </details>
+    </div>
   </div>
   {% if not auth_enabled %}
   <div class="panel warning">
@@ -946,7 +1114,9 @@
 
   <nav class="quick-nav" aria-label="GRIDRUNNER sections">
     <a href="#wifi">Wi-Fi</a>
+    <a href="#operator-display">Display</a>
     <a href="#storage">Storage</a>
+    <a href="#edge-nodes">Edge</a>
     <a href="#adsb">ADS-B</a>
     <a href="#scans">Scans</a>
     <a href="#events">Events</a>
@@ -1021,6 +1191,57 @@
           </div>
         </details>
         <div class="transport-strip" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="panel" id="operator-display">
+        {% set display = operator_display|default({"status": "missing", "mode": "web", "message": "operator display not configured", "display_profile": {"label": "No display profile selected", "profile": "none", "boot_config": ""}, "web_url": "", "adsb_url": "", "state_file": "", "output": ""}) %}
+        {% set profile = display.display_profile %}
+        <span class="deck-label">Local Screen</span>
+        <h2>Operator Display</h2>
+        <span class="status health-{{ display.status }}">{{ display.status }}</span>
+        <span>{{ display.message }}</span>
+        <div class="telemetry-grid">
+          <div class="telemetry"><span>Startup</span><strong>{{ display.mode }}</strong></div>
+          <div class="telemetry"><span>Panel</span><strong>{{ profile.label }}</strong></div>
+          <div class="telemetry"><span>Profile</span><strong>{{ profile.profile }}</strong></div>
+          <div class="telemetry"><span>Boot Config</span><strong>{{ profile.boot_config|default("-") }}</strong></div>
+        </div>
+        {% if profile.reboot_required == "1" %}
+        <span class="inline-warning">display config changed; reboot required</span>
+        {% endif %}
+        <details class="drawer">
+          <summary>Startup display mode</summary>
+          <div class="drawer-body">
+            <div class="actions">
+              <form method="post" action="/operator-display">
+                <input type="hidden" name="mode" value="web">
+                <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+                <button>Web UI</button>
+              </form>
+              <form method="post" action="/operator-display">
+                <input type="hidden" name="mode" value="adsb">
+                <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+                <button>ADS-B Map</button>
+              </form>
+              <form method="post" action="/operator-display">
+                <input type="hidden" name="mode" value="tmux">
+                <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+                <button>tmux</button>
+              </form>
+              <form method="post" action="/operator-display">
+                <input type="hidden" name="mode" value="off">
+                <input type="hidden" name="confirm_token" value="{{ form_action_token }}">
+                <button class="danger">Off</button>
+              </form>
+            </div>
+            <div class="telemetry-grid">
+              <div class="telemetry"><span>Web URL</span><strong>{{ display.web_url|default("-") }}</strong></div>
+              <div class="telemetry"><span>ADS-B URL</span><strong>{{ display.adsb_url|default("-") }}</strong></div>
+              <div class="telemetry"><span>State</span><strong>{{ display.state_file|default("-") }}</strong></div>
+            </div>
+            <pre>{{ display.output }}</pre>
+          </div>
+        </details>
       </div>
 
       <div class="panel" id="events">
@@ -1114,6 +1335,97 @@
               </form>
             </div>
             <pre>{{ storage_state.output }}</pre>
+          </div>
+        </details>
+      </div>
+
+      <div class="panel" id="edge-nodes">
+        {% set edge = edge_nodes|default({"status": "missing", "message": "no edge-node telemetry cached", "count": 0, "nodes": [], "state_dir": ""}) %}
+        <span class="deck-label">Edge Mesh</span>
+        <h2>Edge Nodes</h2>
+        <span id="edge-status" class="status health-{{ edge.status }}">{{ edge.status }}</span>
+        <span id="edge-message">{{ edge.message }}</span>
+        <div class="telemetry-grid">
+          <div class="telemetry"><span>Nodes</span><strong id="edge-count">{{ edge.count }}</strong></div>
+          <div class="telemetry"><span>BLE</span><strong id="edge-ble-total">{{ edge.ble_total|default(0) }}</strong></div>
+          <div class="telemetry"><span>APs</span><strong id="edge-wifi-total">{{ edge.wifi_ap_total|default(0) }}</strong></div>
+          <div class="telemetry"><span>Drone</span><strong id="edge-drone-total">{{ edge.drone_candidate_total|default(0) }}</strong></div>
+          <div class="telemetry"><span>Pending</span><strong id="edge-pending-total">{{ edge.pending_scan_total|default(0) }}</strong></div>
+          <div class="telemetry"><span>State</span><strong id="edge-state-dir">{{ edge.state_dir }}</strong></div>
+        </div>
+        <div class="rf-monitor">
+          <div id="rf-radar" class="rf-radar" aria-label="RF target radar">
+            {% for target in edge.rf_targets|default([]) %}
+            <span class="rf-blip rf-blip-{{ target.kind }}" style="--x: {{ target.x }}%; --y: {{ target.y }}%;" title="{{ target.kind }} {{ target.label }} {{ target.rssi }} dBm"></span>
+            {% endfor %}
+          </div>
+          <div id="rf-target-list" class="rf-target-list" aria-label="RF target list">
+            {% if edge.rf_targets|default([]) %}
+              {% for target in edge.rf_targets %}
+              <details class="rf-target-row rf-target-{{ target.kind }}">
+                <summary>
+                  <span class="rf-target-kind">{{ target.kind }}</span>
+                  <span class="rf-target-label">{{ target.label }} · {{ target.detail }}</span>
+                  <span class="rf-target-rssi">{{ target.rssi }}</span>
+                </summary>
+                <div class="rf-target-detail">
+                  <span><strong>Node</strong>{{ target.node_id }}</span>
+                  <span><strong>Class</strong>{{ target.kind }}</span>
+                  <span><strong>RSSI</strong>{{ target.rssi }} dBm</span>
+                  <span><strong>Radar</strong>{{ target.radar_x|default(target.x) }}, {{ target.radar_y|default(target.y) }}</span>
+                  <span><strong>Label</strong>{{ target.label }}</span>
+                  <span><strong>Detail</strong>{{ target.detail }}</span>
+                </div>
+              </details>
+              {% endfor %}
+            {% else %}
+              <details class="rf-target-row">
+                <summary>
+                  <span class="rf-target-kind">LOCAL</span>
+                  <span class="rf-target-label">no RF targets cached</span>
+                  <span class="rf-target-rssi">-</span>
+                </summary>
+              </details>
+            {% endif %}
+          </div>
+        </div>
+        <details class="drawer">
+          <summary>Edge-node telemetry</summary>
+          <div class="drawer-body">
+            {% if edge.nodes %}
+            <div id="edge-node-list" class="flight-board">
+              {% for node in edge.nodes %}
+              <div class="flight-row">
+                <div>
+                  <div><span class="flight-ident">{{ node.node_id }}</span><span class="flight-route">{{ node.profile }}</span></div>
+                  <div class="flight-meta">
+                    <span>age {{ node.age_seconds }}s</span>
+                    <span>batt {{ node.battery_percent }}%</span>
+                    <span>link {{ node.transport }}</span>
+                    <span>known {{ node.known_count }}</span>
+                    <span>unk {{ node.unknown_count }}</span>
+                    <span>aps {{ node.wifi_ap_count }}</span>
+                    <span>drone {{ node.drone_candidate_count }}</span>
+                    <span>peak {{ node.rssi_peak }}</span>
+                    <span>wifi {{ node.wifi_strongest_rssi }}</span>
+                    <span>pending {{ node.pending_scan_count }}</span>
+                  </div>
+                  {% if node.wifi_strongest_ssid != '-' or node.drone_candidate_count != '0' %}
+                  <div class="flight-meta">
+                    <span>strong {{ node.wifi_strongest_ssid }}</span>
+                    <span>drone-wifi {{ node.drone_wifi_count }}</span>
+                    <span>drone-ble {{ node.drone_ble_count }}</span>
+                    <span>drone-peak {{ node.drone_rssi_peak }}</span>
+                  </div>
+                  {% endif %}
+                </div>
+                <div><span class="status health-{{ node.freshness }}">{{ node.freshness }}</span></div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div id="edge-node-list" class="flight-board"><pre>No edge-node telemetry cached.</pre></div>
+            {% endif %}
           </div>
         </details>
       </div>
@@ -1368,6 +1680,174 @@
       const toggleButton = document.getElementById("scan-toggle-button");
       const profileSwitch = document.getElementById("scan-profile-switch");
       const profileAction = document.getElementById("scan-profile-action");
+      const edgePanel = document.getElementById("edge-nodes");
+      const edgeStatus = document.getElementById("edge-status");
+      const edgeMessage = document.getElementById("edge-message");
+      const edgeCount = document.getElementById("edge-count");
+      const edgeBleTotal = document.getElementById("edge-ble-total");
+      const edgeWifiTotal = document.getElementById("edge-wifi-total");
+      const edgeDroneTotal = document.getElementById("edge-drone-total");
+      const edgePendingTotal = document.getElementById("edge-pending-total");
+      const edgeStateDir = document.getElementById("edge-state-dir");
+      const rfRadar = document.getElementById("rf-radar");
+      const rfTargetList = document.getElementById("rf-target-list");
+      const edgeNodeList = document.getElementById("edge-node-list");
+      const fullscreenToggle = document.getElementById("fullscreen-toggle");
+      let liveEdgeNodes = [];
+      let edgePollInFlight = false;
+
+      function setText(element, value) {
+        if (element) {
+          element.textContent = value === undefined || value === null ? "" : String(value);
+        }
+      }
+
+      function clearHealthClasses(element) {
+        if (!element) {
+          return;
+        }
+        Array.from(element.classList).forEach(function (className) {
+          if (className.indexOf("health-") === 0) {
+            element.classList.remove(className);
+          }
+        });
+      }
+
+      function escapeHtml(value) {
+        return String(value === undefined || value === null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function targetMarkup(target) {
+        const kind = escapeHtml(target.kind || "wifi");
+        const label = escapeHtml(target.label || "-");
+        const detail = escapeHtml(target.detail || "-");
+        const rssi = escapeHtml(target.rssi || "-");
+        const nodeId = escapeHtml(target.node_id || "-");
+        const radarX = escapeHtml(target.radar_x || target.x || "-");
+        const radarY = escapeHtml(target.radar_y || target.y || "-");
+        return '<details class="rf-target-row rf-target-' + kind + '">' +
+          '<summary>' +
+            '<span class="rf-target-kind">' + kind + '</span>' +
+            '<span class="rf-target-label">' + label + ' · ' + detail + '</span>' +
+            '<span class="rf-target-rssi">' + rssi + '</span>' +
+          '</summary>' +
+          '<div class="rf-target-detail">' +
+            '<span><strong>Node</strong>' + nodeId + '</span>' +
+            '<span><strong>Class</strong>' + kind + '</span>' +
+            '<span><strong>RSSI</strong>' + rssi + ' dBm</span>' +
+            '<span><strong>Radar</strong>' + radarX + ', ' + radarY + '</span>' +
+            '<span><strong>Label</strong>' + label + '</span>' +
+            '<span><strong>Detail</strong>' + detail + '</span>' +
+          '</div>' +
+          '</details>';
+      }
+
+      function nodeMarkup(node) {
+        const freshness = escapeHtml(node.freshness || "unknown");
+        let extra = "";
+        if ((node.wifi_strongest_ssid || "-") !== "-" || String(node.drone_candidate_count || "0") !== "0") {
+          extra = '<div class="flight-meta">' +
+            '<span>strong ' + escapeHtml(node.wifi_strongest_ssid || "-") + '</span>' +
+            '<span>drone-wifi ' + escapeHtml(node.drone_wifi_count || "0") + '</span>' +
+            '<span>drone-ble ' + escapeHtml(node.drone_ble_count || "0") + '</span>' +
+            '<span>drone-peak ' + escapeHtml(node.drone_rssi_peak || "-") + '</span>' +
+            '</div>';
+        }
+        return '<div class="flight-row">' +
+          '<div>' +
+            '<div><span class="flight-ident">' + escapeHtml(node.node_id || "-") + '</span><span class="flight-route">' + escapeHtml(node.profile || "-") + '</span></div>' +
+            '<div class="flight-meta">' +
+              '<span>age <span class="edge-node-age" data-age="' + escapeHtml(node.age_seconds || 0) + '">' + escapeHtml(node.age_seconds || 0) + '</span>s</span>' +
+              '<span>batt ' + escapeHtml(node.battery_percent || "-") + '%</span>' +
+              '<span>link ' + escapeHtml(node.transport || "-") + '</span>' +
+              '<span>known ' + escapeHtml(node.known_count || "0") + '</span>' +
+              '<span>unk ' + escapeHtml(node.unknown_count || "0") + '</span>' +
+              '<span>aps ' + escapeHtml(node.wifi_ap_count || "0") + '</span>' +
+              '<span>drone ' + escapeHtml(node.drone_candidate_count || "0") + '</span>' +
+              '<span>peak ' + escapeHtml(node.rssi_peak || "-") + '</span>' +
+              '<span>wifi ' + escapeHtml(node.wifi_strongest_rssi || "-") + '</span>' +
+              '<span>pending ' + escapeHtml(node.pending_scan_count || "0") + '</span>' +
+            '</div>' +
+            extra +
+          '</div>' +
+          '<div><span class="status health-' + freshness + '">' + freshness + '</span></div>' +
+        '</div>';
+      }
+
+      function renderEdge(edge) {
+        if (!edge) {
+          return;
+        }
+        liveEdgeNodes = Array.isArray(edge.nodes) ? edge.nodes : [];
+        if (edgeStatus) {
+          clearHealthClasses(edgeStatus);
+          edgeStatus.classList.add("health-" + (edge.status || "unknown"));
+          edgeStatus.textContent = edge.status || "unknown";
+        }
+        setText(edgeMessage, edge.message || "");
+        setText(edgeCount, edge.count || 0);
+        setText(edgeBleTotal, edge.ble_total || 0);
+        setText(edgeWifiTotal, edge.wifi_ap_total || 0);
+        setText(edgeDroneTotal, edge.drone_candidate_total || 0);
+        setText(edgePendingTotal, edge.pending_scan_total || 0);
+        setText(edgeStateDir, edge.state_dir || "");
+        if (rfRadar) {
+          const targets = Array.isArray(edge.rf_targets) ? edge.rf_targets : [];
+          rfRadar.innerHTML = targets.map(function (target) {
+            const kind = escapeHtml(target.kind || "wifi");
+            const label = escapeHtml(target.label || "-");
+            const rssi = escapeHtml(target.rssi || "-");
+            const x = Number(target.x || 50);
+            const y = Number(target.y || 50);
+            return '<span class="rf-blip rf-blip-' + kind + '" style="--x: ' + x + '%; --y: ' + y + '%;" title="' + kind + ' ' + label + ' ' + rssi + ' dBm"></span>';
+          }).join("");
+        }
+        if (rfTargetList) {
+          const targets = Array.isArray(edge.rf_targets) ? edge.rf_targets : [];
+          rfTargetList.innerHTML = targets.length ? targets.map(targetMarkup).join("") :
+            '<details class="rf-target-row"><summary><span class="rf-target-kind">LOCAL</span><span class="rf-target-label">no RF targets cached</span><span class="rf-target-rssi">-</span></summary></details>';
+        }
+        if (edgeNodeList) {
+          edgeNodeList.innerHTML = liveEdgeNodes.length ? liveEdgeNodes.map(nodeMarkup).join("") : "<pre>No edge-node telemetry cached.</pre>";
+        }
+      }
+
+      async function refreshEdge() {
+        if (!edgePanel || edgePollInFlight) {
+          return;
+        }
+        edgePollInFlight = true;
+        try {
+          const response = await fetch("/edge-nodes/api", {
+            credentials: "same-origin",
+            headers: { "Accept": "application/json" },
+          });
+          if (response.ok) {
+            renderEdge(await response.json());
+          }
+        } finally {
+          edgePollInFlight = false;
+        }
+      }
+
+      function tickEdgeAges() {
+        if (!edgePanel) {
+          return;
+        }
+        liveEdgeNodes.forEach(function (node) {
+          node.age_seconds = Number(node.age_seconds || 0) + 1;
+        });
+        document.querySelectorAll(".edge-node-age").forEach(function (element) {
+          const age = Number(element.dataset.age || element.textContent || 0) + 1;
+          element.dataset.age = age;
+          element.textContent = age;
+        });
+      }
 
       function setNotice(message) {
         if (!notice) {
@@ -1375,6 +1855,30 @@
         }
         notice.textContent = message || "";
         notice.hidden = !message;
+      }
+
+      function setFullscreenLabel() {
+        if (!fullscreenToggle) {
+          return;
+        }
+        fullscreenToggle.textContent = document.fullscreenElement ? "Exit Fullscreen" : "Fullscreen";
+      }
+
+      async function toggleFullscreen() {
+        if (!fullscreenToggle || !document.documentElement.requestFullscreen) {
+          return;
+        }
+        try {
+          if (document.fullscreenElement) {
+            await document.exitFullscreen();
+            if (window.localStorage) window.localStorage.setItem("gridrunnerFullscreen", "0");
+          } else {
+            await document.documentElement.requestFullscreen();
+            if (window.localStorage) window.localStorage.setItem("gridrunnerFullscreen", "1");
+          }
+        } finally {
+          setFullscreenLabel();
+        }
       }
 
       function updateControls(controls) {
@@ -1465,6 +1969,20 @@
           profileAction.value = profileSwitch.value === "1" ? "profile:field" : "profile:low-impact";
           submitScanForm(profileSwitch.form);
         });
+      }
+
+      if (edgePanel) {
+        setInterval(tickEdgeAges, 1000);
+        setInterval(refreshEdge, 2000);
+        refreshEdge();
+      }
+
+      if (fullscreenToggle && document.documentElement.requestFullscreen) {
+        fullscreenToggle.addEventListener("click", toggleFullscreen);
+        document.addEventListener("fullscreenchange", setFullscreenLabel);
+        setFullscreenLabel();
+      } else if (fullscreenToggle) {
+        fullscreenToggle.hidden = true;
       }
     }());
   </script>
